@@ -1,41 +1,99 @@
-# Prerequisites
-*.d
+# SO generated files.
+.DS_Store
+Thumbs.db
 
-# Compiled Object files
-*.slo
-*.lo
+# Compilation files.
 *.o
 *.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
+*.lo
 *.la
+*.al
+*.libs
+*.ncb
+*.opt
+*.plg
+*.ilk
+*.dll
+*.dylib
+*.so
 *.a
 *.lib
-
-# Executables
+*.pdb
 *.exe
-*.out
 *.app
+*.out
 
-# debug information files
-*.dwo
+# Directories files.
+*.idb
+*.aps
+*.rej
+*.suo
+*.user
+*.log
+*.tlog
+*.tmp
+*.pch
+*.class
+*.moc
+*.autosave
+*.swp
+*~ 
+
+# Build directories
+build*/
+bin/
+debug/
+release/
+x64/
+x86/
+
+# Qt Creator specific files
+*.pro.user
+*.qbs.user
+*.pro.user.*
+*.qbs.user.*
+*.qmake.stash
+*.qmake.cache
+
+# Qmake specific files
+Makefile
+Makefile.*
+*.d
+
+# Cmake specific files
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+cmake-build-debug/
+
+# Specific IDE files
+.idea/
+.vscode/
+
+# Dependencies files or other language specific files
+*.pyc
+*.pyo
+__pycache__/
+
+# Files related to QT Creator version control.
+*.qmlproject.user
+
+# Packet or distribution files
+*.tar.gz
+*.zip
+*.7z
+*.rar
+*.rpm
+*.deb
+*.dmg
+
+# Test generated files.
+tests/*.log
+tests/*.out
+tests/*.err
+
+# Envirorment configuration files.
+.env
+.env.*
+/POS_Application/backup
