@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/images">
+        <file>assets/images/bg1.svg</file>
+        <file>assets/images/bg2.svg</file>
+    </qresource>
+    <qresource prefix="/fonts">
+        <file>assets/fonts/ABeeZee/ABeeZee-Regular.ttf</file>
+        <file>assets/fonts/Montserrat/static/Montserrat-Regular.ttf</file>
+        <file>assets/fonts/Titan_One/TitanOne-Regular.ttf</file>
+    </qresource>
+    <qresource prefix="/colors"/>
+</RCC>
