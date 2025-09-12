@@ -56,8 +56,9 @@
        <widget class="QLabel" name="label">
         <property name="font">
          <font>
-          <family>Impact</family>
-          <pointsize>36</pointsize>
+          <family>Adwaita Sans</family>
+          <pointsize>28</pointsize>
+          <bold>false</bold>
          </font>
         </property>
         <property name="styleSheet">
@@ -65,6 +66,9 @@
         </property>
         <property name="text">
          <string>INICIAR SESIÓN</string>
+        </property>
+        <property name="scaledContents">
+         <bool>false</bool>
         </property>
        </widget>
       </item>
@@ -242,7 +246,7 @@
          <string notr="true"/>
         </property>
         <property name="text">
-         <string>mostrar contraseña</string>
+         <string>Mostrar contraseña</string>
         </property>
         <property name="checked">
          <bool>false</bool>

@@ -117,25 +117,6 @@ void AppController::switchPages(const size_t pageIndex) {
   }
 }
 
-void AppController::on_pos_button_clicked() {
-  this->refreshPageStack(1);
-}
-
-void AppController::on_inventory_button_clicked() {
-  this->refreshPageStack(2);
-}
-
-void AppController::on_sells_button_clicked() {
-  
-}
-
-void AppController::on_users_button_clicked() {
-  this->refreshPageStack(3);
-}
-
-void AppController::on_settings_button_clicked() {
-  this->refreshPageStack(4);
-}
 
 void AppController::userAccepted(const User user) {
   // Start, tell the model to prepare his information.  

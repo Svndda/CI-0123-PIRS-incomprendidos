@@ -19,11 +19,12 @@ public:
 
 private:
   Ui::LoginPage* ui = nullptr;
-  
+
 signals:
   void sendCredentials(const User user);
 private slots:
   void on_sendCredentials_button_clicked();
+    void on_showPassword_checkBox_checkStateChanged(const Qt::CheckState &arg1);
 };
 
 #endif // LOGIN_H
