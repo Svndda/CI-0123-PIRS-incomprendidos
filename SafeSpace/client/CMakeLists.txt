@@ -25,6 +25,9 @@ qt_add_executable(SafeSpace
   src/view/loginpage.cpp src/view/loginpage.h src/view/loginpage.ui
   src/view/page.h src/view/page.cpp
   src/colors.h
+  src/view/elements/button.h src/view/elements/button.cpp
+  src/view/elements/sensordatafield.h src/view/elements/sensordatafield.cpp src/view/elements/sensordatafield.ui
+  src/model/sensordata.h src/model/sensordata.cpp
 
 )
 
@@ -45,14 +48,14 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_definitions(-DQT_NO_DEBUG_OUTPUT)
 endif()
 
-# ✅ Solo añadir la raíz de headers, no cada carpeta
 target_include_directories(SafeSpace
   PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/commo/        
+    ${CMAKE_SOURCE_DIR}/src/
     ${CMAKE_SOURCE_DIR}/src/model/
     ${CMAKE_SOURCE_DIR}/src/controller/
     ${CMAKE_SOURCE_DIR}/src/ui/
+    ${CMAKE_SOURCE_DIR}/src/ui/elements/
+    
 )
 
 include(GNUInstallDirs)
