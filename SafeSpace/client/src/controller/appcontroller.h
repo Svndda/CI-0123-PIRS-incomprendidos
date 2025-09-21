@@ -17,7 +17,7 @@ QT_END_NAMESPACE
  * @brief Main application controller managing UI and workflow.
  *
  * This class coordinates the application pages, user interactions,
- * and communication with the POS model. It manages page transitions,
+ * and communication with the model. It manages page transitions,
  * enables/disables UI controls, and processes user authentication.
  */
 class AppController : public QMainWindow {
@@ -38,7 +38,7 @@ public:
 private:
   Ui::MainWindow* ui;                      ///< Pointer to the main UI layout.
   QStackedWidget* pageStack;               ///< Stack widget managing application pages.
-  Model& model = Model::getInstance(); ///< Reference to the POS model singleton.
+  Model& model = Model::getInstance(); ///< Reference to the singleton model.
   
 private:
   /**
@@ -57,7 +57,7 @@ private:
   void disableButtons();
   
   /**
-   * @brief Prepares and creates system pages such as POS and Inventory.
+   * @brief Prepares and creates system pages.
    */
   void prepareSystemPages();
   
