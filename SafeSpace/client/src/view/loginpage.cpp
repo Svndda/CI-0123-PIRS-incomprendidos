@@ -28,9 +28,6 @@ void LoginPage::on_sendCredentials_button_clicked() {
   QString email = this->ui->email_lineEdit->text();
   QString password = this->ui->password_lineEdit->text();
 
-  qDebug() << "Usuario: " << email;
-  qDebug() << "Contrasena: " << password;
-
   if (!(email.isEmpty() && password.isEmpty())) {
     User user(0, email.toStdString());
     user.setPassword(password.toStdString());
@@ -39,19 +36,17 @@ void LoginPage::on_sendCredentials_button_clicked() {
     
     emit this->sendCredentials(user);
   } else {
-    QMessageBox::warning(this, "Error"
-        , "Porfavor, rellena todos los campos solicitados.");
-  } 
+    this->warningMessageBox("Por favor, rellene todos los campos.");
+  }
 }
 
-
-
-void LoginPage::on_showPassword_checkBox_checkStateChanged(const Qt::CheckState &arg1)
-{
+void LoginPage::on_showPassword_checkBox_checkStateChanged(
+    const Qt::CheckState &arg1) {
     if (arg1 == Qt::Checked) {
-        ui->password_lineEdit->setEchoMode(QLineEdit::Normal);   // Muestra la contraseña
+      this->ui->password_lineEdit->setEchoMode(QLineEdit::Normal);
     } else {
-        ui->password_lineEdit->setEchoMode(QLineEdit::Password); // Oculta la contraseña
+      // Hides the password.
+      this->ui->password_lineEdit->setEchoMode(QLineEdit::Password);
     }
 }
 
