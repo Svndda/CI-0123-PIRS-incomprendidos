@@ -17,6 +17,10 @@ qt_add_executable(SafeSpace
   # Model
   src/model/model.cpp src/model/model.h
   src/model/user.cpp src/model/user.h
+  src/model/FIleSystem.cpp src/model/FileSystem.h
+  src/model/File.cpp src/model/File.hpp
+  src/model/Directory.cpp src/model/Directory.hpp
+  src/model/iNode.hpp
   
   # Controller
   src/controller/appcontroller.cpp src/controller/appcontroller.h
