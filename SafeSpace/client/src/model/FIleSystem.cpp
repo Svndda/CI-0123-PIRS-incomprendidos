@@ -16,7 +16,7 @@ FileSystem::~FileSystem(){
 }
 
 int FileSystem::initializeDirectory(){
-  std::fstream disk("./data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
   if (!disk) {
     std::cerr << "Error initializing the disk" << std::endl;
     return -1;
@@ -35,7 +35,7 @@ int FileSystem::initializeDirectory(){
 
 
 int FileSystem::loadBitMap() {
-  std::fstream disk("./data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
   if (!disk) {
     std::cerr << "Error initializing the disk" << std::endl;
     return -1;
@@ -76,7 +76,7 @@ int FileSystem::createFile(const std::string& filename, std::string permissions)
   File newFile(freeblock, filename, permissions, freeblock);
   this->dir.addToDirectory(filename, newFile.getMetadata().id);
 
-  std::fstream disk("./data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
   if (!disk) {
     std::cerr << "Error initializing the disk" << std::endl;
     return -1;
@@ -92,7 +92,7 @@ int FileSystem::createFile(const std::string& filename, std::string permissions)
 int FileSystem::openFile(const std::string filename) {
   uint64_t inodeNum = this->dir.findInDirectory(filename);
   if (inodeNum != UINT64_MAX) {
-    std::fstream disk("./data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
     if (!disk) {
       std::cerr << "Error initializing the disk" << std::endl;
       return -1;
@@ -112,7 +112,7 @@ int FileSystem::openFile(const std::string filename) {
 int FileSystem::closeFile(const std::string& filename) {
   uint64_t inodeNum = this->dir.findInDirectory(filename);
   if (inodeNum != UINT64_MAX) {
-    std::fstream disk("./data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
     if (!disk) {
       std::cerr << "Error initializing the disk" << std::endl;
       return -1;
@@ -200,7 +200,7 @@ iNode FileSystem::loadInode(std::fstream& disk, uint64_t offset) {
 }
 
 int FileSystem::saveDirectory() {
-  std::fstream disk("./data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
   if (!disk) {
     std::cerr << "Error initializing the disk" << std::endl;
   }
@@ -220,7 +220,7 @@ int FileSystem::saveDirectory() {
 }
 
 int FileSystem::loadDirectory() {
-  std::fstream disk("./data/unity.bin", std::ios::in | std::ios::binary);
+  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::binary);
   if (!disk) {
       std::cerr << "Error initializing the disk" << std::endl;
       return -1;
@@ -247,7 +247,7 @@ int FileSystem::loadDirectory() {
 }
 
 void FileSystem::resetUnity() {
-  std::ofstream disk("./data/unity.bin", std::ios::out | std::ios::binary | std::ios::trunc);
+  std::ofstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::out | std::ios::binary | std::ios::trunc);
   if (!disk) {
     std::cerr << "Error initializing the disk" << std::endl;
     return;
@@ -266,7 +266,7 @@ void FileSystem::writeFile(std::string filename, std::string& data) {
 
     std::cout << "iNode number is: " << inodeNum << std::endl;
 
-    std::fstream disk("./data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
     if (!disk) {
       std::cerr << "Error initializing the disk" << std::endl;
       return;
@@ -303,7 +303,7 @@ void FileSystem::writeFile(std::string filename, std::string& data) {
 void FileSystem::readFile(std::string filename) {
   uint64_t inodeNum = this->dir.findInDirectory(filename);
   if (inodeNum != UINT64_MAX) {
-    std::fstream disk("./data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
     if (!disk) {
       std::cerr << "Error initializing the disk" << std::endl;
       return;
@@ -332,7 +332,7 @@ void FileSystem::readFile(std::string filename) {
 void FileSystem::deleteFile(const std::string filename) {
   uint64_t inodeNum = this->dir.findInDirectory(filename);
   if (inodeNum != UINT64_MAX) {
-    std::fstream disk("./data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
     if (!disk) {
       std::cerr << "Error initializing the disk" << std::endl;
       return;
@@ -380,7 +380,7 @@ bool FileSystem::renameFile(const std::string& oldName, const std::string& newNa
     saveDirectory();
     uint64_t inodeNum = this->dir.findInDirectory(oldName);
     if (inodeNum != UINT64_MAX) {
-      std::fstream disk("./data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+      std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
       if (!disk) {
         std::cerr << "Error initializing the disk" << std::endl;
         return false;

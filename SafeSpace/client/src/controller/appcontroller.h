@@ -5,6 +5,7 @@
 #include <QMainWindow>
 #include <QStackedWidget>
 #include "model/model.h"
+#include "model/FileSystem.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -39,7 +40,8 @@ private:
   Ui::MainWindow* ui;                      ///< Pointer to the main UI layout.
   QStackedWidget* pageStack;               ///< Stack widget managing application pages.
   Model& model = Model::getInstance(); ///< Reference to the singleton model.
-  
+  FileSystem filesystem;
+  std::string userList = "UserList";
 private:
   /**
    * @brief Sets up the connections between UI signals and controller slots.
