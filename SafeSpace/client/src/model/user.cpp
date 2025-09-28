@@ -34,9 +34,8 @@ void User::setUsername(const std::string name) {
 
 void User::setPassword(const std::string& newPassword) {
   // Creates a std hasher for the given password.
-  std::hash<std::string> hasher;
-  // Sets the hashed result as the user's password.
-  this->password = hasher(newPassword);
+    std::hash<std::string> hasher;
+    this->password = hasher(newPassword);
 }
 
 bool User::verifyPassword(const std::string& passwordToCheck) const {
@@ -101,3 +100,9 @@ User::PageAccess& User::PageAccess::operator=(const PageAccess& other) {
   // Returns the current object.
   return *this;
 }
+
+size_t User::getPasswordHash() const {
+  return this->password;
+}
+
+

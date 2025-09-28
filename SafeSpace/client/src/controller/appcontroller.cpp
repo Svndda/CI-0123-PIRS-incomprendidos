@@ -41,12 +41,7 @@ void AppController::setupConnections() {
   // Add the login page to the stack view.
   this->pageStack->addWidget(loginPage);
   this->pageStack->setCurrentIndex(0);
-
-  //this->filesystem.createFile(this->userList, "r");
-  this->filesystem.searchFile(this->userList);
-  this->filesystem.printMetadata(this->userList);
-  //this->filesystem.writeFile(this->userList, "Rolbin, administrador");
-  //this->filesystem.readFile(this->userList);
+  this->filesystem.readFile("UserList");
   // Connects the login signal to the controller function to try
   //  start the system.
   this->connect(loginPage, &LoginPage::sendCredentials

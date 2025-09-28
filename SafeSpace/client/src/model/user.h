@@ -186,6 +186,8 @@ public:
    * @param permissions The new permissions to set.
    */
   void setUserPermissions(const std::vector<PageAccess> permissions);
+
+  size_t getPasswordHash() const;
 };
 
 #endif // USER_H
