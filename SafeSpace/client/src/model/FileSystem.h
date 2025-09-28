@@ -23,7 +23,7 @@ private:
   std::string type;
   std::vector<bool> bitMap; 
   std::vector<iNode> files;
-  uint64_t directionDirectory; 
+  uint64_t directionDirectory;
 
   /**
    * @brief Resets the disk, filling it with zeros.
@@ -69,7 +69,7 @@ public:
    * @param filename Name of the file.
    * @param data Data to write.
    */
-  void writeFile(std::string filename, std::string& data);
+  void writeFile(const std::string& filename, const std::string& data);
 
   /**
    * @brief Reads and prints the contents of a file.
@@ -144,5 +144,6 @@ public:
    * @brief Prints the file system metadata.
    */
   void printMetadata(const std::string& filename);
+  std::string readFileAsString(const std::string& filename);
 };
 

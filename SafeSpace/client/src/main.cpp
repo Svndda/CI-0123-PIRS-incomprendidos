@@ -4,7 +4,9 @@
 #include <QApplication>
 #include <QLocale>
 #include <QTranslator>
-
+#include "UserController.h"
+#include "user.h"
+#include "FileSystem.h"
 int main(int argc, char *argv[]) {
   QApplication a(argc, argv);
 
@@ -19,5 +21,15 @@ int main(int argc, char *argv[]) {
   }
   AppController appController;
   appController.show();
+
+  FileSystem fs;
+  UserController userController(&fs);
+    fs.printBitMap();
+  fs.openFile("UserList");
+  fs.readFile("UserList");
+
+
+  fs.readFile("UserList");
+  fs.closeFile("UserList");
   return a.exec();
 }

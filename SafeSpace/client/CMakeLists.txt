@@ -24,6 +24,7 @@ qt_add_executable(SafeSpace
   
   # Controller
   src/controller/appcontroller.cpp src/controller/appcontroller.h
+  src/controller/UserController.cpp  src/controller/UserController.h
   src/controller/mainwindow.ui
   
   src/view/loginpage.cpp src/view/loginpage.h src/view/loginpage.ui

@@ -16,7 +16,7 @@ FileSystem::~FileSystem(){
 }
 
 int FileSystem::initializeDirectory(){
-  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
   if (!disk) {
     std::cerr << "Error initializing the disk" << std::endl;
     return -1;
@@ -35,7 +35,7 @@ int FileSystem::initializeDirectory(){
 
 
 int FileSystem::loadBitMap() {
-  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
   if (!disk) {
     std::cerr << "Error initializing the disk" << std::endl;
     return -1;
@@ -51,9 +51,10 @@ int FileSystem::loadBitMap() {
       this->bitMap[i] = true; // Bloque ocupado
     }
   }
-  for(size_t i = 0; i < 15; ++i) {
+  /*for(size_t i = 0; i < 15; ++i) {
     std::cout << "Block " << i << ": " << (this->bitMap[i] ? "Occupied" : "Free") << std::endl;
-  }
+  }*/
+  std::cout << "Bitmap loaded successfully." << std::endl;
   disk.close();
   
   return 0;
@@ -76,7 +77,7 @@ int FileSystem::createFile(const std::string& filename, std::string permissions)
   File newFile(freeblock, filename, permissions, freeblock);
   this->dir.addToDirectory(filename, newFile.getMetadata().id);
 
-  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
   if (!disk) {
     std::cerr << "Error initializing the disk" << std::endl;
     return -1;
@@ -92,7 +93,7 @@ int FileSystem::createFile(const std::string& filename, std::string permissions)
 int FileSystem::openFile(const std::string filename) {
   uint64_t inodeNum = this->dir.findInDirectory(filename);
   if (inodeNum != UINT64_MAX) {
-    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
     if (!disk) {
       std::cerr << "Error initializing the disk" << std::endl;
       return -1;
@@ -112,7 +113,7 @@ int FileSystem::openFile(const std::string filename) {
 int FileSystem::closeFile(const std::string& filename) {
   uint64_t inodeNum = this->dir.findInDirectory(filename);
   if (inodeNum != UINT64_MAX) {
-    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
     if (!disk) {
       std::cerr << "Error initializing the disk" << std::endl;
       return -1;
@@ -152,8 +153,9 @@ void FileSystem::saveInode(std::fstream& disk, const iNode& node, uint64_t offse
   uint64_t permissionsLen = node.permissions.size();
   disk.write(reinterpret_cast<const char*>(&permissionsLen), sizeof(permissionsLen));
   disk.write(node.permissions.c_str(), permissionsLen);
-  
-  
+
+  disk.write(reinterpret_cast<const char*>(&node.fileSize), sizeof(node.fileSize));
+
   uint64_t blocksCount = node.blockPointers.size();
   disk.write(reinterpret_cast<const char*>(&blocksCount), sizeof(blocksCount));
   for (auto block : node.blockPointers) {
@@ -189,6 +191,8 @@ iNode FileSystem::loadInode(std::fstream& disk, uint64_t offset) {
     node.permissions.resize(permissionsLen);
     disk.read(&node.permissions[0], permissionsLen);
 
+    disk.read(reinterpret_cast<char*>(&node.fileSize), sizeof(node.fileSize));
+
     uint64_t blocksCount;
     disk.read(reinterpret_cast<char*>(&blocksCount), sizeof(blocksCount));
     node.blockPointers.resize(blocksCount);
@@ -200,7 +204,7 @@ iNode FileSystem::loadInode(std::fstream& disk, uint64_t offset) {
 }
 
 int FileSystem::saveDirectory() {
-  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
   if (!disk) {
     std::cerr << "Error initializing the disk" << std::endl;
   }
@@ -220,7 +224,7 @@ int FileSystem::saveDirectory() {
 }
 
 int FileSystem::loadDirectory() {
-  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::binary);
+  std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::binary);
   if (!disk) {
       std::cerr << "Error initializing the disk" << std::endl;
       return -1;
@@ -247,80 +251,89 @@ int FileSystem::loadDirectory() {
 }
 
 void FileSystem::resetUnity() {
-  std::ofstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::out | std::ios::binary | std::ios::trunc);
+  std::ofstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::out | std::ios::binary | std::ios::trunc);
   if (!disk) {
     std::cerr << "Error initializing the disk" << std::endl;
     return;
   }
   char zero = 0;
-  for(size_t i = 0; i < this->blocks; ++i) {
+  for(size_t i = 1; i < this->blocks; ++i) {
     disk.write(&zero, sizeof(zero));
   }
   disk.close();
 }
 
-void FileSystem::writeFile(std::string filename, std::string& data) {
-  
+void FileSystem::writeFile(const std::string& filename, const std::string& data) {
+    uint64_t inodeNum = this->dir.findInDirectory(filename);
+    if (inodeNum != UINT64_MAX) {
+        std::cout << "iNode number is: " << inodeNum << std::endl;
+
+        std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+        if (!disk) {
+            std::cerr << "Error initializing the disk" << std::endl;
+            return;
+        }
+        iNode node = loadInode(disk, inodeNum * this->block_size);
+        if(node.state != "open") {
+            std::cerr << "The file is not open. Open it before writing/deleting." << std::endl;
+            disk.close();
+            return;
+        }
+        for(auto block : node.blockPointers) { // free previous blocks
+            if (block != inodeNum) {
+                char zero = 0;
+                disk.seekp(block * this->block_size, std::ios::beg);
+                disk.write(&zero, sizeof(zero));
+                this->bitMap[block] = false;
+            }
+        }
+        node.blockPointers.clear();
+
+        size_t quantityBlocks = (data.size() + this->block_size - 1) / this->block_size;
+        for(size_t i = 0; i < quantityBlocks; ++i) {
+            for(size_t j = 3; j < this->bitMap.size(); ++j) {
+                if(!this->bitMap[j] && j != inodeNum) { // find a free block
+                    this->bitMap[j] = true;
+                    disk.seekp(j * this->block_size, std::ios::beg);
+                    disk.write(data.c_str() + i * this->block_size, std::min(this->block_size, data.size() - i * this->block_size));
+                    node.blockPointers.push_back(j);
+                    break;
+                }
+            }
+        }
+        node.fileSize = data.size();
+        saveInode(disk, node, inodeNum * this->block_size);
+        disk.close();
+    } else {
+        std::cout << "File not found." << std::endl;
+    }
+}
+
+void FileSystem::readFile(std::string filename) {
   uint64_t inodeNum = this->dir.findInDirectory(filename);
   if (inodeNum != UINT64_MAX) {
-
-    std::cout << "iNode number is: " << inodeNum << std::endl;
-
-    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
     if (!disk) {
       std::cerr << "Error initializing the disk" << std::endl;
       return;
     }
     iNode node = loadInode(disk, inodeNum * this->block_size);
     if(node.state != "open") {
-      std::cerr << "The file is not open. Open it before writing/deleting." << std::endl;
+      std::cerr << "The file is not open. Open it before reading." << std::endl;
       disk.close();
       return;
     }
-
-    size_t quantityBlocks = (data.size() + this->block_size - 1) / this->block_size;
-    
-    for(size_t i = 0; i < quantityBlocks; ++i) {
-      for(size_t j = 3; j < this->bitMap.size(); ++j) {
-        if(!this->bitMap[j]) {
-          this->bitMap[j] = true;
-          disk.seekp(j * this->block_size, std::ios::beg);
-          disk.write(data.c_str() + i * this->block_size, std::min(this->block_size, data.size() - i * this->block_size));
-          node.blockPointers.push_back(j);
-          break;
-        }
-      }
-    }
-    saveInode(disk, node, inodeNum * this->block_size);
-    disk.close();
-
-  } else {
-    std::cout << "File not found." << std::endl;
-  }
-
-}
-
-void FileSystem::readFile(std::string filename) {
-  uint64_t inodeNum = this->dir.findInDirectory(filename);
-  if (inodeNum != UINT64_MAX) {
-    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
-    if (!disk) {
-      std::cerr << "Error initializing the disk" << std::endl;
-      return;
-    }
-  iNode node = loadInode(disk, inodeNum * this->block_size);
-  if(node.state != "open") {
-    std::cerr << "The file is not open. Open it before reading." << std::endl;
-    disk.close();
-    return;
-  }
     std::cout << "iNode number is: " << inodeNum << std::endl;
     std::string data;
-    for(auto block : node.blockPointers) {
-      char buffer[256] = {0};
+    size_t bytesToRead = node.fileSize; // --- CAMBIO: Solo leer fileSize bytes ---
+    for(auto block  : node.blockPointers) {
+      size_t toRead = std::min(this->block_size, bytesToRead);
+      std::vector<char> buffer(toRead, 0);
       disk.seekg(block * this->block_size, std::ios::beg);
-      disk.read(buffer, this->block_size);
-      data.append(buffer, this->block_size);
+      disk.read(buffer.data(), toRead);
+      data.append(buffer.data(), toRead);
+      bytesToRead -= toRead;
+      if (bytesToRead == 0) break;
     }
     std::cout << "Data read from file: " << data << std::endl;
     disk.close();
@@ -332,7 +345,7 @@ void FileSystem::readFile(std::string filename) {
 void FileSystem::deleteFile(const std::string filename) {
   uint64_t inodeNum = this->dir.findInDirectory(filename);
   if (inodeNum != UINT64_MAX) {
-    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
     if (!disk) {
       std::cerr << "Error initializing the disk" << std::endl;
       return;
@@ -344,9 +357,9 @@ void FileSystem::deleteFile(const std::string filename) {
       disk.write(&zero, sizeof(zero));
       this->bitMap[block] = false;
     }
-    char zero = 0;
+    std::vector<char> buffer(this->block_size, 0);
     disk.seekp(inodeNum * this->block_size, std::ios::beg);
-    disk.write(&zero, sizeof(zero));
+    disk.write(buffer.data(), this->block_size);
     this->bitMap[inodeNum] = false;
     this->dir.removeFromDirectory(filename);
     saveDirectory();
@@ -380,7 +393,7 @@ bool FileSystem::renameFile(const std::string& oldName, const std::string& newNa
     saveDirectory();
     uint64_t inodeNum = this->dir.findInDirectory(oldName);
     if (inodeNum != UINT64_MAX) {
-      std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+      std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
       if (!disk) {
         std::cerr << "Error initializing the disk" << std::endl;
         return false;
@@ -406,7 +419,7 @@ void FileSystem::printBitMap() {
 void FileSystem::printMetadata(const std::string& filename) {
   uint64_t inodeNum = this->dir.findInDirectory(filename);
   if (inodeNum != UINT64_MAX) {
-    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
       if (!disk) {
         std::cerr << "Error initializing the disk" << std::endl;
         return;
@@ -420,4 +433,51 @@ void FileSystem::printMetadata(const std::string& filename) {
   } else {
     std::cout << "File not found." << std::endl;
   }
+}
+
+std::string FileSystem::readFileAsString(const std::string& filename) {
+    uint64_t inodeNum = this->dir.findInDirectory(filename);
+    if (inodeNum == UINT64_MAX) {
+        std::cerr << "File '" << filename << "' not found." << std::endl;
+        return "";
+    }
+
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin",
+                      std::ios::in | std::ios::binary);
+    if (!disk) {
+        std::cerr << "Error opening disk image." << std::endl;
+        return "";
+    }
+
+    iNode node = loadInode(disk, inodeNum * this->block_size);
+
+    // Opcional: si requieres que el archivo esté "abierto" para leerlo, descomenta:
+    // if (node.state != "open") {
+    //     std::cerr << "File is not open. Open it before reading." << std::endl;
+    //     disk.close();
+    //     return "";
+    // }
+
+    std::string data;
+    size_t bytesToRead = node.fileSize;
+
+    for (auto block : node.blockPointers) {
+        if (bytesToRead == 0) break;
+
+        size_t toRead = std::min(this->block_size, bytesToRead);
+        std::vector<char> buffer(toRead);
+        disk.seekg(block * this->block_size, std::ios::beg);
+        disk.read(buffer.data(), toRead);
+
+        // Verifica que se leyeron los bytes esperados
+        if (disk.gcount() != static_cast<std::streamsize>(toRead)) {
+            std::cerr << "Warning: Could not read full block." << std::endl;
+        }
+
+        data.append(buffer.data(), toRead);
+        bytesToRead -= toRead;
+    }
+
+    disk.close();
+    return data;
 }
