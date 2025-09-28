@@ -140,5 +140,9 @@ public:
    * @brief Prints the status of the first 15 blocks in the bitmap.
    */
   void printBitMap();
+  /**
+   * @brief Prints the file system metadata.
+   */
+  void printMetadata(const std::string& filename);
 };
 

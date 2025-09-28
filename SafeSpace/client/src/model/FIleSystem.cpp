@@ -402,3 +402,22 @@ void FileSystem::printBitMap() {
     std::cout << "Block " << i << ": " << (this->bitMap[i] ? "Occupied" : "Free") << std::endl;
   }
 }
+
+void FileSystem::printMetadata(const std::string& filename) {
+  uint64_t inodeNum = this->dir.findInDirectory(filename);
+  if (inodeNum != UINT64_MAX) {
+    std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
+      if (!disk) {
+        std::cerr << "Error initializing the disk" << std::endl;
+        return;
+      }
+    iNode node = loadInode(disk, inodeNum * this->block_size);
+    std::cout << "File Metadata:" << std::endl;
+    std::cout << "Name: " << node.name << std::endl;
+    std::cout << "Type: " << node.type << std::endl;
+    std::cout << "State: " << node.state << std::endl;
+    std::cout << "Permissions: " << node.permissions << std::endl;
+  } else {
+    std::cout << "File not found." << std::endl;
+  }
+}

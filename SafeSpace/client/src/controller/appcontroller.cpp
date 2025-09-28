@@ -44,6 +44,7 @@ void AppController::setupConnections() {
 
   //this->filesystem.createFile(this->userList, "r");
   this->filesystem.searchFile(this->userList);
+  this->filesystem.printMetadata(this->userList);
   //this->filesystem.writeFile(this->userList, "Rolbin, administrador");
   //this->filesystem.readFile(this->userList);
   // Connects the login signal to the controller function to try
