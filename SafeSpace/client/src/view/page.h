@@ -22,7 +22,7 @@ protected:
   QSvgRenderer *renderer;
   Model& model;
   
-public:
+protected:
   explicit Page(QWidget *parent, Model& appModel);
   
   void logger(const LogType, const QString& message);
