@@ -33,6 +33,7 @@ qt_add_executable(SafeSpace
   src/view/elements/button.h src/view/elements/button.cpp
   src/view/elements/sensordatafield.h src/view/elements/sensordatafield.cpp src/view/elements/sensordatafield.ui
   src/model/sensordata.h src/model/sensordata.cpp
+  src/view/administrationpage.h src/view/administrationpage.cpp src/view/administrationpage.ui
 
 )
 

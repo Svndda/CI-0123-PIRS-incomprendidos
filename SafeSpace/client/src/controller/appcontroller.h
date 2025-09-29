@@ -55,14 +55,9 @@ private:
   void setupConnections();
   
   /**
-   * @brief Enables all navigation buttons in the UI.
+   * @brief Sets all navigation buttons of the main layout to the given state.
    */
-  void enableButtons();
-  
-  /**
-   * @brief Disables all navigation buttons in the UI.
-   */
-  void disableButtons();
+  void setButtonsState(bool state);
   
   /**
    * @brief Prepares and creates system pages.

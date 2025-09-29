@@ -14,10 +14,9 @@ LoginPage::LoginPage(QWidget *parent,
   connect(this->ui->sendCredentials_button, &QPushButton::clicked, this, []() {
     qDebug() << "Botón clicado!";
   });
-  this->renderer = new QSvgRenderer(
-      QString(":/images/bg1.svg"), this
-      );
-  
+  // this->renderer = new QSvgRenderer(
+  //   QString(":/images/bg1.svg"), this
+  // );
 }
 
 LoginPage::~LoginPage() {

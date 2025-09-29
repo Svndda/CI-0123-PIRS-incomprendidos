@@ -18,7 +18,6 @@ void Button::applyStyle() {
   QString style = QString(
     "QPushButton {"
     " border-radius: %1px;"
-    " padding: 5px;"
     " background-color: %2;"
     " color: %3;"
     " %4"
