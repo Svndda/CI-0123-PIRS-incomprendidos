@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>UserListPage</class>
+ <widget class="QWidget" name="UserListPage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>500</width>
+    <height>400</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Lista de Usuarios</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QTableWidget" name="userTableWidget">
+     <property name="columnCount">
+      <number>3</number>
+     </property>
+     <property name="rowCount">
+      <number>0</number>
+     </property>
+     <column>
+      <property name="text">
+       <string>ID</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Usuario</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Rol</string>
+      </property>
+     </column>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="deleteUserButton">
+     <property name="text">
+      <string>Eliminar Usuario</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="updateUserButton">
+     <property name="text">
+      <string>Actualizar Usuario</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
