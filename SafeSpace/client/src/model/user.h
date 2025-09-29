@@ -75,7 +75,7 @@ private:
   size_t id = 0;                    ///< Unique identifier of the user.
   std::string name = "";            ///< Name of the user.
   std::vector<PageAccess> permissions; ///< Vector of page access permissions.
-  size_t password = 0;              ///< Hashed password.
+  std::string passwordHash = "";    ///< Hashed password.
   
 public:
 

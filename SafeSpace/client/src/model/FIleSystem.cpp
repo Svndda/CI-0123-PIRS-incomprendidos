@@ -451,7 +451,7 @@ std::string FileSystem::readFileAsString(const std::string& filename) {
 
     iNode node = loadInode(disk, inodeNum * this->block_size);
 
-    // Opcional: si requieres que el archivo esté "abierto" para leerlo, descomenta:
+
     // if (node.state != "open") {
     //     std::cerr << "File is not open. Open it before reading." << std::endl;
     //     disk.close();

@@ -39,7 +39,9 @@ void UserController::saveUser(const User& user) {
   }
 
 
-  void loadUsers();
+  void loadUsers(){
+    
+  }
   bool authenticate(const std::string& username, const std::string& password);
   void listUsers();
   bool deleteUser(const std::string& username);
