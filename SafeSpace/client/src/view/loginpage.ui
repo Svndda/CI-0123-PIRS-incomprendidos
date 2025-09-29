@@ -17,7 +17,7 @@
    <string notr="true">color:white;</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="1" column="0">
+   <item row="0" column="0">
     <widget class="QWidget" name="widget" native="true">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -348,16 +348,6 @@ QPushButton:checked {
      </layout>
     </widget>
    </item>
-   <item row="1" column="1">
-    <widget class="Button" name="pushButton">
-     <property name="text">
-      <string>PushButton</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1">
-    <widget class="SensorDataField" name="widget_2" native="true"/>
-   </item>
   </layout>
  </widget>
  <customwidgets>
@@ -365,12 +355,6 @@ QPushButton:checked {
    <class>Button</class>
    <extends>QPushButton</extends>
    <header>view/elements/button.h</header>
-  </customwidget>
-  <customwidget>
-   <class>SensorDataField</class>
-   <extends>QWidget</extends>
-   <header>view/elements/sensordatafield.h</header>
-   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>
