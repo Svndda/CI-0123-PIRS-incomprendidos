@@ -24,12 +24,15 @@ int main(int argc, char *argv[]) {
 
   FileSystem fs;
   UserController userController(&fs);
-    fs.printBitMap();
+
+  userController.loadUsers();
+  userController.listUsers();
+  
+
+  
   fs.openFile("UserList");
   fs.readFile("UserList");
-
-
-  fs.readFile("UserList");
   fs.closeFile("UserList");
+  fs.printBitMap();
   return a.exec();
 }

@@ -75,8 +75,8 @@ private:
   size_t id = 0;                    ///< Unique identifier of the user.
   std::string name = "";            ///< Name of the user.
   std::vector<PageAccess> permissions; ///< Vector of page access permissions.
-  std::string passwordHash = "";    ///< Hashed password.
-  
+  std::string password = "";    ///< Hashed password.
+  std::string userType = "";          ///< Type of user (e.g., admin, regular).
 public:
 
   /**
@@ -90,9 +90,11 @@ public:
    */
   User(const size_t userId = 0
       , const std::string userName = ""
+      , const std::string userType = ""
       , const std::vector<PageAccess> userPermissions
-      = std::vector<PageAccess>());
-  
+      = std::vector<PageAccess>()
+    );
+
   /**
    * @brief Destructor.
    */
@@ -186,8 +188,24 @@ public:
    * @param permissions The new permissions to set.
    */
   void setUserPermissions(const std::vector<PageAccess> permissions);
-
-  size_t getPasswordHash() const;
+    /**
+     * @brief Get the Password Hash object
+     * 
+     * @return size_t 
+     */
+  std::string getPasswordHash() const;
+  /**
+   * @brief Get the Type object
+   * 
+   * @return std::string 
+   */
+  std::string getType() const;
+  /**
+   * @brief Set the Type object
+   * 
+   * @param userType 
+   */
+  void setType(const std::string& userType);
 };
 
 #endif // USER_H
