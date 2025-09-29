@@ -36,6 +36,11 @@ public:
    * @brief Destroys the AppController and performs cleanup.
    */
   ~AppController();
+   /**
+   * @brief Gets a reference to the file system.
+   * @return Reference to the file system.
+   */
+  FileSystem& getFileSystem();
 
 private:
   Ui::MainWindow* ui;                      ///< Pointer to the main UI layout.
@@ -97,5 +102,7 @@ private slots:
    * to the login page.
    */
   void resetApplicationState();
+
+ 
 };
 #endif // APPCONTROLLER_H

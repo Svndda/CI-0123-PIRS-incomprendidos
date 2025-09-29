@@ -136,3 +136,7 @@ void AppController::userAccepted(const User user) {
 void AppController::resetApplicationState() {
   this->pageStack->setCurrentIndex(0);
 }
+
+FileSystem& AppController::getFileSystem() { 
+  return this->filesystem; 
+}
