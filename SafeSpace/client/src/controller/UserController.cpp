@@ -79,7 +79,21 @@ void UserController::saveUser(const User& user) {
   }
     
  
-  bool authenticate(const std::string& username, const std::string& password);
+  bool authenticate(const std::string& username, const std::string& password){
+    for (const auto& user : this->users) {
+      if (user.getUsername() == username) {
+        if (user.verifyPassword(password)) {
+          std::cout << "Authentication successful." << std::endl;
+          return true;
+        } else {
+          std::cout << "Incorrect password." << std::endl;
+          return false;
+        }
+      }
+    }
+    std::cout << "User not found." << std::endl;
+    return false;
+  }
   
   void UserController::listUsers(){
       for(int i = 0; i < this->users.size(); ++i){
