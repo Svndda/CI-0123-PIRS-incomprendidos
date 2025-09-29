@@ -13,7 +13,6 @@ public:
     explicit UserListPage(QWidget *parent = nullptr);
     ~UserListPage();
 
-    // Puedes agregar métodos para actualizar la lista de usuarios
 
 signals:
     void deleteUserRequested(const QString &username);
