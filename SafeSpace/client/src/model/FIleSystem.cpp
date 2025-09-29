@@ -99,7 +99,7 @@ int FileSystem::openFile(const std::string filename) {
       return -1;
     }
     iNode node = loadInode(disk, inodeNum * this->block_size);
-    std::cout << "Opening file: " << filename << " with iNode: " << inodeNum << std::endl;
+    // std::cout << "Opening file: " << filename << " with iNode: " << inodeNum << std::endl;
     node.state = "open";
     saveInode(disk, node, inodeNum * this->block_size);
     disk.close();
@@ -119,7 +119,7 @@ int FileSystem::closeFile(const std::string& filename) {
       return -1;
     }
     iNode node = loadInode(disk, inodeNum * this->block_size);
-    std::cout << "Opening file: " << filename << " with iNode: " << inodeNum << std::endl;
+   // std::cout << "Closing file: " << filename << " with iNode: " << inodeNum << std::endl;
     node.state = "closed";
     saveInode(disk, node, inodeNum * this->block_size);
     disk.close();
@@ -266,7 +266,7 @@ void FileSystem::resetUnity() {
 void FileSystem::writeFile(const std::string& filename, const std::string& data) {
     uint64_t inodeNum = this->dir.findInDirectory(filename);
     if (inodeNum != UINT64_MAX) {
-        std::cout << "iNode number is: " << inodeNum << std::endl;
+        //std::cout << "iNode number is: " << inodeNum << std::endl;
 
         std::fstream disk("/home/rolbin/Escritorio/CI-0123-PIRS-incomprendidos/SafeSpace/client/src/model/data/unity.bin", std::ios::in | std::ios::out | std::ios::binary);
         if (!disk) {
@@ -323,7 +323,7 @@ void FileSystem::readFile(std::string filename) {
       disk.close();
       return;
     }
-    std::cout << "iNode number is: " << inodeNum << std::endl;
+   // std::cout << "iNode number is: " << inodeNum << std::endl;
     std::string data;
     size_t bytesToRead = node.fileSize; // --- CAMBIO: Solo leer fileSize bytes ---
     for(auto block  : node.blockPointers) {
