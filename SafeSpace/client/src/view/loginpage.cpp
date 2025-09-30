@@ -27,13 +27,8 @@ void LoginPage::on_sendCredentials_button_clicked() {
   QString email = this->ui->email_lineEdit->text();
   QString password = this->ui->password_lineEdit->text();
 
-  if (!(email.isEmpty() && password.isEmpty())) {
-    User user(0, email.toStdString());
-    user.setPassword(password.toStdString());
-    this->ui->email_lineEdit->clear();
-    this->ui->password_lineEdit->clear();
-    
-    emit this->sendCredentials(user);
+  if (!(email.isEmpty() && password.isEmpty())) {    
+    emit this->authenticate(email.toStdString(), password.toStdString());
   } else {
     this->warningMessageBox("Por favor, rellene todos los campos.");
   }

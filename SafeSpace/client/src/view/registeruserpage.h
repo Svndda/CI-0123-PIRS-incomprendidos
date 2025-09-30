@@ -16,14 +16,12 @@ class RegisterUserPage : public QWidget {
 public:
     explicit RegisterUserPage(UserController* userController, QWidget *parent = nullptr);
     ~RegisterUserPage();
-    void on_registerButton_clicked();
 
 signals:
     void registerRequested(const QString &username, const QString &password, const QString &rol);
 
 private:
     Ui::RegisterUserPage *ui;
-    UserController* userController;
 };
 
 #endif // REGISTERUSERPAGE_H

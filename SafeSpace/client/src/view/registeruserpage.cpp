@@ -1,11 +1,9 @@
 #include "registeruserpage.h"
 #include "ui_registeruserpage.h"
 
-RegisterUserPage::RegisterUserPage(UserController* userController, QWidget *parent) :
+RegisterUserPage::RegisterUserPage(QWidget *parent) :
     QWidget(parent),
-    ui(new Ui::RegisterUserPage),
-    userController(userController)
-{
+    ui(new Ui::RegisterUserPage) {
     ui->setupUi(this);
     // Conectar el botón de registro a la señal
     connect(ui->registerButton, &QPushButton::clicked, this, [this]() {
@@ -14,11 +12,9 @@ RegisterUserPage::RegisterUserPage(UserController* userController, QWidget *pare
         QString rol = ui->rolLineEdit->text();
         emit registerRequested(username, password, rol);
     });
-
 }
 
-RegisterUserPage::~RegisterUserPage()
-{
+RegisterUserPage::~RegisterUserPage() {
     delete ui;
 }
 

@@ -36,7 +36,6 @@ AppController::~AppController() {
   delete this->ui;
 }
 
-
 void AppController::setupConnections() {
   // Adds the pages stack in his corresponding area of the program ui.
   this->ui->mainLayout->addWidget(this->pageStack, 1, 0);
@@ -49,8 +48,8 @@ void AppController::setupConnections() {
   // Connects the login signal to the controller function to try
   //  start the system.
   this->connect(
-    loginPage, &LoginPage::sendCredentials,
-    this, &AppController::userAccepted
+    loginPage, &LoginPage::authenticate,
+    this, &AppController::authenticate
   );
   // Hides/Disables the pages buttons.
   this->setButtonsState(false);
@@ -66,18 +65,15 @@ void AppController::setButtonsState(bool state) {
 void AppController::prepareSystemPages() {
   // // Creates the different program pages.
   AdministrationPage* admPage = new AdministrationPage(this, this->model);
-  // Inventory* inventoryPage = new Inventory(this, this->model);
-  // Users* usersPage = new Users(this, this->model);
-  // Settings* settingsPage = new Settings(this, this->model);
   
   // // Adds the program pages to the stack of pages.
   this->pageStack->addWidget(admPage);
-  // this->pageStack->addWidget(inventoryPage);
-  // this->pageStack->addWidget(usersPage);
-  // this->pageStack->addWidget(settingsPage);
-  
-  // this->connect(settingsPage, &Settings::logoutCurrentUser
-  //     , this, &AppController::resetApplicationState);
+
+
+  this->connect(
+    admPage, &AdministrationPage::saveUser,
+    this, &AppController::saveUser
+  );
   
   // // Sets the stack page to the pos.
   this->refreshPageStack(1);
@@ -97,42 +93,42 @@ void AppController::refreshPageStack(const size_t stackIndex) {
 
 void AppController::switchPages(const size_t pageIndex) {
   // Sets the indexed page of the stack to the requested one.
-  qDebug() << this->pageStack->indexOf(this->pageStack->currentWidget());  
+  qDebug() << this->pageStack->indexOf(this->pageStack->currentWidget());
   this->pageStack->setCurrentIndex(pageIndex);
   qDebug() << this->pageStack->indexOf(this->pageStack->currentWidget());
   
-  // Buttons offset.
-  const size_t buttonsOffset = pageIndex - 1;
+  // // Buttons offset.
+  // const size_t buttonsOffset = pageIndex - 1;
   
-  // Vector of the application buttons to move through the pages.
-  QVector<QPushButton*> buttons = {
-    this->ui->page1,
-    this->ui->page2,
-    this->ui->page3
-  };
+  // // Vector of the application buttons to move through the pages.
+  // QVector<QPushButton*> buttons = {
+  //   this->ui->page1,
+  //   this->ui->page2,
+  //   this->ui->page3
+  // };
   
-  // Vector of the rectangle widgets that are sync with the current button page.
-  QVector<QWidget*> widgets = {
-  };
+  // // Vector of the rectangle widgets that are sync with the current button page.
+  // QVector<QWidget*> widgets = {
+  // };
   
-  // Iterate over the buttons and widgets to update their states
-  for (size_t i = 0; i < buttons.size(); ++i) {
-    // Boolean that indicates if the current index is the requested page.
-    const bool isSelected = (i == buttonsOffset);
-    buttons[i]->setChecked(isSelected);
-    // // Use a conditional to set the style sheet: green for selected,
-    // // transparent otherwise.
-    // widgets[i]->setStyleSheet(
-    //     QString("QWidget { background-color: %1; }")
-    //         .arg(isSelected ? "rgb(0, 153, 73)" : "transparent")
-    //     );
-  }
+  // // Iterate over the buttons and widgets to update their states
+  // for (size_t i = 0; i < buttons.size(); ++i) {
+  //   // Boolean that indicates if the current index is the requested page.
+  //   const bool isSelected = (i == buttonsOffset);
+  //   buttons[i]->setChecked(isSelected);
+  //   // // Use a conditional to set the style sheet: green for selected,
+  //   // // transparent otherwise.
+  //   // widgets[i]->setStyleSheet(
+  //   //     QString("QWidget { background-color: %1; }")
+  //   //         .arg(isSelected ? "rgb(0, 153, 73)" : "transparent")
+  //   //     );
+  // }
 }
 
-
-void AppController::userAccepted(const User user) {
-  // Start, tell the model to prepare his information.  
-  if (/*this->model.start(user)*/ 1) {
+void AppController::authenticate(
+    const std::string& username, const std::string& password) {
+  // Start, tell the model to prepare his information.
+  if (/*this->usercontroller.authenticate(username, password)*/ 1) {
     // Creates 
     this->prepareSystemPages();
     // Enables the page buttons.
@@ -142,6 +138,23 @@ void AppController::userAccepted(const User user) {
     QMessageBox::information(this, "Credenciales erroneas"
         , "Por favor, verifique los datos ingresados.");
   }
+}
+
+void AppController::deleteUser(
+    const std::string& username, const std::string& password) {
+  
+}
+
+void AppController::updateUser(
+    const std::string& username, const User& updatedUser) {
+  
+}
+
+void AppController::saveUser(
+    const QString &username, const QString &password, const QString &rol) {
+  this->usercontroller.saveUser(
+    User(0, username.toStdString(), rol.toStdString())
+  );
 }
 
 void AppController::resetApplicationState() {

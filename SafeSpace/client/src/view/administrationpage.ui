@@ -33,7 +33,7 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
-       <widget class="Button" name="sensor_options">
+       <widget class="Button" name="sensor_options_button">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
           <horstretch>0</horstretch>
@@ -58,7 +58,7 @@
        </widget>
       </item>
       <item>
-       <widget class="Button" name="system_users">
+       <widget class="Button" name="system_users_button">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
           <horstretch>0</horstretch>
@@ -83,7 +83,7 @@
        </widget>
       </item>
       <item>
-       <widget class="Button" name="server_settings">
+       <widget class="Button" name="register_user_button">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
           <horstretch>0</horstretch>
@@ -103,7 +103,7 @@
          </size>
         </property>
         <property name="text">
-         <string>Configuracion del sistema</string>
+         <string>Registrar Usuario</string>
         </property>
        </widget>
       </item>
@@ -134,6 +134,23 @@
      <property name="frameShadow">
       <enum>QFrame::Shadow::Raised</enum>
      </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0">
+       <widget class="QStackedWidget" name="pagesStack">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="currentIndex">
+         <number>1</number>
+        </property>
+        <widget class="UserListPage" name="usersList"/>
+        <widget class="RegisterUserPage" name="registerUserForm"/>
+       </widget>
+      </item>
+     </layout>
     </widget>
    </item>
   </layout>
@@ -143,6 +160,18 @@
    <class>Button</class>
    <extends>QPushButton</extends>
    <header>view/elements/button.h</header>
+  </customwidget>
+  <customwidget>
+   <class>UserListPage</class>
+   <extends>QWidget</extends>
+   <header>view/userlistpage.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>RegisterUserPage</class>
+   <extends>QWidget</extends>
+   <header>view/registeruserpage.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

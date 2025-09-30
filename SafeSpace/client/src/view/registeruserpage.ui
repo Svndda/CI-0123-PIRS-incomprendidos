@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>350</height>
+    <width>418</width>
+    <height>132</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>Registrar Usuario</string>
@@ -16,6 +22,12 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <widget class="QLineEdit" name="usernameLineEdit">
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>0</height>
+      </size>
+     </property>
      <property name="placeholderText">
       <string>Usuario</string>
      </property>
@@ -23,16 +35,28 @@
    </item>
    <item>
     <widget class="QLineEdit" name="passwordLineEdit">
-     <property name="placeholderText">
-      <string>Contraseña</string>
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>0</height>
+      </size>
      </property>
      <property name="echoMode">
-      <enum>QLineEdit::Password</enum>
+      <enum>QLineEdit::EchoMode::Password</enum>
+     </property>
+     <property name="placeholderText">
+      <string>Contraseña</string>
      </property>
     </widget>
    </item>
    <item>
     <widget class="QLineEdit" name="rolLineEdit">
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>0</height>
+      </size>
+     </property>
      <property name="placeholderText">
       <string>Rol</string>
      </property>
@@ -40,6 +64,12 @@
    </item>
    <item>
     <widget class="QPushButton" name="registerButton">
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>0</height>
+      </size>
+     </property>
      <property name="text">
       <string>Registrar</string>
      </property>
