@@ -14,7 +14,7 @@ class RegisterUserPage;
 class RegisterUserPage : public QWidget {
     Q_OBJECT
 public:
-    explicit RegisterUserPage(UserController* userController, QWidget *parent = nullptr);
+    explicit RegisterUserPage(QWidget *parent = nullptr);
     ~RegisterUserPage();
 
 signals:

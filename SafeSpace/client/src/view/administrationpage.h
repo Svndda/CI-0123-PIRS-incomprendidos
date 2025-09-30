@@ -22,12 +22,13 @@ public:
   
 private slots:
   void registerUser(
-      const QString &username, const QString &password, const QString &rol);  
+    const QString &username, const QString &password, const QString &rol
+  );
   
 signals:
-  
   void saveUser(
-      const QString &username, const QString &password, const QString &rol);
+    const QString &username, const QString &password, const QString &rol
+  );
 };
 
 #endif // ADMINISTRATIONPAGE_H
