@@ -20,10 +20,31 @@ AppController::AppController(QWidget *parent)
   this->ui->page1->setButtonText("Sensores");
   this->ui->page2->setButtonText("Reportes");
   this->ui->page3->setButtonText("Administración");
+
+  // USUARIOS HARDCODEADOS
+  User u1(1, "realAdmin", "Administrador del sistema");
+  u1.setPassword("M2sv8KxpLq");
+  this->usercontroller.saveUser(u1);
+
+  User u2(2, "dataAdmin", "Administrador de datos");
+  u2.setPassword("N7vbq2R0");
+  this->usercontroller.saveUser(u2);
+
+  User u3(3, "audiTT", "Auditor");
+  u3.setPassword("gH5pxL9pQ");
+  this->usercontroller.saveUser(u3);
+
+  User u4(4, "guestAA", "Invitado 1");
+  u4.setPassword("aB7nvZt9Ow1");
+  this->usercontroller.saveUser(u4);
+
+  User u5(5, "guestBB", "Invitado 2");
+  u5.setPassword("z9dsRk5Tg");
+  this->usercontroller.saveUser(u5);
+
   // Connects all the ui elements to their slot functions.
   this->setupConnections();
   this->setStyleSheet("background-color: " + Colors::Black + ";");
-  
   // For the app to be in full window.
   this->showMaximized();
 }
@@ -127,11 +148,9 @@ void AppController::switchPages(const size_t pageIndex) {
 
 void AppController::authenticate(
     const std::string& username, const std::string& password) {
-  // Start, tell the model to prepare his information.
-  if (/*this->usercontroller.authenticate(username, password)*/ 1) {
-    // Creates 
+  // Llama a la autenticación real del UserController
+  if (this->usercontroller.authenticate(username, password)) {
     this->prepareSystemPages();
-    // Enables the page buttons.
     this->setButtonsState(true);
     qDebug() << "credenciales aceptadas";
   } else {
