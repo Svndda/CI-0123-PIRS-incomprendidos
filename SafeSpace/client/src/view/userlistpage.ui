@@ -16,12 +16,21 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <widget class="QTableWidget" name="userTableWidget">
-     <property name="columnCount">
-      <number>3</number>
+     <property name="horizontalScrollMode">
+      <enum>QAbstractItemView::ScrollMode::ScrollPerItem</enum>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
      </property>
      <property name="rowCount">
       <number>0</number>
      </property>
+     <property name="columnCount">
+      <number>3</number>
+     </property>
+     <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
+      <bool>false</bool>
+     </attribute>
      <column>
       <property name="text">
        <string>ID</string>
