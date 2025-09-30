@@ -36,6 +36,7 @@ qt_add_executable(SafeSpace
   src/view/administrationpage.h src/view/administrationpage.cpp src/view/administrationpage.ui
   src/view/registeruserpage.h src/view/registeruserpage.cpp src/view/registeruserpage.ui
   src/view/userlistpage.h src/view/userlistpage.cpp src/view/userlistpage.ui
+  src/view/updateuserpage.h src/view/updateuserpage.cpp src/view/updateuserpage.ui
 
 )
 
