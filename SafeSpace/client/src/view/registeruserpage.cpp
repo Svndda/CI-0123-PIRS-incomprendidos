@@ -23,14 +23,16 @@ RegisterUserPage::~RegisterUserPage()
 }
 
 void RegisterUserPage::on_registerButton_clicked(){
-  Qstring username = ui->usernameLineEdit->text();
-  Qstring password = ui->passwordLineEdit->text();
-  Qstring type = ui->typwComboBox->currentText();
+  QString username = ui->usernameLineEdit->text();
+  QString password = ui->passwordLineEdit->text();
+  // QString type = ui->typwComboBox->currentText();
 
-  if(username.isEmpty() || password.isEmpty() || type.isEmpty()){
+ /* if(username.isEmpty() || password.isEmpty() || type.isEmpty()){
       QMessageBox::warning(this, "Error", "Por favor, rellene todos los campos.");
       return;
-  }
+  }*/
+  User user(4, username.toStdString(), "Invitado 1");
+  user.setPassword(password.toStdString());
+  this->userController->saveUser(user);
 
-  userController->registerUser(username, password, type);
 }

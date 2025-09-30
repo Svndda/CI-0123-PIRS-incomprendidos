@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QString>
 #include <QPushButton>
+#include "user.h"
 #include "UserController.h"
 
 namespace Ui {
@@ -13,7 +14,7 @@ class RegisterUserPage;
 class RegisterUserPage : public QWidget {
     Q_OBJECT
 public:
-    explicit RegisterUserPage(QWidget *parent = nullptr);
+    explicit RegisterUserPage(UserController* userController, QWidget *parent = nullptr);
     ~RegisterUserPage();
     void on_registerButton_clicked();
 
