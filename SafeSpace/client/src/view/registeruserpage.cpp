@@ -1,5 +1,6 @@
 #include "registeruserpage.h"
 #include "ui_registeruserpage.h"
+#include <QMessageBox>
 
 RegisterUserPage::RegisterUserPage(QWidget *parent) :
     QWidget(parent),
@@ -10,7 +11,15 @@ RegisterUserPage::RegisterUserPage(QWidget *parent) :
         QString username = ui->usernameLineEdit->text();
         QString password = ui->passwordLineEdit->text();
         QString rol = ui->rolLineEdit->text();
+        if(username.isEmpty() || password.isEmpty() || rol.isEmpty()){
+            QMessageBox::warning(this, "Error", "Por favor, rellene todos los campos.");
+            return;
+        }
         emit registerRequested(username, password, rol);
+        QMessageBox::information(this, "Registro exitoso", "Usuario registrado correctamente.");
+        ui->usernameLineEdit->clear();
+        ui->passwordLineEdit->clear();
+        ui->rolLineEdit->clear();
     });
 }
 
