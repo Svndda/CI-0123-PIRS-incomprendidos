@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <qapplication.h>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -14,7 +15,9 @@
  */
 class FileSystem {
 private:
-  std::string name; 
+  const std::string UNITY_PATH
+      = QApplication::applicationDirPath().toStdString() + "\\unity.bin";
+  std::string name;
   uint64_t size;
   uint64_t free_size;
   uint64_t block_size;
