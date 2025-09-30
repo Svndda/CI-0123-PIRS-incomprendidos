@@ -15,7 +15,6 @@ RegisterUserPage::RegisterUserPage(QWidget *parent) :
     });
 }
 
-RegisterUserPage::~RegisterUserPage()
-{
+RegisterUserPage::~RegisterUserPage() {
     delete ui;
 }
