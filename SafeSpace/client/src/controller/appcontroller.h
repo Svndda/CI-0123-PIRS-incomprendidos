@@ -6,7 +6,7 @@
 #include <QStackedWidget>
 #include "model/model.h"
 #include "model/FileSystem.h"
-
+#include "UserController.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -36,6 +36,7 @@ public:
    * @brief Destroys the AppController and performs cleanup.
    */
   ~AppController();
+  
    /**
    * @brief Gets a reference to the file system.
    * @return Reference to the file system.
@@ -46,7 +47,8 @@ private:
   Ui::MainWindow* ui;                      ///< Pointer to the main UI layout.
   QStackedWidget* pageStack;               ///< Stack widget managing application pages.
   Model& model = Model::getInstance(); ///< Reference to the singleton model.
-  FileSystem filesystem;
+  FileSystem filesystem = FileSystem();
+  UserController usercontroller = UserController(&filesystem);
 
 private:
   /**
@@ -84,10 +86,24 @@ private:
 private slots:
   
   /**
-   * @brief Processes the accepted user credentials.
-   * @param user The authenticated user.
+   * @brief Processes the user authentication.
    */
-  void userAccepted(const User user);
+  void authenticate(const std::string& username, const std::string& password);
+  
+  /**
+   * @brief Deletes the given user.
+   */
+  void deleteUser(const std::string& username, const std::string& password);
+  
+  /**
+   * @brief Updates the given specified user withe the new one.
+   */
+  void updateUser(const std::string& username, const User& updatedUser);
+  
+  /**
+   * @brief Saves the given user information.
+   */
+  void saveUser(const QString &username, const QString &password, const QString &rol);
   
   /**
    * @brief Resets the application state to its initial configuration.
