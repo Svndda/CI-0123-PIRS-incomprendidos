@@ -36,7 +36,6 @@ AppController::~AppController() {
   delete this->ui;
 }
 
-
 void AppController::setupConnections() {
   // Adds the pages stack in his corresponding area of the program ui.
   this->ui->mainLayout->addWidget(this->pageStack, 1, 0);
