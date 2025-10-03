@@ -6,7 +6,8 @@
 #include <QPrinter>
 #include <vector>
 
-#include "user.h"
+#include "model/managers/UsersManager.h"
+#include "model/filesystem/FileSystem.h"
 
 /**
  * @class Model
@@ -22,9 +23,9 @@ class Model {
   Model& operator=(const Model&) = delete;
 
 private:
-  User user = User(); ///< Currently logged user.
   bool started = false;       ///< Flag indicating if the model has been started.
-  
+  FileSystem filesystem;
+  UsersManager usersManager;
 private:
   /**
    * @brief Private constructor for Model.
@@ -39,19 +40,23 @@ public:  ///< Getters
   static Model& getInstance();
   
   /**
-   * @brief Checks if the POS model has been started.
+   * @brief Checks if the App model has been started.
    * @return True if the model is started.
    */
   inline bool isStarted() { return this->started; }
   
-  /**
-   * @brief getPageAccess Checks the user's access to the given page index.
-   * @param page Index of the page that are going to be checked.
-   * @return User's page acccess state.
-   */
-  inline size_t getPageAccess(const size_t page) {
-    // Returns the user's access for the given page index.
-    return this->user.getUserPermissions()[page].access;
+  // /**
+  //  * @brief getPageAccess Checks the user's access to the given page index.
+  //  * @param page Index of the page that are going to be checked.
+  //  * @return User's page acccess state.
+  //  */
+  // inline size_t getPageAccess(const size_t page) {
+  //   // Returns the user's access for the given page index.
+  //   return this->usersManager.user.getUserPermissions()[page].access;
+  // }
+  
+  inline std::vector<User> getSystemUsers() {
+    return this->usersManager.getUsers();
   }
   
 public:  ///< Functions.
@@ -72,6 +77,19 @@ public:  ///< Functions.
    * Saves the current product and supply data to backup files and clears internal data.
    */
   void shutdown();
+  
+  bool authenticate(
+    const std::string& username, const std::string& password);
+  
+  bool deleteUser(
+    const std::string& username, const std::string& password);
+  
+  bool updateUser(
+    const std::string& username, const User& updatedUser);
+  
+  bool saveUser(
+    const QString &username, const QString &password, const QString &rol);
+  
 };
 
 #endif // MODEL_H
