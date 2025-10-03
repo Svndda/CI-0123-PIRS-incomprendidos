@@ -2,7 +2,7 @@
 #define UPDATEUSERPAGE_H
 
 #include <QWidget>
-#include "../model/user.h"
+#include "model/structures/user.h"
 
 namespace Ui {
 class UpdateUserPage;

@@ -1,14 +1,14 @@
-#include "UserController.h"
+#include "UsersManager.h"
 
-UserController::UserController(FileSystem* fs) : fileSystem(fs) {
+UsersManager::UsersManager(FileSystem* fs) : fileSystem(fs) {
   loadUsers();
 }
 
-UserController::~UserController() {
+UsersManager::~UsersManager() {
     // Cleanup if necessary
 }
 
-void UserController::saveUser(const User& user) {
+void UsersManager::saveUser(const User& user) {
     std::string username = user.getUsername();
     for (const auto& existingUser : this->users) {
         if (existingUser.getUsername() == username) {
@@ -43,7 +43,7 @@ void UserController::saveUser(const User& user) {
   }
 
 
-void UserController::loadUsers(){
+void UsersManager::loadUsers(){
   std::string data;
   this->fileSystem->openFile(this->userFile);
   data = this->fileSystem->readFileAsString(this->userFile);
@@ -79,7 +79,7 @@ void UserController::loadUsers(){
 }
     
  
-bool UserController::authenticate(const std::string& username, const std::string& password){
+bool UsersManager::authenticate(const std::string& username, const std::string& password){
   for (const auto& user : this->users) {
     if (user.getUsername() == username) {
       if (user.verifyPassword(password)) {
@@ -95,13 +95,13 @@ bool UserController::authenticate(const std::string& username, const std::string
   return false;
 }
 
-void UserController::listUsers(){
+void UsersManager::listUsers(){
     for(int i = 0; i < this->users.size(); ++i){
         std::cout << this->users[i].getUsername() << " " << this->users[i].getType() << "\n";
     }
 }
 
-bool UserController::deleteUser(const std::string& username){
+bool UsersManager::deleteUser(const std::string& username){
   User user = getUser(username);
   if (user.getUsername().empty()) {
     std::cout << "User not found" << std::endl;
@@ -154,7 +154,7 @@ bool UserController::deleteUser(const std::string& username){
       return false;
   }
 }
-bool UserController::updateUser(const std::string& username, const User& updatedUser){
+bool UsersManager::updateUser(const std::string& username, const User& updatedUser){
   for (auto& user : this->users) {
     if (user.getUsername() == username) {
       user = updatedUser;
@@ -198,7 +198,7 @@ bool UserController::updateUser(const std::string& username, const User& updated
   return false;
 }
   
-User UserController::getUser(const std::string& username){
+User UsersManager::getUser(const std::string& username){
   for (const auto& user : this->users) {
     if (user.getUsername() == username) {
       return user;

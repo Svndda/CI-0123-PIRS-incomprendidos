@@ -5,7 +5,6 @@
 #include <QString>
 #include <QPushButton>
 #include "user.h"
-#include "UserController.h"
 
 namespace Ui {
 class RegisterUserPage;

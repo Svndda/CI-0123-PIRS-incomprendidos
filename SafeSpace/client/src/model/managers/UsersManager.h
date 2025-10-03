@@ -7,14 +7,14 @@
 #include "user.h"
 #include "FileSystem.h"
 
-class UserController {
+class UsersManager {
 private:
     std::vector<User> users;
     FileSystem* fileSystem;
     std::string userFile = "UserList";
 public:
-    UserController(FileSystem* fs);
-    ~UserController();
+    UsersManager(FileSystem* fs);
+    ~UsersManager();
     void saveUser(const User& user);
     void loadUsers();
     bool authenticate(const std::string& username, const std::string& password);

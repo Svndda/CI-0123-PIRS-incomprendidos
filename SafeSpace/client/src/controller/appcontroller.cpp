@@ -1,11 +1,11 @@
 // Copyright [2025] Aaron Carmona Sanchez <aaron.carmona@ucr.ac.cr>
-#include "appcontroller.h"
+#include "controller/appcontroller.h"
 #include "ui_mainwindow.h"
 
 #include <QMessageBox>
 
 #include "model/model.h"
-#include "model/user.h"
+#include "model/structures/user.h"
 #include "view/loginpage.h"
 #include "view/administrationpage.h"
 #include "colors.h"
@@ -21,26 +21,26 @@ AppController::AppController(QWidget *parent)
   this->ui->page2->setButtonText("Reportes");
   this->ui->page3->setButtonText("Administración");
 
-  // USUARIOS HARDCODEADOS
-  User u1(1, "realAdmin", "Administrador del sistema");
-  u1.setPassword("M2sv8KxpLq");
-  this->usercontroller.saveUser(u1);
+  // // USUARIOS HARDCODEADOS
+  // User u1(1, "realAdmin", "Administrador del sistema");
+  // u1.setPassword("M2sv8KxpLq");
+  // this->usercontroller.saveUser(u1);
 
-  User u2(2, "dataAdmin", "Administrador de datos");
-  u2.setPassword("N7vbq2R0");
-  this->usercontroller.saveUser(u2);
+  // User u2(2, "dataAdmin", "Administrador de datos");
+  // u2.setPassword("N7vbq2R0");
+  // this->usercontroller.saveUser(u2);
 
-  User u3(3, "audiTT", "Auditor");
-  u3.setPassword("gH5pxL9pQ");
-  this->usercontroller.saveUser(u3);
+  // User u3(3, "audiTT", "Auditor");
+  // u3.setPassword("gH5pxL9pQ");
+  // this->usercontroller.saveUser(u3);
 
-  User u4(4, "guestAA", "Invitado 1");
-  u4.setPassword("aB7nvZt9Ow1");
-  this->usercontroller.saveUser(u4);
+  // User u4(4, "guestAA", "Invitado 1");
+  // u4.setPassword("aB7nvZt9Ow1");
+  // this->usercontroller.saveUser(u4);
 
-  User u5(5, "guestBB", "Invitado 2");
-  u5.setPassword("z9dsRk5Tg");
-  this->usercontroller.saveUser(u5);
+  // User u5(5, "guestBB", "Invitado 2");
+  // u5.setPassword("z9dsRk5Tg");
+  // this->usercontroller.saveUser(u5);
 
   // Connects all the ui elements to their slot functions.
   this->setupConnections();
@@ -65,7 +65,7 @@ void AppController::setupConnections() {
   // Add the login page to the stack view.
   this->pageStack->addWidget(loginPage);
   this->pageStack->setCurrentIndex(0);
-  this->filesystem.readFile("UserList");
+  // this->filesystem.readFile("UserList");
   // Connects the login signal to the controller function to try
   //  start the system.
   this->connect(
@@ -149,7 +149,7 @@ void AppController::switchPages(const size_t pageIndex) {
 void AppController::authenticate(
     const std::string& username, const std::string& password) {
   // Llama a la autenticación real del UserController
-  if (this->usercontroller.authenticate(username, password)) {
+  if (/*this->usercontroller.authenticate(username, password)*/ 1) {
     this->prepareSystemPages();
     this->setButtonsState(true);
     qDebug() << "credenciales aceptadas";
@@ -171,15 +171,12 @@ void AppController::updateUser(
 
 void AppController::saveUser(
     const QString &username, const QString &password, const QString &rol) {
-  this->usercontroller.saveUser(
-    User(0, username.toStdString(), rol.toStdString())
-  );
+  // this->usercontroller.saveUser(
+  //   User(0, username.toStdString(), rol.toStdString())
+  // );
 }
 
 void AppController::resetApplicationState() {
   this->pageStack->setCurrentIndex(0);
 }
 
-FileSystem& AppController::getFileSystem() { 
-  return this->filesystem; 
-}

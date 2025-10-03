@@ -16,15 +16,22 @@ qt_add_executable(SafeSpace
   
   # Model
   src/model/model.cpp src/model/model.h
-  src/model/user.cpp src/model/user.h
-  src/model/FIleSystem.cpp src/model/FileSystem.h
-  src/model/File.cpp src/model/File.hpp
-  src/model/Directory.cpp src/model/Directory.hpp
-  src/model/iNode.hpp
+  
+  # Managers
+  src/model/managers/UserController.cpp  src/model/managers/UserController.h  
+  
+  # Structures
+  src/model/structures/user.cpp src/model/structures/user.h
+  src/model/structures/sensordata.h src/model/structures/sensordata.cpp
+
+  # Filesystem  
+  src/model/filesystem/FIleSystem.cpp src/model/filesystem/FileSystem.h
+  src/model/filesystem/File.cpp src/model/filesystem/File.hpp
+  src/model/filesystem/Directory.cpp src/model/filesystem/Directory.hpp
+  src/model/filesystem/iNode.hpp
   
   # Controller
   src/controller/appcontroller.cpp src/controller/appcontroller.h
-  src/controller/UserController.cpp  src/controller/UserController.h
   src/controller/mainwindow.ui
   
   src/view/loginpage.cpp src/view/loginpage.h src/view/loginpage.ui
@@ -32,7 +39,6 @@ qt_add_executable(SafeSpace
   src/colors.h
   src/view/elements/button.h src/view/elements/button.cpp
   src/view/elements/sensordatafield.h src/view/elements/sensordatafield.cpp src/view/elements/sensordatafield.ui
-  src/model/sensordata.h src/model/sensordata.cpp
   src/view/administrationpage.h src/view/administrationpage.cpp src/view/administrationpage.ui
   src/view/registeruserpage.h src/view/registeruserpage.cpp src/view/registeruserpage.ui
   src/view/userlistpage.h src/view/userlistpage.cpp src/view/userlistpage.ui
@@ -61,6 +67,8 @@ target_include_directories(SafeSpace
   PRIVATE
     ${CMAKE_SOURCE_DIR}/src/
     ${CMAKE_SOURCE_DIR}/src/model/
+    ${CMAKE_SOURCE_DIR}/src/model/structures
+    ${CMAKE_SOURCE_DIR}/src/model/filesystem    
     ${CMAKE_SOURCE_DIR}/src/controller/
     ${CMAKE_SOURCE_DIR}/src/ui/
     ${CMAKE_SOURCE_DIR}/src/ui/elements/
