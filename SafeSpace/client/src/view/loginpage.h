@@ -21,7 +21,7 @@ private:
   Ui::LoginPage* ui = nullptr;
 
 signals:
-  void authenticate(const std::string& username, const std::string& password);
+  void userAuthenticated();
 private slots:
   void on_sendCredentials_button_clicked();
     void on_showPassword_checkBox_checkStateChanged(const Qt::CheckState &arg1);

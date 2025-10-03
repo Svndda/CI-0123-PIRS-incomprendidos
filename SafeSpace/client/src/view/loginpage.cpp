@@ -24,13 +24,17 @@ LoginPage::~LoginPage() {
 }
 
 void LoginPage::on_sendCredentials_button_clicked() {
-  QString email = this->ui->email_lineEdit->text();
-  QString password = this->ui->password_lineEdit->text();
+  std::string username = this->ui->email_lineEdit->text().toStdString();
+  std::string password = this->ui->password_lineEdit->text().toStdString();
+  
+  if (username.empty() | password.empty()) {
+    this->warningMessageBox("Por favor, rellene todos los campos.");    
+  }
 
-  if (!(email.isEmpty() && password.isEmpty())) {    
-    emit this->authenticate(email.toStdString(), password.toStdString());
+  if (this->model.authenticate(username, password)) {    
+    emit this->userAuthenticated();
   } else {
-    this->warningMessageBox("Por favor, rellene todos los campos.");
+    this->warningMessageBox("Credenciales de cuenta erróneas.");
   }
 }
 
