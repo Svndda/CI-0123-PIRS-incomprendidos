@@ -9,17 +9,23 @@
 
 class UsersManager {
 private:
-    std::vector<User> users;
-    FileSystem* fileSystem;
-    std::string userFile = "UserList";
+  std::vector<User> users;
+  FileSystem& fileSystem;
+  std::string userFile = "UserList";
 public:
-    UsersManager(FileSystem* fs);
-    ~UsersManager();
-    void saveUser(const User& user);
-    void loadUsers();
-    bool authenticate(const std::string& username, const std::string& password);
-    void listUsers();
-    bool deleteUser(const std::string& username);
-    bool updateUser(const std::string& username, const User& updatedUser);
-    User getUser(const std::string& username);
+  UsersManager(FileSystem& fs);
+  ~UsersManager();
+  
+public: ///> Getters
+  std::vector<User> getUsers() {return this->users;}
+  
+public:
+  
+  bool saveUser(const User& user);
+  void loadUsers();
+  bool authenticate(const std::string& username, const std::string& password);
+  void listUsers();
+  bool deleteUser(const std::string& username);
+  bool updateUser(const std::string& username, const User& updatedUser);
+  User findUser(const std::string& username);
 };

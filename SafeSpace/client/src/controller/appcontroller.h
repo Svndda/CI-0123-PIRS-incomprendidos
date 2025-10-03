@@ -76,24 +76,9 @@ private:
 private slots:
   
   /**
-   * @brief Processes the user authentication.
+   * @brief Executes the ui update after the user authentication.
    */
-  void authenticate(const std::string& username, const std::string& password);
-  
-  /**
-   * @brief Deletes the given user.
-   */
-  void deleteUser(const std::string& username, const std::string& password);
-  
-  /**
-   * @brief Updates the given specified user withe the new one.
-   */
-  void updateUser(const std::string& username, const User& updatedUser);
-  
-  /**
-   * @brief Saves the given user information.
-   */
-  void saveUser(const QString &username, const QString &password, const QString &rol);
+  void userAuthenticated();
   
   /**
    * @brief Resets the application state to its initial configuration.
@@ -103,7 +88,6 @@ private slots:
    * to the login page.
    */
   void resetApplicationState();
-
  
 };
 #endif // APPCONTROLLER_H

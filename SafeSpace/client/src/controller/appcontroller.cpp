@@ -21,27 +21,6 @@ AppController::AppController(QWidget *parent)
   this->ui->page2->setButtonText("Reportes");
   this->ui->page3->setButtonText("Administración");
 
-  // // USUARIOS HARDCODEADOS
-  // User u1(1, "realAdmin", "Administrador del sistema");
-  // u1.setPassword("M2sv8KxpLq");
-  // this->usercontroller.saveUser(u1);
-
-  // User u2(2, "dataAdmin", "Administrador de datos");
-  // u2.setPassword("N7vbq2R0");
-  // this->usercontroller.saveUser(u2);
-
-  // User u3(3, "audiTT", "Auditor");
-  // u3.setPassword("gH5pxL9pQ");
-  // this->usercontroller.saveUser(u3);
-
-  // User u4(4, "guestAA", "Invitado 1");
-  // u4.setPassword("aB7nvZt9Ow1");
-  // this->usercontroller.saveUser(u4);
-
-  // User u5(5, "guestBB", "Invitado 2");
-  // u5.setPassword("z9dsRk5Tg");
-  // this->usercontroller.saveUser(u5);
-
   // Connects all the ui elements to their slot functions.
   this->setupConnections();
   this->setStyleSheet("background-color: " + Colors::Black + ";");
@@ -69,8 +48,8 @@ void AppController::setupConnections() {
   // Connects the login signal to the controller function to try
   //  start the system.
   this->connect(
-    loginPage, &LoginPage::authenticate,
-    this, &AppController::authenticate
+    loginPage, &LoginPage::userAuthenticated,
+    this, &AppController::userAuthenticated
   );
   // Hides/Disables the pages buttons.
   this->setButtonsState(false);
@@ -89,12 +68,6 @@ void AppController::prepareSystemPages() {
   
   // // Adds the program pages to the stack of pages.
   this->pageStack->addWidget(admPage);
-
-
-  this->connect(
-    admPage, &AdministrationPage::saveUser,
-    this, &AppController::saveUser
-  );
   
   // // Sets the stack page to the pos.
   this->refreshPageStack(1);
@@ -146,34 +119,10 @@ void AppController::switchPages(const size_t pageIndex) {
   // }
 }
 
-void AppController::authenticate(
-    const std::string& username, const std::string& password) {
-  // Llama a la autenticación real del UserController
-  if (/*this->usercontroller.authenticate(username, password)*/ 1) {
-    this->prepareSystemPages();
-    this->setButtonsState(true);
-    qDebug() << "credenciales aceptadas";
-  } else {
-    QMessageBox::information(this, "Credenciales erroneas"
-        , "Por favor, verifique los datos ingresados.");
-  }
-}
-
-void AppController::deleteUser(
-    const std::string& username, const std::string& password) {
-  
-}
-
-void AppController::updateUser(
-    const std::string& username, const User& updatedUser) {
-  
-}
-
-void AppController::saveUser(
-    const QString &username, const QString &password, const QString &rol) {
-  // this->usercontroller.saveUser(
-  //   User(0, username.toStdString(), rol.toStdString())
-  // );
+void AppController::userAuthenticated() {
+  this->prepareSystemPages();
+  this->setButtonsState(true);
+  qDebug() << "credenciales aceptadas";
 }
 
 void AppController::resetApplicationState() {

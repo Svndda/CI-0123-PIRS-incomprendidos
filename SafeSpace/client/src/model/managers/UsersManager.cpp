@@ -1,6 +1,6 @@
 #include "UsersManager.h"
 
-UsersManager::UsersManager(FileSystem* fs) : fileSystem(fs) {
+UsersManager::UsersManager(FileSystem& fs) : fileSystem(fs) {
   loadUsers();
 }
 
@@ -8,22 +8,22 @@ UsersManager::~UsersManager() {
     // Cleanup if necessary
 }
 
-void UsersManager::saveUser(const User& user) {
+bool UsersManager::saveUser(const User& user) {
     std::string username = user.getUsername();
     for (const auto& existingUser : this->users) {
         if (existingUser.getUsername() == username) {
             std::cout << "User already exists." << std::endl;
-            return;
+            return false;
         }
     }
     // Asegurarse de que el archivo de usuarios existe
-    if (this->fileSystem->openFile(this->userFile) != 0) {
-        this->fileSystem->createFile(this->userFile, "rw");
+    if (this->fileSystem.openFile(this->userFile) != 0) {
+        this->fileSystem.createFile(this->userFile, "rw");
     }
     // Leer contenido actual del archivo
-    this->fileSystem->openFile(this->userFile);
-    std::string currentContent = this->fileSystem->readFileAsString(this->userFile); 
-    this->fileSystem->closeFile(this->userFile);
+    this->fileSystem.openFile(this->userFile);
+    std::string currentContent = this->fileSystem.readFileAsString(this->userFile); 
+    this->fileSystem.closeFile(this->userFile);
 
     // Preparar nueva línea
     std::string userType = user.getType();
@@ -34,20 +34,21 @@ void UsersManager::saveUser(const User& user) {
     std::string fullContent = currentContent + newLine;
 
     // Guardar TODO el contenido
-    this->fileSystem->openFile(this->userFile);
-    this->fileSystem->writeFile(this->userFile, fullContent);
-    this->fileSystem->closeFile(this->userFile);
+    this->fileSystem.openFile(this->userFile);
+    this->fileSystem.writeFile(this->userFile, fullContent);
+    this->fileSystem.closeFile(this->userFile);
 
     this->users.push_back(user);
     std::cout << "User saved successfully." << std::endl;
+    return true;
   }
 
 
 void UsersManager::loadUsers(){
   std::string data;
-  this->fileSystem->openFile(this->userFile);
-  data = this->fileSystem->readFileAsString(this->userFile);
-  this->fileSystem->closeFile(this->userFile);
+  this->fileSystem.openFile(this->userFile);
+  data = this->fileSystem.readFileAsString(this->userFile);
+  this->fileSystem.closeFile(this->userFile);
   if (data.empty()) {
     std::cout << "No users found." << std::endl;
     return;
@@ -95,22 +96,16 @@ bool UsersManager::authenticate(const std::string& username, const std::string& 
   return false;
 }
 
-void UsersManager::listUsers(){
-    for(int i = 0; i < this->users.size(); ++i){
-        std::cout << this->users[i].getUsername() << " " << this->users[i].getType() << "\n";
-    }
-}
-
 bool UsersManager::deleteUser(const std::string& username){
-  User user = getUser(username);
+  User user = this->findUser(username);
   if (user.getUsername().empty()) {
     std::cout << "User not found" << std::endl;
     return false;
   }
 
-  this->fileSystem->openFile(this->userFile);
-  std::string currentContent = this->fileSystem->readFileAsString(this->userFile); 
-  this->fileSystem->closeFile(this->userFile);
+  this->fileSystem.openFile(this->userFile);
+  std::string currentContent = this->fileSystem.readFileAsString(this->userFile); 
+  this->fileSystem.closeFile(this->userFile);
 
   std::string newContent;
   size_t start = 0;
@@ -134,9 +129,9 @@ bool UsersManager::deleteUser(const std::string& username){
   }
 
   // Actualiza el archivo
-  this->fileSystem->openFile(this->userFile);
-  this->fileSystem->writeFile(this->userFile, newContent);
-  this->fileSystem->closeFile(this->userFile);
+  this->fileSystem.openFile(this->userFile);
+  this->fileSystem.writeFile(this->userFile, newContent);
+  this->fileSystem.closeFile(this->userFile);
 
   // Elimina del vector
   for (auto it = this->users.begin(); it != this->users.end(); ++it) {
@@ -159,9 +154,9 @@ bool UsersManager::updateUser(const std::string& username, const User& updatedUs
     if (user.getUsername() == username) {
       user = updatedUser;
       // Actualizar en el archivo
-      this->fileSystem->openFile(this->userFile);
-      std::string currentContent = this->fileSystem->readFileAsString(this->userFile); 
-      this->fileSystem->closeFile(this->userFile);
+      this->fileSystem.openFile(this->userFile);
+      std::string currentContent = this->fileSystem.readFileAsString(this->userFile); 
+      this->fileSystem.closeFile(this->userFile);
 
       std::string newContent;
       size_t start = 0;
@@ -186,9 +181,9 @@ bool UsersManager::updateUser(const std::string& username, const User& updatedUs
       }
 
       // Guardar el nuevo contenido
-      this->fileSystem->openFile(this->userFile);
-      this->fileSystem->writeFile(this->userFile, newContent);
-      this->fileSystem->closeFile(this->userFile);
+      this->fileSystem.openFile(this->userFile);
+      this->fileSystem.writeFile(this->userFile, newContent);
+      this->fileSystem.closeFile(this->userFile);
 
       std::cout << "User updated successfully." << std::endl;
       return true;
@@ -198,7 +193,7 @@ bool UsersManager::updateUser(const std::string& username, const User& updatedUs
   return false;
 }
   
-User UsersManager::getUser(const std::string& username){
+User UsersManager::findUser(const std::string& username){
   for (const auto& user : this->users) {
     if (user.getUsername() == username) {
       return user;
