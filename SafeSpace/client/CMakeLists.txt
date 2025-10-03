@@ -18,7 +18,7 @@ qt_add_executable(SafeSpace
   src/model/model.cpp src/model/model.h
   
   # Managers
-  src/model/managers/UserController.cpp  src/model/managers/UserController.h  
+  src/model/managers/UsersManager.cpp  src/model/managers/UsersManager.h
   
   # Structures
   src/model/structures/user.cpp src/model/structures/user.h

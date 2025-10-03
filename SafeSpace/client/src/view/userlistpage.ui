@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>Lista de Usuarios</string>
   </property>
+  <property name="styleSheet">
+   <string notr="true">color:white;
+</string>
+  </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <widget class="QTableWidget" name="userTableWidget">

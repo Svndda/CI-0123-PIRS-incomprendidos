@@ -16,10 +16,10 @@ AdministrationPage::AdministrationPage(
     qDebug() << "Botón clicado!";
   });
   
-  this->connect(
-    this->ui->registerUserForm, &RegisterUserPage::registerRequested,
-    this, &AdministrationPage::registerUser
-  );
+  // this->connect(
+  //   this->ui->registerUserForm, &RegisterUserPage::registerRequested,
+  //   this, &AdministrationPage::registerUser
+  // );
 }
 
 AdministrationPage::~AdministrationPage() {
