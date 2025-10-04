@@ -40,9 +40,13 @@ qt_add_executable(SafeSpace
   src/view/elements/button.h src/view/elements/button.cpp
   src/view/elements/sensordatafield.h src/view/elements/sensordatafield.cpp src/view/elements/sensordatafield.ui
   src/view/administrationpage.h src/view/administrationpage.cpp src/view/administrationpage.ui
-  src/view/registeruserpage.h src/view/registeruserpage.cpp src/view/registeruserpage.ui
-  src/view/userlistpage.h src/view/userlistpage.cpp src/view/userlistpage.ui
-  src/view/updateuserpage.h src/view/updateuserpage.cpp src/view/updateuserpage.ui
+  src/view/registrationpage.h src/view/registrationpage.cpp src/view/registrationpage.ui
+  src/view/systemuserspage.h src/view/systemuserspage.cpp src/view/systemuserspage.ui
+  
+  src/view/accountpage.h src/view/accountpage.cpp src/view/accountpage.ui
+  src/view/visualizerspage.h src/view/visualizerspage.cpp src/view/visualizerspage.ui
+  src/view/sensorspage.h src/view/sensorspage.cpp src/view/sensorspage.ui
+  src/view/elements/rolescombobox.h src/view/elements/rolescombobox.cpp
 
 )
 
