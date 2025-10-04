@@ -1,0 +1,69 @@
+#include "systemuserspage.h"
+#include "ui_systemuserspage.h"
+
+#include "elements/rolescombobox.h"
+#include "elements/button.h"
+#include "colors.h"
+
+SystemUsersPage::SystemUsersPage(QWidget *parent, Model& model) :
+    Page(parent, model),
+    ui(new Ui::SystemUsersPage) {
+    ui->setupUi(this);
+  this->refreshUsersTable();
+}
+
+SystemUsersPage::~SystemUsersPage() {
+    delete ui;
+}
+
+void SystemUsersPage::refreshUsersTable() {
+  
+  QTableWidget* table = this->ui->userTableWidget;
+  table->setRowCount(0);
+  
+  
+  const std::vector<User> systemUsers = this->model.getSystemUsers();
+  this->logger(
+      LogType::DEBUG,
+      "hay registrados usuarios: " + QString::number(systemUsers.size())
+      );
+  
+  for (const auto& user : systemUsers) {
+    const int row = table->rowCount();
+    table->insertRow(row);
+    
+    QTableWidgetItem* idField = new QTableWidgetItem(QString::number(user.getID()));
+    QTableWidgetItem* nameField = new QTableWidgetItem(user.getUsername().data());
+    table->setItem(row, 0, idField);
+    table->setItem(row, 1, nameField);
+    
+    RolesComboBox* combo = new RolesComboBox();
+    table->setCellWidget(row, 2, combo);
+    
+    Button* button = new Button(
+        table, "Eliminar",
+        Colors::LigthRed, Colors::White,
+        10
+        );
+    
+    this->connect(
+        button, &QPushButton::clicked,
+        this, [this, user]() {
+          
+          bool reply = this->askUserConfirmation(
+              "Vas a eliminar un usuario."
+              "\n¿Desea continuar la operación?"
+          );
+          
+          if (reply) {            
+            qDebug() << "Eliminando usuario con ID: " << user.getID();
+            
+            this->model.deleteUser(user);
+            this->refreshUsersTable();
+          }
+        });
+    table->setCellWidget(row, 3, button);
+  }
+  
+  table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+}
