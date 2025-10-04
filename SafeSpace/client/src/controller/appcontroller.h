@@ -65,13 +65,13 @@ private:
    * 
    * @param stackIndex The index of the page stack to switch to.
    */
-  void refreshPageStack(const size_t pageIndex);
+  void switchPages(const size_t pageIndex);
   
   /**
-   * @brief Switches the displayed page in the stack widget.
-   * @param pageIndex The index of the page to display.
+   * @brief Refresh the page buttons in the view.
+   * @param pageIndex The index of the page that was selected.
    */
-  void switchPages(const size_t pageIndex);
+  void pageButtonsRefresh(const size_t pageIndex);
   
 private slots:
   
