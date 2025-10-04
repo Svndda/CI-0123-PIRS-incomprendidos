@@ -130,7 +130,7 @@
 }</string>
         </property>
         <property name="text">
-         <string/>
+         <string>realAdmin</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignmentFlag::AlignBottom|Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft</set>
@@ -207,7 +207,7 @@
 }</string>
         </property>
         <property name="text">
-         <string/>
+         <string>M2sv8KxpLq</string>
         </property>
         <property name="frame">
          <bool>true</bool>
