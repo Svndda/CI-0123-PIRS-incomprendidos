@@ -10,7 +10,7 @@
 class Page : public QWidget {
   Q_OBJECT
   
-  // 
+public:
   enum LogType : uint64_t {
     DEBUG = 0,
     INFO = 1,
@@ -36,6 +36,8 @@ protected:
   void infoMessageBox(const QString& message);
   void infoMessageBox(const std::string& message);
   void infoMessageBox(const char* message);
+  
+  bool askUserConfirmation(const QString& message);
   
 signals:
 };

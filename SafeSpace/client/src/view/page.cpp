@@ -57,3 +57,13 @@ void Page::infoMessageBox(const char* message) {
   this->infoMessageBox(QString::fromUtf8(message));
 }
 
+bool Page::askUserConfirmation(const QString& message) {
+  QMessageBox::StandardButton reply;
+  reply = QMessageBox::question(this, "Confirmación", message,
+                                QMessageBox::Yes | QMessageBox::No);
+  if (reply == QMessageBox::Yes) {
+    return true;  // Usuario aceptó
+  } else {
+    return false; // Usuario denegó
+  }
+}
