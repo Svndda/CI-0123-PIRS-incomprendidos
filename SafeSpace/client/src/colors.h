@@ -9,5 +9,6 @@ namespace Colors {
   const QString White = "#FFFFFF";
   const QString Gray = "#999999";
   const QString Black = "#27262C";
+  const QString LigthRed = "#FF615C";
 }
 #endif // COLORS_H
