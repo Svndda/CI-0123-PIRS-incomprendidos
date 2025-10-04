@@ -23,10 +23,22 @@
    <item>
     <widget class="QFrame" name="verticalFrame">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>160</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>180</width>
+       <height>16777215</height>
+      </size>
      </property>
      <property name="frameShape">
       <enum>QFrame::Shape::NoFrame</enum>
@@ -42,7 +54,7 @@
         </property>
         <property name="minimumSize">
          <size>
-          <width>0</width>
+          <width>140</width>
           <height>40</height>
          </size>
         </property>
@@ -51,6 +63,35 @@
           <width>200</width>
           <height>40</height>
          </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QPushButton {
+	border-radius: 15px;
+	padding: 5px;
+	background-color: rgb(64, 68, 237);
+	color: white;
+	border: 2px solid rgba(0, 0, 0, 10); /* Borde tenue */
+}
+
+QPushButton:hover {
+  background-color: rgb(90, 90, 255);    /* Fondo al pasar el mouse */
+  color: white;                /* Color del texto al pasar el mouse */
+}
+
+QPushButton:pressed {
+  background-color: rgb(51, 55, 188)     /* Fondo al presionar */
+  color: white;                /* Color del texto al presionar */
+}
+
+QPushButton:disabled {
+  background-color: rgb(39, 39, 43);     /* Fondo deshabilitado */
+  color: #7f8c8d;                /* Color del texto deshabilitado */
+}
+
+QPushButton:checked {
+  background-color: #27ae60;     /* Fondo cuando está checkable y activado */
+  color: #ecf0f1;        
+}</string>
         </property>
         <property name="text">
          <string>Opciones de Sensores</string>
@@ -67,7 +108,7 @@
         </property>
         <property name="minimumSize">
          <size>
-          <width>0</width>
+          <width>140</width>
           <height>40</height>
          </size>
         </property>
@@ -76,6 +117,35 @@
           <width>200</width>
           <height>40</height>
          </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QPushButton {
+	border-radius: 15px;
+	padding: 5px;
+	background-color: rgb(64, 68, 237);
+	color: white;
+	border: 2px solid rgba(0, 0, 0, 10); /* Borde tenue */
+}
+
+QPushButton:hover {
+  background-color: rgb(90, 90, 255);    /* Fondo al pasar el mouse */
+  color: white;                /* Color del texto al pasar el mouse */
+}
+
+QPushButton:pressed {
+  background-color: rgb(51, 55, 188)     /* Fondo al presionar */
+  color: white;                /* Color del texto al presionar */
+}
+
+QPushButton:disabled {
+  background-color: rgb(39, 39, 43);     /* Fondo deshabilitado */
+  color: #7f8c8d;                /* Color del texto deshabilitado */
+}
+
+QPushButton:checked {
+  background-color: #27ae60;     /* Fondo cuando está checkable y activado */
+  color: #ecf0f1;        
+}</string>
         </property>
         <property name="text">
          <string>Usuarios del Sistema</string>
@@ -92,7 +162,7 @@
         </property>
         <property name="minimumSize">
          <size>
-          <width>0</width>
+          <width>140</width>
           <height>40</height>
          </size>
         </property>
@@ -101,6 +171,35 @@
           <width>200</width>
           <height>40</height>
          </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QPushButton {
+	border-radius: 15px;
+	padding: 5px;
+	background-color: rgb(64, 68, 237);
+	color: white;
+	border: 2px solid rgba(0, 0, 0, 10); /* Borde tenue */
+}
+
+QPushButton:hover {
+  background-color: rgb(90, 90, 255);    /* Fondo al pasar el mouse */
+  color: white;                /* Color del texto al pasar el mouse */
+}
+
+QPushButton:pressed {
+  background-color: rgb(51, 55, 188)     /* Fondo al presionar */
+  color: white;                /* Color del texto al presionar */
+}
+
+QPushButton:disabled {
+  background-color: rgb(39, 39, 43);     /* Fondo deshabilitado */
+  color: #7f8c8d;                /* Color del texto deshabilitado */
+}
+
+QPushButton:checked {
+  background-color: #27ae60;     /* Fondo cuando está checkable y activado */
+  color: #ecf0f1;        
+}</string>
         </property>
         <property name="text">
          <string>Registrar Usuario</string>
@@ -127,30 +226,57 @@
     </widget>
    </item>
    <item>
-    <widget class="QFrame" name="frame">
-     <property name="frameShape">
-      <enum>QFrame::Shape::StyledPanel</enum>
+    <widget class="Line" name="line">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>5</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>5</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <property name="styleSheet">
+      <string notr="true"/>
      </property>
      <property name="frameShadow">
       <enum>QFrame::Shadow::Raised</enum>
      </property>
-     <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="0">
-       <widget class="QStackedWidget" name="pagesStack">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="currentIndex">
-         <number>1</number>
-        </property>
-        <widget class="UserListPage" name="usersList"/>
-        <widget class="RegisterUserPage" name="registerUserForm"/>
-       </widget>
-      </item>
-     </layout>
+     <property name="lineWidth">
+      <number>1</number>
+     </property>
+     <property name="midLineWidth">
+      <number>0</number>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="widget" native="true">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QWidget {
+	border: 2 px solid black;
+}
+</string>
+     </property>
+     <layout class="QGridLayout" name="pages_layout"/>
     </widget>
    </item>
   </layout>
@@ -160,18 +286,6 @@
    <class>Button</class>
    <extends>QPushButton</extends>
    <header>view/elements/button.h</header>
-  </customwidget>
-  <customwidget>
-   <class>UserListPage</class>
-   <extends>QWidget</extends>
-   <header>view/userlistpage.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>RegisterUserPage</class>
-   <extends>QWidget</extends>
-   <header>view/registeruserpage.h</header>
-   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

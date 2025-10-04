@@ -2,6 +2,7 @@
 #define ADMINISTRATIONPAGE_H
 
 #include <QWidget>
+#include <QStackedWidget>
 #include "model/model.h"
 #include "page.h"
 
@@ -14,7 +15,8 @@ class AdministrationPage : public Page {
   
   
 private:
-  Ui::AdministrationPage *ui;
+  Ui::AdministrationPage* ui;
+  QStackedWidget* pageStack;
 
 public:
   AdministrationPage(QWidget* parent, Model& model);
