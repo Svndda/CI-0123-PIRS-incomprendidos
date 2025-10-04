@@ -82,13 +82,24 @@ public:  ///< Functions.
     const std::string& username, const std::string& password);
   
   bool deleteUser(
-    const std::string& username, const std::string& password);
+    const std::string& username);
+  
+  bool deleteUser(
+      const User& user);
   
   bool updateUser(
     const std::string& username, const User& updatedUser);
   
   bool saveUser(
     const QString &username, const QString &password, const QString &rol);
+  
+  User findUser(const std::string& username) {
+    return this->usersManager.findUser(username);
+  };
+  
+  User findUser(const size_t id) {
+    return this->usersManager.findUser(id);
+  }
   
 };
 

@@ -39,7 +39,11 @@ bool UsersManager::saveUser(const User& user) {
     this->fileSystem.closeFile(this->userFile);
 
     this->users.push_back(user);
-    std::cout << "User saved successfully." << std::endl;
+    // std::cout << "User saved successfully." << std::endl;
+    // std::cout << "Registered users: " << this->users.size() << std::endl;
+    // for (const auto& existingUser : this->users) {
+    //   std::cout << "Registered user: " << existingUser.getUsername() << std::endl;
+    // }
     return true;
   }
 
@@ -196,6 +200,16 @@ bool UsersManager::updateUser(const std::string& username, const User& updatedUs
 User UsersManager::findUser(const std::string& username){
   for (const auto& user : this->users) {
     if (user.getUsername() == username) {
+      return user;
+    }
+  }
+  std::cout << "User not found." << std::endl;
+  return User();
+}
+
+User UsersManager::findUser(const size_t id) {
+  for (const auto& user : this->users) {
+    if (user.getID() == id) {
       return user;
     }
   }

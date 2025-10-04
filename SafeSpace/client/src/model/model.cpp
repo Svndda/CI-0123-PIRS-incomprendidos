@@ -51,8 +51,13 @@ bool Model::authenticate(
 }
 
 bool Model::deleteUser(
-    const std::string& username, const std::string& password) {
+    const std::string& username) {
   return this->usersManager.deleteUser(username);
+}
+
+bool Model::deleteUser(
+    const User& user) {
+  return this->usersManager.deleteUser(user.getUsername());
 }
 
 bool Model::updateUser(
