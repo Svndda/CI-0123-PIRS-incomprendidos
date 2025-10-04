@@ -38,7 +38,7 @@ public:
                   const QString& text = "Button",
                   const QString& bgColor = "rgb(64, 68, 237)",
                   const QString& fgColor = "white",
-                  int radius = 15,
+                  int radius = 10,
                   bool border = true);
   
   ~Button() = default;
@@ -69,6 +69,11 @@ public:
  * @brief Set displayed border visible status and reapply style.
  */
   void setShowBorder(bool enabled);
+  
+  /**
+   * @brief Set button pressed state.
+   */
+  void setPressed(bool state);
 public:  
   ///> Getters
   QString getBackgroundColor() const {return this->backgroundColor;};

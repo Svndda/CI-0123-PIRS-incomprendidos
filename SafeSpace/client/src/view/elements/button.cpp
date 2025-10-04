@@ -18,28 +18,33 @@ void Button::applyStyle() {
   QString style = QString(
     "QPushButton {"
     " border-radius: %1px;"
+    " padding: 5px 10px;"    
     " background-color: %2;"
     " color: %3;"
     " %4"
-    "}"
+    "}"                      
                       
     "QPushButton:hover {"
-    " background-color: rgb(90, 90, 255);"
+    " border-radius: %1px;"
+    " background-color: rgb(106, 108, 241);"
     " color: %3;"
     "}"
                       
     "QPushButton:pressed {"
+    " border-radius: %1px;"
     " background-color: rgb(51, 55, 188)"
     " color: %3;"
     "}"
                       
     "QPushButton:disabled {"
+    " border-radius: %1px;"
     " background-color: rgb(39,39,43);"
     " color: #7f8c8d;"
     "}"
                       
     "QPushButton:checked {"
-    " background-color: #27ae60;"
+    " border-radius: %1px;"
+    " background-color: rgb(10, 12, 107);"
     " color: #ecf0f1;"
     "}"
     )
@@ -49,6 +54,7 @@ void Button::applyStyle() {
     .arg(borderStyle);
                   
   this->setStyleSheet(style);
+  this->setCheckable(true);
 }
 
 void Button::setBackgroundColor(const QString& bgColor) {
@@ -75,4 +81,8 @@ void Button::setBorderRadius(int radius) {
 void Button::setShowBorder(bool enabled) {
   this->showBorder = enabled;
   this->applyStyle();
+}
+
+void Button::setPressed(bool state) {
+  this->setChecked(state);
 }
