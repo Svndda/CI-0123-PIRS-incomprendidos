@@ -130,7 +130,7 @@ void AppController::switchPages(const size_t stackIndex) {
 void AppController::pageButtonsRefresh(const size_t pageIndex) {  
   
   // Vector of the application buttons to move through the pages.
-  QVector<Button*> buttons = {
+  QVector<QPushButton*> buttons = {
     this->ui->visualizersPage_button,
     this->ui->sensorsPage_button,
     this->ui->administrationPage_button,
@@ -139,7 +139,7 @@ void AppController::pageButtonsRefresh(const size_t pageIndex) {
   // Iterate over the buttons and widgets to update their states
   for (size_t i = 0; i < buttons.size(); ++i) {
     // Boolean that indicates if the current index is the requested page.
-    buttons[i]->setPressed(i == pageIndex);
+    buttons[i]->setChecked(i == pageIndex);
   }
 }
 
