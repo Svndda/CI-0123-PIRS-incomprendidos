@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>RegistrationPage</class>
+ <widget class="QWidget" name="RegistrationPage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>600</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>600</width>
+    <height>600</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Registrar Usuario</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">color:white;</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLineEdit" name="usernameLineEdit">
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>30</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>40</height>
+      </size>
+     </property>
+     <property name="font">
+      <font>
+       <family>Segoe UI</family>
+       <pointsize>12</pointsize>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="placeholderText">
+      <string>Usuario</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="passwordLineEdit">
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>30</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>40</height>
+      </size>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>12</pointsize>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="echoMode">
+      <enum>QLineEdit::EchoMode::Password</enum>
+     </property>
+     <property name="placeholderText">
+      <string>Contraseña</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="RolesComboBox" name="rolesComboBox">
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>30</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>40</height>
+      </size>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>12</pointsize>
+       <bold>true</bold>
+      </font>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="Button" name="registerButton">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>45</height>
+      </size>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>12</pointsize>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QPushButton {
+	border-radius: 15px;
+	padding: 5px;
+	background-color: rgb(64, 68, 237);
+	color: white;
+	border: 2px solid rgba(0, 0, 0, 10); /* Borde tenue */
+}
+
+QPushButton:hover {
+  background-color: rgb(90, 90, 255);    /* Fondo al pasar el mouse */
+  color: white;                /* Color del texto al pasar el mouse */
+}
+
+QPushButton:pressed {
+  background-color: rgb(51, 55, 188)     /* Fondo al presionar */
+  color: white;                /* Color del texto al presionar */
+}
+
+QPushButton:disabled {
+  background-color: rgb(39, 39, 43);     /* Fondo deshabilitado */
+  color: #7f8c8d;                /* Color del texto deshabilitado */
+}
+
+QPushButton:checked {
+  background-color: #27ae60;     /* Fondo cuando está checkable y activado */
+  color: #ecf0f1;        
+}</string>
+     </property>
+     <property name="text">
+      <string>Registrar</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>Button</class>
+   <extends>QPushButton</extends>
+   <header>view/elements/button.h</header>
+  </customwidget>
+  <customwidget>
+   <class>RolesComboBox</class>
+   <extends>QComboBox</extends>
+   <header>view/elements/rolescombobox.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
