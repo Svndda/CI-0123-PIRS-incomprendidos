@@ -1,5 +1,7 @@
-#include "Diskmanager.h"
+#include "DiskManager.h"
+#include <cstring>
 
+//DiskManager::DiskManager() {}
 
 DiskManager::DiskManager(const std::string& path) : diskPath(path) {}
 
@@ -35,6 +37,10 @@ void DiskManager::closeDisk(){
     }
 }
 
+bool DiskManager::isOpen() const {
+    return disk.is_open();
+}
+
 bool DiskManager::writeBytes(uint64_t offset, const void* buffer, size_t bytes){
     if (!disk.is_open()) {
         std::cerr << "[DiskManager] Error: el disco no está abierto para escritura.\n";
@@ -63,9 +69,9 @@ bool DiskManager::readBytes(uint64_t offset, void* buffer, size_t bytes){
         return false;
     }
 
-    disk.seekp(offset, std::ios::beg);
+    disk.seekg(offset, std::ios::beg);
     if (!disk.good()) {
-        std::cerr << "[DiskManager] Error: fallo al posicionar el puntero de escritura.\n";
+        std::cerr << "[DiskManager] Error: fallo al posicionar el puntero de lectura.\n";
         return false;
     }
 
@@ -79,7 +85,7 @@ bool DiskManager::readBytes(uint64_t offset, void* buffer, size_t bytes){
 }
 
 
-void DiskManager::resetUnity(){
+void DiskManager::resetUnity() {
     std::ofstream newDisk(diskPath, std::ios::binary | std::ios::trunc);
     if (!newDisk.is_open()) {
         std::cerr << "[DiskManager] Error: no se pudo crear el disco: " << diskPath << "\n";
@@ -102,6 +108,7 @@ void DiskManager::resetUnity(){
     std::cout << "[DiskManager] Disco reiniciado con éxito (" << DISK_SIZE / (1024*1024)
               << " MB llenos de ceros)\n";
 }
+
 
 bool DiskManager::saveBitMap(const std::vector<bool>& bitMap, const Layout::superBlock& superBlock) {
     if (!disk.is_open()) {
@@ -126,22 +133,23 @@ bool DiskManager::saveBitMap(const std::vector<bool>& bitMap, const Layout::supe
 
     return writeBytes(offset, buffer.data(), buffer.size());
 }
-int DiskManager::loadBitMap(){
+
+int DiskManager::loadBitMap(std::vector<bool>& outBitmap, const Layout::superBlock& superBlock){
     if (!disk.is_open()) {
         std::cerr << "[DiskManager] Error: disco no abierto para leer bitmap.\n";
         return -1;
     }
 
-    constexpr uint64_t BITMAP_OFFSET = 256;                          // ejemplo, después del superbloque
-    constexpr uint64_t BITMAP_BYTES = Layout::BLOCK_COUNT / 8;       // ejemplo: 4 millones de bloques → 512 KB
+    const uint64_t bitmapOffset = superBlock.bitmap_offset;
+    const uint64_t bitmapBytes = Layout::bitmapBytes(superBlock.block_count);
 
-    std::vector<char> buffer(BITMAP_BYTES);
+    std::vector<char> buffer(bitmapBytes);
 
-    if (!readBytes(BITMAP_OFFSET, buffer.data(), BITMAP_BYTES))
+    if (!readBytes(bitmapOffset, buffer.data(), bitmapBytes))
         return -1;
 
-    outBitmap.resize(Layout::BLOCK_COUNT);
-    for (size_t i = 0; i < Layout::BLOCK_COUNT; ++i) {
+    outBitmap.resize(superBlock.block_count);
+    for (size_t i = 0; i < superBlock.block_count; ++i) {
         size_t byteIndex = i / 8;
         size_t bitIndex  = i % 8;
         outBitmap[i] = (buffer[byteIndex] >> bitIndex) & 1;
@@ -152,7 +160,7 @@ int DiskManager::loadBitMap(){
 
 
 bool DiskManager::writeInode(uint64_t offset, const iNode& inode){
-    return writeBytes(offset, &inode, sizeof(&inode));
+    return writeBytes(offset, &inode, sizeof(inode));
 }
 
 bool DiskManager::readInode(uint64_t offset, iNode& outInode){

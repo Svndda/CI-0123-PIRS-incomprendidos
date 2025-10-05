@@ -2,39 +2,47 @@
 #define DISKMANAGER_H
 
 #include <iostream>
-#include <qapplication.h>
 #include <string>
 #include <vector>
 #include <cstdint>
 #include <ctime>
 #include <fstream>
 #include "Layout.h"
-#include "iNode.hpp"
+#include "iNode.h"
+
 class DiskManager
 {
 private:
     std::string diskPath;
     std::fstream disk;
-    std::vector<uint8_t> outBitmap;
+
 public:
+    DiskManager();
     explicit DiskManager(const std::string& path);
     ~DiskManager();
     /**
      * @brief Opens the disk for reading and writing.
-     * 
-     * @param mode 
-     * @return true 
-     * @return false 
+     *
+     * @param mode
+     * @return true
+     * @return false
      */
     bool openDisk(std::ios::openmode mode = std::ios::in | std::ios::out | std::ios::binary);
     /**
      * @brief Closes the disk.
-     * 
+     *
      */
     void closeDisk();
+
+    /**
+     * @brief Check if disk is open.
+     *
+     * @return true if disk is open, false otherwise.
+     */
+    bool isOpen() const;
     /**
      * @brief Writes bytes to the disk at the specified offset.
-     * 
+     *
      * @param offset Offset in bytes where the data will be written.
      * @param buffer Pointer to the data to be written.
      * @param bytes Number of bytes to write.
@@ -43,7 +51,7 @@ public:
     bool writeBytes(uint64_t offset, const void* buffer, size_t bytes);
     /**
      * @brief Reads bytes from the disk at the specified offset.
-     * 
+     *
      * @param offset Offset in bytes where the data will be read.
      * @param buffer Pointer to the buffer where the read data will be stored.
      * @param bytes Number of bytes to read.
@@ -58,10 +66,17 @@ public:
 
     /**
    * @brief Loads the bitmap from disk to memory.
+   * @param superBlock Superblock containing bitmap offset information.
    * @return 0 on success, -1 on error.
    */
-    int loadBitMap();
-
+    int loadBitMap(std::vector<bool>& bitMap, const Layout::superBlock& superBlock);
+    /**
+   * @brief Saves the bitmap to disk.
+   * @param bitMap The bitmap to save.
+   * @param superBlock Superblock containing bitmap offset information.
+   * @return true on success, false on error.
+   */
+    bool saveBitMap(const std::vector<bool>& bitMap, const Layout::superBlock& superBlock);
     /**
    * @brief Saves an iNode to disk at the specified offset.
    * @param disk File stream for the disk.
@@ -78,5 +93,3 @@ public:
     bool readInode(uint64_t offset, iNode& outInode);
 
 };
-
-#endif // DISKMANAGER_H
