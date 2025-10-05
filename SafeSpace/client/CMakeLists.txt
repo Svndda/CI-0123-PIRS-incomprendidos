@@ -48,6 +48,7 @@ qt_add_executable(SafeSpace
   src/view/sensorspage.h src/view/sensorspage.cpp src/view/sensorspage.ui
   src/view/elements/rolescombobox.h src/view/elements/rolescombobox.cpp
   src/model/filesystem/Layout.h
+  src/model/filesystem/Diskmanager.h src/model/filesystem/Diskmanager.cpp
 
 )
 
