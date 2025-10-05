@@ -1,11 +1,10 @@
 #include "Diskmanager.h"
 
 
-DiskManager::DiskManager(const std::string& path){
+DiskManager::DiskManager(const std::string& path) : diskPath(path) {}
 
-}
-DiskManager::~DiskManager(){
-
+DiskManager::~DiskManager() {
+    closeDisk();
 }
 
 bool DiskManager::openDisk(std::ios::openmode mode){
@@ -104,7 +103,29 @@ void DiskManager::resetUnity(){
               << " MB llenos de ceros)\n";
 }
 
+bool DiskManager::saveBitMap(const std::vector<bool>& bitMap, const Layout::superBlock& superBlock) {
+    if (!disk.is_open()) {
+        std::cerr << "[DiskManager] Error: disco no abierto para escribir bitmap.\n";
+        return false;
+    }
 
+    const uint64_t offset     = superBlock.bitmap_offset;
+    const uint64_t bytesCount = Layout::bitmapBytes(superBlock.block_count);
+
+    std::vector<uint8_t> buffer(bytesCount, 0);
+
+    for (uint64_t i = 0; i < bitMap.size(); ++i) {
+        if (bitMap[i]) {
+            const uint64_t byteIndex = i / 8;
+            const uint8_t  bitIndex  = static_cast<uint8_t>(i % 8);
+            if (byteIndex < buffer.size()) {
+                buffer[byteIndex] |= (1u << bitIndex);
+            }
+        }
+    }
+
+    return writeBytes(offset, buffer.data(), buffer.size());
+}
 int DiskManager::loadBitMap(){
     if (!disk.is_open()) {
         std::cerr << "[DiskManager] Error: disco no abierto para leer bitmap.\n";
