@@ -1,4 +1,4 @@
-#include "UsersManager.h"
+/*#include "UsersManager.h"
 
 UsersManager::UsersManager(FileSystem& fs) : fileSystem(fs) {
   loadUsers();
@@ -215,4 +215,4 @@ User UsersManager::findUser(const size_t id) {
   }
   std::cout << "User not found." << std::endl;
   return User();
-}
+}*/

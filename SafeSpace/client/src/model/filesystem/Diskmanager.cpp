@@ -1,15 +1,14 @@
 #include "Diskmanager.h"
 
-DiskManager::DiskManager() {}
 
-explicit DiskManager(const std::string& path){
-
-}
-~DiskManager(){
+DiskManager::DiskManager(const std::string& path){
 
 }
+DiskManager::~DiskManager(){
 
-bool DiskManager::openDisk(std::ios::openmode mode = std::ios::in | std::ios::out | std::ios::binary){
+}
+
+bool DiskManager::openDisk(std::ios::openmode mode){
     // Cierra cualquier archivo anterior
     if (this->disk.is_open())
         this->disk.close();
@@ -71,7 +70,7 @@ bool DiskManager::readBytes(uint64_t offset, void* buffer, size_t bytes){
         return false;
     }
 
-    disk.read(reinterpret_cast<const char*>(buffer), bytes);
+    disk.read(reinterpret_cast<char*>(buffer), bytes);
     if (!disk.good()) {
         std::cerr << "[DiskManager] Error: fallo al leer en el disco.\n";
         return false;
@@ -112,9 +111,9 @@ int DiskManager::loadBitMap(){
 
 
 bool DiskManager::writeInode(uint64_t offset, const iNode& inode){
-
+    return writeBytes(offset, &inode, sizeof(&inode));
 }
 
 bool DiskManager::readInode(uint64_t offset, iNode& outInode){
-
+    return readBytes(offset, &outInode, sizeof(iNode));
 }

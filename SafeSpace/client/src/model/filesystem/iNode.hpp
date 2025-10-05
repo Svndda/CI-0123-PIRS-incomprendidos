@@ -65,12 +65,6 @@ struct iNode {
      * 
      */
     uint32_t indirect1;
-
-    /**
-     * @brief Last access time of the file.
-     * 
-     */
-    uint64_t atime;
     /**
      * @brief Flags for the iNode open, close.
      * 

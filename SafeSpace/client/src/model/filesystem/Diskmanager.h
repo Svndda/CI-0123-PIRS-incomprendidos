@@ -8,13 +8,14 @@
 #include <cstdint>
 #include <ctime>
 #include <fstream>
-
+#include "Layout.h"
+#include "iNode.hpp"
 class DiskManager
 {
 private:
     std::string diskPath;
     std::fstream disk;
-
+    std::vector<uint8_t> outBitmap;
 public:
     explicit DiskManager(const std::string& path);
     ~DiskManager();
