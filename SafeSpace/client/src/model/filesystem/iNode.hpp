@@ -14,24 +14,71 @@
  * size, timestamps, permissions, and block pointers used for data storage.
  */
 struct iNode {
-  /** File unique identifier (inode number). */
-  uint64_t id;
-  /** File name. */
-  std::string name;
-  /** File extension type. */
-  std::string type;
-  /** File state (e.g. open, closed)*/
-  std::string state;
-  /** File length in bytes*/
-  uint64_t length;
-  /** File size in blocks.*/
-  uint64_t fileSize;
-  /** File creation timestamp*/
-  std::time_t creationTime;
-  /** File last modification timestamp.*/
-  std::time_t modificationTime;
-  /** File related block pointers.*/
-  std::vector<uint64_t> blockPointers;
-  /** File declared permissions.*/
-  std::string permissions;
+    /**
+     * @brief Unique identifier for the iNode.
+     * 
+     */
+    uint64_t inode_id;
+    /**
+     * @brief Group identifier for the iNode.
+     * 
+     */
+    uint32_t group_id;
+    /**
+     * @brief Size of the file in bytes.
+     * 
+     */
+    uint64_t size_bytes;
+    /**
+     * @brief Creation time of the file.
+     * 
+     */
+    uint64_t ctime;
+    /**
+     * @brief Last modified time of the file.
+     * 
+     */
+    uint64_t mtime;
+    /**
+     * @brief Last access time of the file.
+     * 
+     */
+    uint64_t atime;
+    /**
+     * @brief Number of blocks used by the file.
+     * 
+     */
+    uint32_t blocks_used;
+    /**
+     * @brief File mode (permissions and type).
+     * 
+     */
+    uint32_t mode;
+
+    /**
+     * @brief Direct block pointers for the file.
+     * 
+     */
+    uint32_t direct[10];
+    /**
+     * @brief Single indirect block pointer for the file.
+     * 
+     */
+    uint32_t indirect1;
+
+    /**
+     * @brief Last access time of the file.
+     * 
+     */
+    uint64_t atime;
+    /**
+     * @brief Flags for the iNode open, close.
+     * 
+     */
+    uint32_t flags;
+    /**
+     * @brief Padding to align the structure to 128 bytes.
+     * 
+     */
+    uint8_t  pad[8];
 };
