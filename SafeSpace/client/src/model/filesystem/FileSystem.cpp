@@ -360,4 +360,59 @@ bool FileSystem::remove(const std::string& name) {
     return true;
 }
 
+int FileSystem::allocateBlock() {
+    // Empezar desde el área de datos, no desde 0 (metadatos)
+    uint64_t startBlock = superBlock.data_area_offset / superBlock.block_size;
 
+    for (uint64_t i = startBlock; i < bitMap.size(); ++i) {
+        if (!bitMap[i]) {
+            bitMap[i] = true;
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+void FileSystem::freeBlock(uint32_t blockId) {
+    if (blockId < bitMap.size()) bitMap[blockId] = false;
+}
+
+int FileSystem::allocateInode() {
+    // Empezar desde 1, reservar inode 0 como "vacío/inválido"
+    for (size_t i = 1; i < inodeTable.size(); ++i) {
+        if (inodeTable[i].flags == 0) return static_cast<int>(i);
+    }
+    return -1;
+}
+
+void FileSystem::freeInode(uint32_t inodeId) {
+    if (inodeId < inodeTable.size()) {
+        inodeTable[inodeId] = {};
+        disk.writeInode(inodeOffset(inodeId), inodeTable[inodeId]);
+    }
+}
+
+void FileSystem::listFiles() const {
+    std::cout << "=== Root Directory ===\n";
+    for (const auto& e : directory) {
+        if (e.inode_id != 0) {
+            std::cout << "- " << e.name << " (inode " << e.inode_id << ")\n";
+        }
+    }
+}
+
+uint64_t FileSystem::inodeOffset(uint64_t inodeId) {
+    // Validar rango
+    if (inodeId >= superBlock.inode_count) {
+        std::cerr << "[FS] Error: inodeId fuera de rango: " << inodeId << "\n";
+        return 0;
+    }
+    return superBlock.inode_table_offset + inodeId * static_cast<uint64_t>(superBlock.inode_size);
+}
+
+bool FileSystem::isValid() const {
+    return disk.isOpen() &&
+           superBlock.data_area_offset > 0 &&
+           !bitMap.empty() &&
+           !inodeTable.empty();
+}
