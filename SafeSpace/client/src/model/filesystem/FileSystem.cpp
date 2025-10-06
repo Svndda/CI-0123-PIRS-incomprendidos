@@ -139,4 +139,53 @@ bool FileSystem::saveDirectoryToDisk() {
     return disk.writeBytes(superBlock.directory_offset, buf.data(), buf.size());
 }
 
+int FileSystem::create(const std::string& name) {
+    if (name.empty()) return -1;
+    if (dirFind(name) >= 0) {
+        std::cerr << "[FS] Ya existe: " << name << "\n";
+        return -1;
+    }
+
+    int inodeId = allocateInode();
+    if (inodeId < 0) {
+        std::cerr << "[FS] No hay i-nodos libres.\n";
+        return -1;
+    }
+
+    iNode n{};
+    n.inode_id    = static_cast<uint64_t>(inodeId);
+    n.size_bytes  = 0;
+    n.blocks_used = 0;
+    std::memset(n.direct, 0, sizeof(n.direct));
+    n.indirect1   = 0;
+    n.flags       = 1; // activo
+
+    if (!disk.writeInode(inodeOffset(inodeId), n)) {
+        std::cerr << "[FS] Error al persistir i-nodo.\n";
+        return -1;
+    }
+    inodeTable[inodeId] = n;
+
+    if (!dirAdd(name, static_cast<uint64_t>(inodeId))) {
+        std::cerr << "[FS] Directorio lleno o error al guardar.\n";
+        freeInode(inodeId);
+        return -1;
+    }
+
+    return inodeId;
+}
+
+int FileSystem::find(const std::string& name) const {
+    int didx = dirFind(name);
+    if (didx < 0) return -1;
+    return static_cast<int>(directory[didx].inode_id);
+}
+
+int FileSystem::dirFindByInode(uint64_t inodeId) const {
+    for (size_t i = 0; i < directory.size(); ++i) {
+        if (directory[i].inode_id == inodeId) return static_cast<int>(i);
+    }
+    return -1;
+}
+
 
