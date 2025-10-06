@@ -28,7 +28,7 @@ qt_add_executable(SafeSpace
 
 
 
-  src/model/filesystem/iNode.hpp
+  src/model/filesystem/iNode.h
   
   # Controller
   src/controller/appcontroller.cpp src/controller/appcontroller.h
@@ -48,8 +48,9 @@ qt_add_executable(SafeSpace
   src/view/sensorspage.h src/view/sensorspage.cpp src/view/sensorspage.ui
   src/view/elements/rolescombobox.h src/view/elements/rolescombobox.cpp
   src/model/filesystem/Layout.h
-  src/model/filesystem/Diskmanager.h src/model/filesystem/Diskmanager.cpp
+  src/model/filesystem/DiskManager.h src/model/filesystem/DiskManager.cpp
   src/model/filesystem/FileSystem.h src/model/filesystem/FileSystem.cpp
+  src/model/filesystem/DirEntry.h
 
 )
 

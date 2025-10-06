@@ -93,3 +93,4 @@ public:
     bool readInode(uint64_t offset, iNode& outInode);
 
 };
+#endif // DISKMANAGER_H
