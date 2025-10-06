@@ -14,22 +14,21 @@ private:
     std::vector<DirEntry> directory;    // entradas de directorio
     Layout::superBlock superBlock;
 
-    void computeSuperAndOffsets();     // rellena sb_ con Layout::registerOffsets
+    void computeSuperAndOffsets();     // rellena superBlock con Layout::registerOffsets
     bool writeSuperToDisk();           // escribe superbloque
-    bool readSuperFromDisk();          // (opcional) leer superbloque (si ya existe)
+    bool readSuperFromDisk();          // lee superbloque desde disco
     // Funciones auxiliares
     int allocateBlock();               // busca un bloque libre
     void freeBlock(uint32_t blockID);  // libera un bloque
     int allocateInode();               // busca un inode libre
     void freeInode(uint32_t inodeID);  // libera un inode
+    uint64_t inodeOffset(uint64_t inodeId);
 
-    bool saveBitmap();                 // empaqueta bitMap_ → bytes y escribe en disco
-    int  allocateBlock();              // encuentra 1 bloque libre, lo marca y devuelve id
-    void freeBlock(uint32_t blockId);
+
 
     // directorio
-    int  dirFind(const std::string& name) const;     // idx en dir_ o -1
-    int  dirFindByInode(uint64_t inodeId) const;     // idx en dir_ o -1
+    int  dirFind(const std::string& name) const;     // idx en directory o -1
+    int  dirFindByInode(uint64_t inodeId) const;     // idx en directory o -1
     bool dirAdd(const std::string& name, uint64_t inodeId);
     bool dirRemoveByIndex(int idx);
     bool loadDirectoryFromDisk();
@@ -37,11 +36,11 @@ private:
 
     // datos
     uint64_t dataBlockOffset(uint32_t blockId) const {
-        return superBlock.data_area_offset + static_cast<uint64_t>(blockId) * Layout::BLOCK_SIZE;
+        return superBlock.data_area_offset + static_cast<uint64_t>(blockId) * superBlock.block_size;
     }
 
 public:
-    FileSystem();
+    FileSystem(const std::string& diskPath);
 
     // Operaciones principales
     bool format();                     // formatea el disco (superblock + bitmap + inodes vacíos)
@@ -54,4 +53,7 @@ public:
 
     // Debug
     void listFiles() const;
+
+    // Estado
+    bool isValid() const;
 };
