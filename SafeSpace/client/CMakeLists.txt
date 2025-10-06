@@ -51,6 +51,7 @@ qt_add_executable(SafeSpace
   src/model/filesystem/DiskManager.h src/model/filesystem/DiskManager.cpp
   src/model/filesystem/FileSystem.h src/model/filesystem/FileSystem.cpp
   src/model/filesystem/DirEntry.h
+  src/model/structures/connectrequest.h src/model/structures/connectrequest.cpp
 
 )
 
