@@ -187,5 +187,177 @@ int FileSystem::dirFindByInode(uint64_t inodeId) const {
     }
     return -1;
 }
+bool FileSystem::write(const std::string& name, const std::string& data) {
+    int inodeId = find(name);
+    if (inodeId < 0) {
+        std::cerr << "[FS] No existe: " << name << "\n";
+        return false;
+    }
+
+    iNode& n = inodeTable[inodeId];
+
+    // Escribir a bloques directos
+    size_t remaining = data.size();
+    size_t cursor = 0;
+
+    for (int i = 0; i < 10 && remaining > 0; ++i) {
+        if (n.direct[i] == 0) {
+            int b = allocateBlock();
+            if (b < 0) { std::cerr << "[FS] Sin bloques libres.\n"; return false; }
+            n.direct[i] = static_cast<uint32_t>(b);
+        }
+        size_t chunk = std::min(remaining, static_cast<size_t>(superBlock.block_size));
+        if (!disk.writeBytes(dataBlockOffset(n.direct[i]), data.data() + cursor, chunk))
+            return false;
+
+        // Si el chunk es menor al bloque, limpia el resto (opcional)
+        if (chunk < superBlock.block_size) {
+            std::vector<uint8_t> zeros(superBlock.block_size - chunk, 0);
+            if (!disk.writeBytes(dataBlockOffset(n.direct[i]) + chunk, zeros.data(), zeros.size()))
+                return false;
+        }
+
+        cursor += chunk;
+        remaining -= chunk;
+    }
+
+    // Si faltan datos, usar indirecto simple
+    if (remaining > 0) {
+        if (n.indirect1 == 0) {
+            int ib = allocateBlock(); // bloque de índices
+            if (ib < 0) { std::cerr << "[FS] Sin bloques para índice.\n"; return false; }
+            n.indirect1 = static_cast<uint32_t>(ib);
+            // inicializa bloque de índices a cero
+            std::vector<uint8_t> zeros(superBlock.block_size, 0);
+            disk.writeBytes(dataBlockOffset(n.indirect1), zeros.data(), zeros.size());
+        }
+
+        // cargar tabla de índices
+        const size_t idxCount = superBlock.block_size / sizeof(uint32_t);
+        std::vector<uint32_t> idx(idxCount, 0);
+        disk.readBytes(dataBlockOffset(n.indirect1), idx.data(), superBlock.block_size);
+
+        for (size_t k = 0; k < idxCount && remaining > 0; ++k) {
+            if (idx[k] == 0) {
+                int b = allocateBlock();
+                if (b < 0) { std::cerr << "[FS] Sin bloques libres (indirecto).\n"; return false; }
+                idx[k] = static_cast<uint32_t>(b);
+            }
+
+            size_t chunk = std::min(remaining, static_cast<size_t>(superBlock.block_size));
+            if (!disk.writeBytes(dataBlockOffset(idx[k]), data.data() + cursor, chunk))
+                return false;
+
+            if (chunk < superBlock.block_size) {
+                std::vector<uint8_t> zeros(superBlock.block_size - chunk, 0);
+                if (!disk.writeBytes(dataBlockOffset(idx[k]) + chunk, zeros.data(), zeros.size()))
+                    return false;
+            }
+
+            cursor += chunk;
+            remaining -= chunk;
+        }
+
+        // guardar tabla de índices
+        disk.writeBytes(dataBlockOffset(n.indirect1), idx.data(), superBlock.block_size);
+    }
+
+    // actualizar metadatos
+    // (no usamos ctime/mtime/atime por ahora)
+    n.size_bytes  = data.size();
+    n.blocks_used = 0;
+    for (int i = 0; i < 10; ++i) if (n.direct[i]) n.blocks_used++;
+    if (n.indirect1) {
+        // contar bloques apuntados por indirecto
+        const size_t idxCount = superBlock.block_size / sizeof(uint32_t);
+        std::vector<uint32_t> idx(idxCount, 0);
+        disk.readBytes(dataBlockOffset(n.indirect1), idx.data(), superBlock.block_size);
+        for (auto v : idx) if (v) n.blocks_used++;
+        n.blocks_used++; // cuenta también el bloque de índices si querés
+    }
+
+    if (!disk.writeInode(inodeOffset(inodeId), n)) return false;
+    if (!disk.saveBitMap(bitMap, superBlock)) return false;
+    return true;
+}
+
+std::string FileSystem::read(const std::string& name) {
+    int inodeId = find(name);
+    if (inodeId < 0) return {};
+
+    const iNode& n = inodeTable[inodeId];
+    if (n.size_bytes == 0) return {};
+
+    std::string out;
+    out.reserve(n.size_bytes);
+
+    // directos
+    std::vector<char> buf(superBlock.block_size);
+    size_t remaining = n.size_bytes;
+
+    for (int i = 0; i < 10 && remaining > 0; ++i) {
+        if (n.direct[i] == 0) break;
+        disk.readBytes(dataBlockOffset(n.direct[i]), buf.data(), superBlock.block_size);
+        size_t chunk = std::min(remaining, static_cast<size_t>(superBlock.block_size));
+        out.append(buf.data(), chunk);
+        remaining -= chunk;
+    }
+
+    // indirectos
+    if (remaining > 0 && n.indirect1 != 0) {
+        const size_t idxCount = superBlock.block_size / sizeof(uint32_t);
+        std::vector<uint32_t> idx(idxCount, 0);
+        disk.readBytes(dataBlockOffset(n.indirect1), idx.data(), superBlock.block_size);
+
+        for (size_t k = 0; k < idxCount && remaining > 0; ++k) {
+            if (idx[k] == 0) break;
+            disk.readBytes(dataBlockOffset(idx[k]), buf.data(), superBlock.block_size);
+            size_t chunk = std::min(remaining, static_cast<size_t>(superBlock.block_size));
+            out.append(buf.data(), chunk);
+            remaining -= chunk;
+        }
+    }
+
+    return out;
+}
+
+bool FileSystem::remove(const std::string& name) {
+    int inodeId = find(name);
+    if (inodeId < 0) return false;
+
+    iNode& n = inodeTable[inodeId];
+
+    // liberar directos
+    for (int i = 0; i < 10; ++i) {
+        if (n.direct[i]) {
+            freeBlock(n.direct[i]);
+            n.direct[i] = 0;
+        }
+    }
+
+    // liberar indirecto
+    if (n.indirect1) {
+        const size_t idxCount = superBlock.block_size / sizeof(uint32_t);
+        std::vector<uint32_t> idx(idxCount, 0);
+        disk.readBytes(dataBlockOffset(n.indirect1), idx.data(), superBlock.block_size);
+        for (auto v : idx) if (v) freeBlock(v);
+        freeBlock(n.indirect1);
+        n.indirect1 = 0;
+    }
+
+    // borrar del directorio
+    int dIdx = dirFindByInode(inodeId);
+    if (dIdx >= 0) dirRemoveByIndex(dIdx);
+
+    // liberar i-nodo
+    freeInode(inodeId);
+
+    // persistir cambios
+    disk.saveBitMap(bitMap, superBlock);
+    disk.writeInode(inodeOffset(inodeId), n);
+
+    std::cout << "[FS] Eliminado: " << name << "\n";
+    return true;
+}
 
 
