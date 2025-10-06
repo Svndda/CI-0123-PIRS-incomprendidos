@@ -41,7 +41,7 @@ private:
 
 public:
     FileSystem(const std::string& diskPath);
-
+    ~FileSystem();
     // Operaciones principales
     bool format();                     // formatea el disco (superblock + bitmap + inodes vacíos)
     bool mount();                      // carga estructuras desde el disco

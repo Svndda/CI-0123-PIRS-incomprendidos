@@ -1,14 +1,80 @@
 #include "FileSystem.h"
+#include <iostream>
+#include <cstring>
+FileSystem::FileSystem(const std::string& diskPath)
+    : disk(diskPath), superBlock{}
+{
 
-FileSystem::FileSystem() {}
+    if (!disk.openDisk()) {
+        std::cerr << "[FS] No se pudo abrir el disco, se intentará crear uno nuevo.\n";
+        if (!disk.openDisk(std::ios::out | std::ios::binary | std::ios::trunc)) {
+            std::cerr << "[FS] Error creando el archivo de disco.\n";
+            return; // constructor quedará con disco cerrado
+        }
+        disk.closeDisk();
+        if (!disk.openDisk()) {
+            std::cerr << "[FS] Error reabriendo el disco en modo rw.\n";
+            return;
+        }
+    }
 
+    computeSuperAndOffsets();
+
+
+    Layout::superBlock onDisk{};
+    bool superOk = disk.readBytes(0, &onDisk, sizeof(onDisk));
+
+    auto looksFormatted = [&](const Layout::superBlock& s) -> bool {
+        if (!superOk) return false;
+        if (s.block_size   != Layout::BLOCK_SIZE)  return false;
+        if (s.block_count  != Layout::BLOCK_COUNT) return false;
+        if (s.inode_size   != Layout::INODE_SIZE)  return false;
+        if (s.inode_count  != Layout::INODE_COUNT) return false;
+        if (s.data_area_offset == 0)               return false;
+        return true;
+    };
+
+    if (looksFormatted(onDisk)) {
+        superBlock = onDisk;
+        std::cout << "[FS] Disco previamente formateado detectado.\n";
+
+        if (!mount()) {
+            std::cerr << "[FS] Error montando estructuras. Disco posiblemente corrupto.\n";
+            std::cerr << "[FS] Use format() manualmente para reformatear si es necesario.\n";
+        }
+    } else {
+        std::cout << "[FS] Disco no formateado, iniciando formateo.\n";
+        if (format()) {
+            if (!mount()) {
+                std::cerr << "[FS] Error crítico: no se pudo montar después del formateo.\n";
+            }
+        } else {
+            std::cerr << "[FS] Error al formatear el disco.\n";
+        }
+    }
+}
+
+FileSystem::~FileSystem() {
+    if (disk.isOpen()) {
+        // Guardar bitmap actualizado
+        disk.saveBitMap(bitMap, superBlock);
+
+        // Guardar directorio actualizado
+        saveDirectoryToDisk();
+
+        // Cerrar el archivo de disco
+        disk.closeDisk();
+
+        std::cout << "[FS] Filesystem cerrado correctamente.\n";
+    }
+}
 static void copyNameFixed(char dst[Layout::DIR_NAME_LEN], const std::string& src) {
     std::memset(dst, 0, Layout::DIR_NAME_LEN);
     std::strncpy(dst, src.c_str(), Layout::DIR_NAME_LEN - 1);
 }
 
 void FileSystem::computeSuperAndOffsets() {
-    superBlock = {}; // por si acaso
+    superBlock = {};
     Layout::registerOffsets(superBlock);
 }
 
@@ -63,9 +129,8 @@ bool FileSystem::mount() {
         }
     }
 
-    // Cargar bitmap
+    // Cargar bitmap a memoria
     if (disk.loadBitMap(bitMap, superBlock) != 0) {
-        // Si no existe aún, inicializa un bitmap vacío (posible primer uso)
         bitMap.assign(superBlock.block_count, false);
     }
 
@@ -206,19 +271,19 @@ bool FileSystem::write(const std::string& name, const std::string& data) {
             if (b < 0) { std::cerr << "[FS] Sin bloques libres.\n"; return false; }
             n.direct[i] = static_cast<uint32_t>(b);
         }
-        size_t chunk = std::min(remaining, static_cast<size_t>(superBlock.block_size));
-        if (!disk.writeBytes(dataBlockOffset(n.direct[i]), data.data() + cursor, chunk))
+        size_t portion = std::min(remaining, static_cast<size_t>(superBlock.block_size));
+        if (!disk.writeBytes(dataBlockOffset(n.direct[i]), data.data() + cursor, portion))
             return false;
 
         // Si el chunk es menor al bloque, limpia el resto (opcional)
-        if (chunk < superBlock.block_size) {
-            std::vector<uint8_t> zeros(superBlock.block_size - chunk, 0);
-            if (!disk.writeBytes(dataBlockOffset(n.direct[i]) + chunk, zeros.data(), zeros.size()))
+        if (portion < superBlock.block_size) {
+            std::vector<uint8_t> zeros(superBlock.block_size - portion, 0);
+            if (!disk.writeBytes(dataBlockOffset(n.direct[i]) + portion, zeros.data(), zeros.size()))
                 return false;
         }
 
-        cursor += chunk;
-        remaining -= chunk;
+        cursor += portion;
+        remaining -= portion;
     }
 
     // Si faltan datos, usar indirecto simple
@@ -244,21 +309,20 @@ bool FileSystem::write(const std::string& name, const std::string& data) {
                 idx[k] = static_cast<uint32_t>(b);
             }
 
-            size_t chunk = std::min(remaining, static_cast<size_t>(superBlock.block_size));
-            if (!disk.writeBytes(dataBlockOffset(idx[k]), data.data() + cursor, chunk))
+            size_t portion = std::min(remaining, static_cast<size_t>(superBlock.block_size));
+            if (!disk.writeBytes(dataBlockOffset(idx[k]), data.data() + cursor, portion))
                 return false;
 
-            if (chunk < superBlock.block_size) {
-                std::vector<uint8_t> zeros(superBlock.block_size - chunk, 0);
-                if (!disk.writeBytes(dataBlockOffset(idx[k]) + chunk, zeros.data(), zeros.size()))
+            if (portion < superBlock.block_size) {
+                std::vector<uint8_t> zeros(superBlock.block_size - portion, 0);
+                if (!disk.writeBytes(dataBlockOffset(idx[k]) + portion, zeros.data(), zeros.size()))
                     return false;
             }
 
-            cursor += chunk;
-            remaining -= chunk;
+            cursor += portion;
+            remaining -= portion;
         }
 
-        // guardar tabla de índices
         disk.writeBytes(dataBlockOffset(n.indirect1), idx.data(), superBlock.block_size);
     }
 
@@ -273,7 +337,7 @@ bool FileSystem::write(const std::string& name, const std::string& data) {
         std::vector<uint32_t> idx(idxCount, 0);
         disk.readBytes(dataBlockOffset(n.indirect1), idx.data(), superBlock.block_size);
         for (auto v : idx) if (v) n.blocks_used++;
-        n.blocks_used++; // cuenta también el bloque de índices si querés
+        n.blocks_used++;
     }
 
     if (!disk.writeInode(inodeOffset(inodeId), n)) return false;
