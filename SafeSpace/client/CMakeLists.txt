@@ -25,10 +25,10 @@ qt_add_executable(SafeSpace
   src/model/structures/sensordata.h src/model/structures/sensordata.cpp
 
   # Filesystem  
-  src/model/filesystem/FIleSystem.cpp src/model/filesystem/FileSystem.h
-  src/model/filesystem/File.cpp src/model/filesystem/File.hpp
-  src/model/filesystem/Directory.cpp src/model/filesystem/Directory.hpp
-  src/model/filesystem/iNode.hpp
+
+
+
+  src/model/filesystem/iNode.h
   
   # Controller
   src/controller/appcontroller.cpp src/controller/appcontroller.h
@@ -47,6 +47,11 @@ qt_add_executable(SafeSpace
   src/view/visualizerspage.h src/view/visualizerspage.cpp src/view/visualizerspage.ui
   src/view/sensorspage.h src/view/sensorspage.cpp src/view/sensorspage.ui
   src/view/elements/rolescombobox.h src/view/elements/rolescombobox.cpp
+  src/model/filesystem/Layout.h
+  src/model/filesystem/DiskManager.h src/model/filesystem/DiskManager.cpp
+  src/model/filesystem/FileSystem.h src/model/filesystem/FileSystem.cpp
+  src/model/filesystem/DirEntry.h
+  src/model/structures/connectrequest.h src/model/structures/connectrequest.cpp
 
 )
 
