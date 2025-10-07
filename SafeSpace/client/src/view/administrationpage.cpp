@@ -26,13 +26,15 @@ AdministrationPage::AdministrationPage(
     this->pageStack->setCurrentIndex(1);
     qDebug() << "Botón clicado!";
   });
+  
+  connect(
+    registrationPage,
+    &RegistrationPage::userRegistrationSuccessful,
+    systemUsersPage,
+    &SystemUsersPage::usersModified
+  );
 }
 
 AdministrationPage::~AdministrationPage() {
   delete ui;
-}
-
-void AdministrationPage::registerUser(
-    const QString &username, const QString &password, const QString &rol) {
-  emit this->saveUser(username, password, rol);
 }

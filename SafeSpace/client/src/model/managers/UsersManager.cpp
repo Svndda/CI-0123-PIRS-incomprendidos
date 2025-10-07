@@ -1,4 +1,4 @@
-/*#include "UsersManager.h"
+#include "UsersManager.h"
 
 UsersManager::UsersManager(FileSystem& fs) : fileSystem(fs) {
   loadUsers();
@@ -17,26 +17,26 @@ bool UsersManager::saveUser(const User& user) {
         }
     }
     // Asegurarse de que el archivo de usuarios existe
-    if (this->fileSystem.openFile(this->userFile) != 0) {
-        this->fileSystem.createFile(this->userFile, "rw");
+    if (this->fileSystem.find(this->userFile) != 0) {
+      this->fileSystem.create(this->userFile/*, "rw"*/);
     }
     // Leer contenido actual del archivo
-    this->fileSystem.openFile(this->userFile);
-    std::string currentContent = this->fileSystem.readFileAsString(this->userFile); 
-    this->fileSystem.closeFile(this->userFile);
+    this->fileSystem.find(this->userFile);
+    std::string currentContent = this->fileSystem.read(this->userFile); 
+    // this->fileSystem.close(this->userFile);
 
     // Preparar nueva línea
     std::string userType = user.getType();
     std::string password_hash = user.getPasswordHash();
-    std::string newLine = username + "," + userType + "," + password_hash + ";";
+    std::string newLine = userType + "," + username + "," + password_hash + ";";
 
     // Concatenar
     std::string fullContent = currentContent + newLine;
 
     // Guardar TODO el contenido
-    this->fileSystem.openFile(this->userFile);
-    this->fileSystem.writeFile(this->userFile, fullContent);
-    this->fileSystem.closeFile(this->userFile);
+    this->fileSystem.create(this->userFile);
+    this->fileSystem.write(this->userFile, fullContent);
+    // this->fileSystem.closeFile(this->userFile);
 
     this->users.push_back(user);
     // std::cout << "User saved successfully." << std::endl;
@@ -50,9 +50,9 @@ bool UsersManager::saveUser(const User& user) {
 
 void UsersManager::loadUsers(){
   std::string data;
-  this->fileSystem.openFile(this->userFile);
-  data = this->fileSystem.readFileAsString(this->userFile);
-  this->fileSystem.closeFile(this->userFile);
+  this->fileSystem.find(this->userFile);
+  data = this->fileSystem.read(this->userFile);
+  // this->fileSystem.closeFile(this->userFile);
   if (data.empty()) {
     std::cout << "No users found." << std::endl;
     return;
@@ -73,8 +73,8 @@ void UsersManager::loadUsers(){
       userType = userEntry.substr(0, firstComma);
       username = userEntry.substr(firstComma + 1, secondComma - firstComma - 1);
       passwordHash = userEntry.substr(secondComma + 1);
-      User user(0, username, userType);
-      user.setPassword(passwordHash); // Asumiendo que setPassword maneja hashes
+      User user(username, userType);
+      user.setPasswordHash(passwordHash); // Asumiendo que setPassword maneja hashes
       this->users.push_back(user);
     }
     start = endData + 1;
@@ -107,9 +107,9 @@ bool UsersManager::deleteUser(const std::string& username){
     return false;
   }
 
-  this->fileSystem.openFile(this->userFile);
-  std::string currentContent = this->fileSystem.readFileAsString(this->userFile); 
-  this->fileSystem.closeFile(this->userFile);
+  this->fileSystem.find(this->userFile);
+  std::string currentContent = this->fileSystem.read(this->userFile); 
+  // this->fileSystem.closeFile(this->userFile);
 
   std::string newContent;
   size_t start = 0;
@@ -119,10 +119,12 @@ bool UsersManager::deleteUser(const std::string& username){
     if (endData == std::string::npos) break;
     std::string userEntry = currentContent.substr(start, endData - start);
     size_t firstComma = userEntry.find(',');
+    size_t secondComma = userEntry.find(',', firstComma + 1);
     std::string entryUsername;
-    if (firstComma != std::string::npos) {
-        entryUsername = userEntry.substr(0, firstComma);
+    if (firstComma != std::string::npos && secondComma != std::string::npos) {
+      entryUsername = userEntry.substr(firstComma + 1, secondComma - firstComma - 1);
     }
+
     // Si no es el usuario a eliminar, lo agrego al nuevo contenido
     if (entryUsername != username) {
         newContent += userEntry + ";";
@@ -133,9 +135,9 @@ bool UsersManager::deleteUser(const std::string& username){
   }
 
   // Actualiza el archivo
-  this->fileSystem.openFile(this->userFile);
-  this->fileSystem.writeFile(this->userFile, newContent);
-  this->fileSystem.closeFile(this->userFile);
+  this->fileSystem.find(this->userFile);
+  this->fileSystem.write(this->userFile, newContent);
+  // this->fileSystem.closeFile(this->userFile);
 
   // Elimina del vector
   for (auto it = this->users.begin(); it != this->users.end(); ++it) {
@@ -158,9 +160,9 @@ bool UsersManager::updateUser(const std::string& username, const User& updatedUs
     if (user.getUsername() == username) {
       user = updatedUser;
       // Actualizar en el archivo
-      this->fileSystem.openFile(this->userFile);
-      std::string currentContent = this->fileSystem.readFileAsString(this->userFile); 
-      this->fileSystem.closeFile(this->userFile);
+      this->fileSystem.find(this->userFile);
+      std::string currentContent = this->fileSystem.read(this->userFile); 
+      // this->fileSystem.closeFile(this->userFile);
 
       std::string newContent;
       size_t start = 0;
@@ -185,9 +187,9 @@ bool UsersManager::updateUser(const std::string& username, const User& updatedUs
       }
 
       // Guardar el nuevo contenido
-      this->fileSystem.openFile(this->userFile);
-      this->fileSystem.writeFile(this->userFile, newContent);
-      this->fileSystem.closeFile(this->userFile);
+      this->fileSystem.find(this->userFile);
+      this->fileSystem.write(this->userFile, newContent);
+      // this->fileSystem.closeFile(this->userFile);
 
       std::cout << "User updated successfully." << std::endl;
       return true;
@@ -207,12 +209,3 @@ User UsersManager::findUser(const std::string& username){
   return User();
 }
 
-User UsersManager::findUser(const size_t id) {
-  for (const auto& user : this->users) {
-    if (user.getID() == id) {
-      return user;
-    }
-  }
-  std::cout << "User not found." << std::endl;
-  return User();
-}*/

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>420</width>
-    <height>124</height>
+    <width>320</width>
+    <height>129</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -59,7 +59,7 @@
       <number>0</number>
      </property>
      <property name="columnCount">
-      <number>4</number>
+      <number>3</number>
      </property>
      <attribute name="horizontalHeaderCascadingSectionResizes">
       <bool>true</bool>
@@ -76,17 +76,6 @@
      <attribute name="verticalHeaderDefaultSectionSize">
       <number>60</number>
      </attribute>
-     <column>
-      <property name="text">
-       <string>ID</string>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>12</pointsize>
-        <bold>true</bold>
-       </font>
-      </property>
-     </column>
      <column>
       <property name="text">
        <string>Usuario</string>

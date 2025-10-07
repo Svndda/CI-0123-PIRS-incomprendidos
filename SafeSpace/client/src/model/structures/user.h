@@ -72,7 +72,6 @@ public:
   };
     
 private:
-  size_t id = 0;                    ///< Unique identifier of the user.
   std::string name = "";            ///< Name of the user.
   std::vector<PageAccess> permissions; ///< Vector of page access permissions.
   std::string password = "";    ///< Hashed password.
@@ -84,12 +83,10 @@ public:
    *
    * Initializes the User with a given id, name, and an optional set of page access permissions.
    *
-   * @param userId Unique identifier for the user.
    * @param userName The user's name.
    * @param userPermissions A vector of PageAccess objects representing the user's permissions.
    */
-  User(const size_t userId = 0
-      , const std::string userName = ""
+  User(const std::string userName = ""
       , const std::string userType = ""
       , const std::vector<PageAccess> userPermissions
       = std::vector<PageAccess>()
@@ -129,20 +126,6 @@ public:
    * @return Reference to the current object.
    */
   User& operator=(const User& other);
-  
-  /**
-   * @brief Retrieves the user's id.
-   *
-   * @return Constant reference to the user's id.
-   */
-  const size_t& getID() const;
-  
-  /**
-   * @brief Sets the user's id.
-   *
-   * @param id The new id to set.
-   */
-  void setUserID(const size_t id);
   
   /**
    * @brief Retrieves the user's name.
@@ -194,6 +177,10 @@ public:
      * @return size_t 
      */
   std::string getPasswordHash() const;
+  
+  void setPasswordHash(const std::string& hash) {
+    this->password = hash;
+  };
   /**
    * @brief Get the Type object
    * 

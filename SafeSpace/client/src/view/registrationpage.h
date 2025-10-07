@@ -17,6 +17,9 @@ public:
     QWidget *parent = nullptr, Model& model = Model::getInstance()
   );
   ~RegistrationPage();
+  
+signals:
+  void userRegistrationSuccessful();
 
 private:
     Ui::RegistrationPage *ui;

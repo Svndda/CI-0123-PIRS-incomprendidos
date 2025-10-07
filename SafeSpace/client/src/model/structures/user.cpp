@@ -1,11 +1,10 @@
 #include "user.h"
 #include <QCryptographicHash>
-User::User(const size_t userId, const std::string userName
+User::User(const std::string userName
     , const std::string userType
     , const std::vector<PageAccess> userPermissions
     )
-    : id(userId)
-    , name(userName)
+    : name(userName)
     , userType(userType)
     , permissions(userPermissions) {
 }
@@ -13,16 +12,6 @@ User::User(const size_t userId, const std::string userName
 User::PageAccess::PageAccess(const size_t pageIndexed, const size_t pageAccess)
     : pageIndex(pageIndexed)
     , access(pageAccess) {
-}
-
-const size_t& User::getID() const {
-  // Returns the user's id.
-  return this->id;
-}
-
-void User::setUserID(const size_t id) {
-  // Sets the user's id.
-  this->id = id;
 }
 
 const std::string& User::getUsername() const {
@@ -81,7 +70,6 @@ User& User::operator=(const User& other) {
   }
   
   // Copy the other object attributes.  
-  this->id = other.id;
   this->name = other.name;
   this->permissions = other.permissions;
   this->password = other.password;

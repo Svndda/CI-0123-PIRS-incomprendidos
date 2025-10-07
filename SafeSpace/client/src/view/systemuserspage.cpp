@@ -32,13 +32,11 @@ void SystemUsersPage::refreshUsersTable() {
     const int row = table->rowCount();
     table->insertRow(row);
     
-    QTableWidgetItem* idField = new QTableWidgetItem(QString::number(user.getID()));
     QTableWidgetItem* nameField = new QTableWidgetItem(user.getUsername().data());
-    table->setItem(row, 0, idField);
-    table->setItem(row, 1, nameField);
+    table->setItem(row, 0, nameField);
     
     RolesComboBox* combo = new RolesComboBox();
-    table->setCellWidget(row, 2, combo);
+    table->setCellWidget(row, 1, combo);
     
     Button* button = new Button(
         table, "Eliminar",
@@ -55,15 +53,22 @@ void SystemUsersPage::refreshUsersTable() {
               "\n¿Desea continuar la operación?"
           );
           
-          if (reply) {            
-            qDebug() << "Eliminando usuario con ID: " << user.getID();
+          if (reply) {
+            qDebug() << "Eliminando usuario con ID: " << user.getUsername();
             
-            this->model.deleteUser(user);
-            this->refreshUsersTable();
+            if (this->model.deleteUser(user)) {
+              std::cout << "usurio eliminado correctamente: " << user.getUsername();
+              this->refreshUsersTable();
+            }
           }
         });
-    table->setCellWidget(row, 3, button);
+    table->setCellWidget(row, 2, button);
   }
   
   table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 }
+
+void SystemUsersPage::usersModified() {
+  this->refreshUsersTable();
+}
+    

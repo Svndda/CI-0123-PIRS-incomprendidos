@@ -10,26 +10,25 @@
 #include "model.h"
 
 Model::Model()
-  : filesystem(FileSystem()), usersManager(UsersManager(filesystem)) {
-  
+  : filesystem(FileSystem(UNITY_PATH)), usersManager(UsersManager(filesystem)) {
   // USUARIOS HARDCODEADOS
-  User u1(1, "realAdmin", "Administrador del sistema");
+  User u1("realAdmin", "Administrador del sistema");
   u1.setPassword("M2sv8KxpLq");
   this->usersManager.saveUser(u1);
   
-  User u2(2, "dataAdmin", "Administrador de datos");
+  User u2("dataAdmin", "Administrador de datos");
   u2.setPassword("N7vbq2R0");
   this->usersManager.saveUser(u2);
   
-  User u3(3, "audiTT", "Auditor");
+  User u3("audiTT", "Auditor");
   u3.setPassword("gH5pxL9pQ");
   this->usersManager.saveUser(u3);
   
-  User u4(4, "guestAA", "Invitado 1");
+  User u4("guestAA", "Invitado 1");
   u4.setPassword("aB7nvZt9Ow1");
   this->usersManager.saveUser(u4);
   
-  User u5(5, "guestBB", "Invitado 2");
+  User u5("guestBB", "Invitado 2");
   u5.setPassword("z9dsRk5Tg");
   this->usersManager.saveUser(u5);
 }
@@ -67,7 +66,7 @@ bool Model::updateUser(
 
 bool Model::saveUser(
     const QString &username, const QString &password, const QString &rol) {
-  User newUser(1, username.toStdString(), rol.toStdString());
+  User newUser(username.toStdString(), rol.toStdString());
   newUser.setPassword(password.toStdString());
   return this->usersManager.saveUser(newUser);
 }

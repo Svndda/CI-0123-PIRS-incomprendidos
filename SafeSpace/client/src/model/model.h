@@ -3,6 +3,7 @@
 #define MODEL_H
 
 #include <QString>
+#include <QApplication>
 #include <QPrinter>
 #include <vector>
 
@@ -23,6 +24,8 @@ class Model {
   Model& operator=(const Model&) = delete;
 
 private:
+  const std::string UNITY_PATH
+      = QApplication::applicationDirPath().toStdString() + "\\unity.bin";
   bool started = false;       ///< Flag indicating if the model has been started.
   FileSystem filesystem;
   UsersManager usersManager;
@@ -96,10 +99,6 @@ public:  ///< Functions.
   User findUser(const std::string& username) {
     return this->usersManager.findUser(username);
   };
-  
-  User findUser(const size_t id) {
-    return this->usersManager.findUser(id);
-  }
   
 };
 

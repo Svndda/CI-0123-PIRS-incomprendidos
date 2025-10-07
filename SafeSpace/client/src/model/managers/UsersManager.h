@@ -28,5 +28,4 @@ public:
   bool deleteUser(const std::string& username);
   bool updateUser(const std::string& username, const User& updatedUser);
   User findUser(const std::string& username);
-  User findUser(const size_t id);
 };

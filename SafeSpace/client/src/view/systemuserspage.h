@@ -18,11 +18,14 @@ public:
   ~SystemUsersPage();
     
 private:
-  void refreshUsersTable();    
+  void refreshUsersTable();
 
 signals:
   void deleteUserRequested(const QString &username);
   void updateUserRequested(const QString &username);
+  
+public slots:
+  void usersModified();
 };
 
 #endif // SYSTEMUSERSPAGE_H

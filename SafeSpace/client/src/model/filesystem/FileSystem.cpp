@@ -2,9 +2,7 @@
 #include <iostream>
 #include <cstring>
 FileSystem::FileSystem(const std::string& diskPath)
-    : disk(diskPath), superBlock{}
-{
-
+    : disk(diskPath), superBlock{} {
     if (!disk.openDisk()) {
         std::cerr << "[FS] No se pudo abrir el disco, se intentará crear uno nuevo.\n";
         if (!disk.openDisk(std::ios::out | std::ios::binary | std::ios::trunc)) {

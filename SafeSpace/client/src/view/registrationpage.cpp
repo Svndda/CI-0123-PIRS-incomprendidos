@@ -21,6 +21,7 @@ RegistrationPage::RegistrationPage(QWidget *parent, Model& model) :
       ui->usernameLineEdit->clear();
       ui->passwordLineEdit->clear();
       ui->rolesComboBox->setCurrentIndex(0);
+      emit this->userRegistrationSuccessful();
     }
   });
 }
