@@ -2,9 +2,6 @@
 #ifndef MODEL_H
 #define MODEL_H
 
-#include <QString>
-#include <QApplication>
-#include <QPrinter>
 #include <vector>
 
 #include "model/managers/UsersManager.h"
@@ -24,8 +21,7 @@ class Model {
   Model& operator=(const Model&) = delete;
 
 private:
-  const std::string UNITY_PATH
-      = QApplication::applicationDirPath().toStdString() + "\\unity.bin";
+  const std::string UNITY_PATH = "data/unity.bin";
   bool started = false;       ///< Flag indicating if the model has been started.
   FileSystem filesystem;
   UsersManager usersManager;
@@ -94,7 +90,7 @@ public:  ///< Functions.
     const std::string& username, const User& updatedUser);
   
   bool saveUser(
-    const QString &username, const QString &password, const QString &rol);
+    const std::string &username, const std::string &password, const std::string &rol);
   
   User findUser(const std::string& username) {
     return this->usersManager.findUser(username);

@@ -2,15 +2,11 @@
 #include <vector>
 #include <limits>
 
-#include <QDebug>
-#include <QPrinter>
-#include <QPrinterInfo>
-#include <QPrintDialog>
 #include "FileSystem.h"
 #include "model.h"
 
 Model::Model()
-  : filesystem(FileSystem(UNITY_PATH)), usersManager(UsersManager(filesystem)) {
+  : filesystem(UNITY_PATH), usersManager(UsersManager(filesystem)) {
   // USUARIOS HARDCODEADOS
   User u1("realAdmin", "Administrador del sistema");
   u1.setPassword("M2sv8KxpLq");
@@ -65,8 +61,8 @@ bool Model::updateUser(
 }
 
 bool Model::saveUser(
-    const QString &username, const QString &password, const QString &rol) {
-  User newUser(username.toStdString(), rol.toStdString());
-  newUser.setPassword(password.toStdString());
+    const std::string &username, const std::string &password, const std::string &rol) {
+  User newUser(username, rol);
+  newUser.setPassword(password);
   return this->usersManager.saveUser(newUser);
 }
