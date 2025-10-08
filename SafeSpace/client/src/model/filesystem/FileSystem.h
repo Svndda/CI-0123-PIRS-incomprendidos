@@ -50,7 +50,8 @@ public:
     std::string read(const std::string& name);
     bool remove(const std::string& name);
     int  find(const std::string& name) const; // retorna el id del i-nodo
-
+    int openFile(const std::string& name);
+    int closeFile(const std::string& name);
     // Debug
     void listFiles() const;
 

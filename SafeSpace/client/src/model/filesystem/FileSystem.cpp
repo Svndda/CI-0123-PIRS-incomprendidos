@@ -258,7 +258,11 @@ bool FileSystem::write(const std::string& name, const std::string& data) {
     }
 
     iNode& n = inodeTable[inodeId];
-
+     if (n.flags == 0){
+        std::cerr << "[FS] No se puede escribir en un archivo cerrado: " << name << "\n";
+        std::cerr << "[FS] Abra el archivo antes de escribir.\n";
+        return false;
+    }
     // Escribir a bloques directos
     size_t remaining = data.size();
     size_t cursor = 0;
@@ -350,6 +354,12 @@ std::string FileSystem::read(const std::string& name) {
     const iNode& n = inodeTable[inodeId];
     if (n.size_bytes == 0) return {};
 
+     if (n.flags == 0){
+        std::cerr << "[FS] No se puede leer un archivo cerrado: " << name << "\n";
+        std::cerr << "[FS] Abra el archivo antes de leer.\n";
+        return {};
+    }
+
     std::string out;
     out.reserve(n.size_bytes);
 
@@ -388,7 +398,12 @@ bool FileSystem::remove(const std::string& name) {
     if (inodeId < 0) return false;
 
     iNode& n = inodeTable[inodeId];
-
+    
+    if (n.flags == 1){
+        std::cerr << "[FS] No se puede eliminar un archivo abierto: " << name << "\n";
+        return false;
+    }
+    
     // liberar directos
     for (int i = 0; i < 10; ++i) {
         if (n.direct[i]) {
@@ -477,4 +492,33 @@ bool FileSystem::isValid() const {
            superBlock.data_area_offset > 0 &&
            !bitMap.empty() &&
            !inodeTable.empty();
+}
+int FileSystem::openFile(const std::string& name) {
+    int inodeId = find(name);
+    if (inodeId < 0){
+        std::cerr << "[FS] No existe: " << name << "\n";
+        return -1;
+    }
+    iNode& n = inodeTable[inodeId];
+    if (n.flags == 1){
+        std::cerr << "[FS] El archivo ya está abierto: " << name << "\n";
+        return -1;
+    }
+    n.flags = 1;  
+    return 0;
+}
+
+int FileSystem::closeFile(const std::string& name) {
+    int inodeId = find(name);
+    if (inodeId < 0){
+        std::cerr << "[FS] No existe: " << name << "\n";
+        return -1;
+    }
+    iNode& n = inodeTable[inodeId];
+    if (n.flags == 0){
+        std::cerr << "[FS] El archivo ya está cerrado: " << name << "\n";
+        return -1;
+    }
+    n.flags = 0;  // Marcar como cerrado
+    return 0;
 }
