@@ -2,8 +2,6 @@
 #define USER_H
 
 #include <fstream>
-#include <qdebug.h>
-#include <qlogging.h>
 #include <string>
 #include <vector>
 

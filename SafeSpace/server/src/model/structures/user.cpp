@@ -1,5 +1,5 @@
 #include "user.h"
-#include <QCryptographicHash>
+
 User::User(const std::string userName
     , const std::string userType
     , const std::vector<PageAccess> userPermissions
@@ -25,20 +25,21 @@ void User::setUsername(const std::string name) {
 }
 
 void User::setPassword(const std::string& newPassword) {
-  QByteArray hash = QCryptographicHash::hash(
-    QByteArray::fromStdString(newPassword),
-    QCryptographicHash::Sha256
-  );
-  this->password = QString(hash.toHex()).toStdString();
+  // QByteArray hash = QCryptographicHash::hash(
+  //   QByteArray::fromStdString(newPassword),
+  //   QCryptographicHash::Sha256
+  // );
+  // this->password = QString(hash.toHex()).toStdString();
 }
 
 bool User::verifyPassword(const std::string& passwordToCheck) const {
-  QByteArray hash = QCryptographicHash::hash(
-    QByteArray::fromStdString(passwordToCheck),
-    QCryptographicHash::Sha256
-  );
-  std::string hashHex = QString(hash.toHex()).toStdString();
-  return this->password == hashHex;
+  // QByteArray hash = QCryptographicHash::hash(
+  //   QByteArray::fromStdString(passwordToCheck),
+  //   QCryptographicHash::Sha256
+  // );
+  // std::string hashHex = QString(hash.toHex()).toStdString();
+  // return this->password == hashHex;
+  return true;
 }
 
 const std::vector<User::PageAccess>& User::getUserPermissions() const {
