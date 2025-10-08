@@ -1,11 +1,15 @@
 #include "UsersManager.h"
 
 UsersManager::UsersManager(FileSystem& fs) : fileSystem(fs) {
+  // Leer contenido actual del archivo
+  this->fileSystem.openFile(this->userFile);
+  
   loadUsers();
 }
 
 UsersManager::~UsersManager() {
     // Cleanup if necessary
+  this->fileSystem.closeFile(this->userFile);  
 }
 
 bool UsersManager::saveUser(const User& user) {
@@ -16,14 +20,14 @@ bool UsersManager::saveUser(const User& user) {
             return false;
         }
     }
+    
     // Asegurarse de que el archivo de usuarios existe
     if (this->fileSystem.find(this->userFile) != 0) {
       this->fileSystem.create(this->userFile/*, "rw"*/);
     }
-    // Leer contenido actual del archivo
-    this->fileSystem.find(this->userFile);
+    
+
     std::string currentContent = this->fileSystem.read(this->userFile); 
-    // this->fileSystem.close(this->userFile);
 
     // Preparar nueva línea
     std::string userType = user.getType();
@@ -50,7 +54,7 @@ bool UsersManager::saveUser(const User& user) {
 
 void UsersManager::loadUsers(){
   std::string data;
-  this->fileSystem.find(this->userFile);
+  // this->fileSystem.openFile(this->userFile);
   data = this->fileSystem.read(this->userFile);
   // this->fileSystem.closeFile(this->userFile);
   if (data.empty()) {
@@ -107,7 +111,7 @@ bool UsersManager::deleteUser(const std::string& username){
     return false;
   }
 
-  this->fileSystem.find(this->userFile);
+  // this->fileSystem.openFile(this->userFile);
   std::string currentContent = this->fileSystem.read(this->userFile); 
   // this->fileSystem.closeFile(this->userFile);
 
@@ -135,7 +139,7 @@ bool UsersManager::deleteUser(const std::string& username){
   }
 
   // Actualiza el archivo
-  this->fileSystem.find(this->userFile);
+  // this->fileSystem.openFile(this->userFile);
   this->fileSystem.write(this->userFile, newContent);
   // this->fileSystem.closeFile(this->userFile);
 
@@ -160,7 +164,7 @@ bool UsersManager::updateUser(const std::string& username, const User& updatedUs
     if (user.getUsername() == username) {
       user = updatedUser;
       // Actualizar en el archivo
-      this->fileSystem.find(this->userFile);
+      // this->fileSystem.openFile(this->userFile);
       std::string currentContent = this->fileSystem.read(this->userFile); 
       // this->fileSystem.closeFile(this->userFile);
 
@@ -187,7 +191,7 @@ bool UsersManager::updateUser(const std::string& username, const User& updatedUs
       }
 
       // Guardar el nuevo contenido
-      this->fileSystem.find(this->userFile);
+      // this->fileSystem.openFile(this->userFile);
       this->fileSystem.write(this->userFile, newContent);
       // this->fileSystem.closeFile(this->userFile);
 
