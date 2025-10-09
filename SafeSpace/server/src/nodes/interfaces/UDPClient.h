@@ -33,14 +33,14 @@ class UDPClient {
          * @return true    If the message was sent successfully.
          * @return false   If there was an error sending the message.
          */
-        bool sendMessage(uint8_t msgId, uint8_t flags);
+        void sendMessage(uint8_t msgId, uint8_t flags);
         /**
          * @brief Receives a message from the server.
          * 
          * @return true    If the message was received successfully.
          * @return false   If there was an error receiving the message.
          */
-        bool closeSocket();
+        void closeSocket();
     private:
         int sockfd{-1};
         std::string serverIp;
