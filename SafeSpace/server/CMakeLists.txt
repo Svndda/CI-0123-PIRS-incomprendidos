@@ -32,4 +32,9 @@ add_executable(server
         src/model/model.h
         src/nodes/SafeSpaceServer.cpp
         src/nodes/SafeSpaceServer.h
-        src/main.cpp)
+        src/main.cpp
+        src/nodes/interfaces/UDPServer.cpp
+        src/nodes/interfaces/UDPServer.h
+        src/model/structures/DiscoverRequest.h
+        src/model/structures/DiscoverResponse.h
+)
