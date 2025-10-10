@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "authenticationrequest.h"
+#include "authenticationresponse.h"
 #include "connectrequest.h"
 
 const size_t BUFFER_SIZE = 2048;
@@ -310,6 +311,8 @@ void ProxyNode::listenAuthServerResponses() {
                 std::cerr << "[ProxyNode] Error parsing DISCOVER_RESP: " 
                           << e.what() << std::endl;
             }
+        } else if (received == AuthResponse::MESSAGE_SIZE + 3 + AuthResponse::TOKEN_SIZE){
+          this->handleAuthResponse(buffer.data(), static_cast<size_t>(received));
         } else {
             std::cout << "[ProxyNode] Received non-standard response from auth server ("
                       << received << " bytes) - ignoring" << std::endl;
@@ -318,6 +321,66 @@ void ProxyNode::listenAuthServerResponses() {
     
     std::cout << "[ProxyNode] Auth server response listener thread stopped" 
             << std::endl;
+}
+
+
+void ProxyNode::handleAuthResponse(const uint8_t* buffer, size_t length) {
+  // Safecheck
+  if (length != AuthResponse::MESSAGE_SIZE + 3 + AuthResponse::TOKEN_SIZE) {
+    std::cerr << "[ProxyNode] Invalid AuthResponse length: " << length << std::endl;
+    return;
+  }
+
+  // bytes copying
+  std::array<uint8_t, 51> payload{};
+  std::memcpy(payload.data(), buffer, length);
+
+  // AuthResponse reconstruction.
+  AuthResponse resp;
+  resp.setSessionId(static_cast<uint16_t>(payload[0]) << 8 | payload[1]);
+  resp.setStatusCode(payload[2]);
+
+  std::string msg(reinterpret_cast<char*>(payload.data() + 3), AuthResponse::MESSAGE_SIZE);
+  resp.setMessage(msg);
+
+  const std::string token(reinterpret_cast<char*>(
+    payload.data() + 3 + AuthResponse::MESSAGE_SIZE),
+    AuthResponse::TOKEN_SIZE
+    );
+  resp.setSessionToken(token);
+
+  const uint16_t sessionId = resp.getSessionId();
+
+  // Logging informativo
+  std::cout << "[ProxyNode] AUTH_RESPONSE sessionId=" << sessionId
+            << " status=" << static_cast<int>(resp.getStatusCode())
+            << " token=" << resp.getSessionToken() << std::endl;
+
+
+  ClientInfo clientInfo;
+  bool found = false;
+
+  {
+    std::lock_guard<std::mutex> lock(clientsMutex);
+    auto it = pendingClients.find(sessionId);
+    if (it != pendingClients.end()) {
+      clientInfo = it->second;
+      // Eliminates the clients from the pending ones.
+      pendingClients.erase(it);
+      found = true;
+    }
+  }
+
+  // Sends the response to the client if found.
+  if (found) {
+      sendTo(clientInfo.addr, payload.data(), payload.size());
+      std::cout << "[ProxyNode] Forwarded AUTH_RESPONSE sessionId="
+                << sessionId << " to client "
+                << sockaddrToString(clientInfo.addr) << std::endl;
+  } else {
+    std::cout << "[ProxyNode] WARNING: No pending client for AUTH_RESPONSE sessionId="
+              << sessionId << std::endl;
+  }
 }
 
 std::string ProxyNode::sockaddrToString(const sockaddr_in& addr) const {

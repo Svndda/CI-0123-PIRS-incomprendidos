@@ -38,6 +38,15 @@ class ProxyNode: public UDPServer{
 
     // Escucha respuestas del servidor de autenticación
     void listenAuthServerResponses();
+
+    /**
+     * @brief Processes an AuthResponse buffer received from the authentication server
+     *        and forwards it to the original client if found.
+     *
+     * @param buffer Pointer to the received data buffer (expected 51 bytes).
+     * @param length Length of the buffer (should be exactly 51 bytes for AuthResponse).
+     */
+    void handleAuthResponse(const uint8_t* buffer, size_t length);
     std::thread listenerThread;
     std::atomic<bool> listening;
 
