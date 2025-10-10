@@ -6,6 +6,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
   LinguistTools
   PrintSupport
   Svg
+  Network
 )
 
 qt_standard_project_setup()
@@ -51,8 +52,12 @@ qt_add_executable(SafeSpace
   src/model/filesystem/DiskManager.h src/model/filesystem/DiskManager.cpp
   src/model/filesystem/FileSystem.h src/model/filesystem/FileSystem.cpp
   src/model/filesystem/DirEntry.h
-  src/model/structures/connectrequest.h src/model/structures/connectrequest.cpp
   src/model/data/unity.bin
+  src/model/network/authenticationrequest.h
+  src/model/network/authenticationresponse.h
+  
+  src/model/network/qtudpclient.h src/model/network/qtudpclient.cpp
+  
 
 )
 
@@ -67,6 +72,7 @@ target_link_libraries(SafeSpace
     Qt6::Widgets
     Qt6::PrintSupport
     Qt6::Svg
+    Qt6::Network    
 )
 
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
