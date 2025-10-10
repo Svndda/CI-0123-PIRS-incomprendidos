@@ -41,6 +41,8 @@ class UDPClient {
          * @return false   If there was an error receiving the message.
          */
         void closeSocket();
+
+        int getSocketFd();
     private:
         int sockfd{-1};
         std::string serverIp;
