@@ -7,8 +7,10 @@
 #include <QPrinter>
 #include <vector>
 
-#include "model/managers/UsersManager.h"
-#include "model/filesystem/FileSystem.h"
+// #include "model/managers/UsersManager.h"
+// #include "model/filesystem/FileSystem.h"
+#include "model/structures/user.h"
+#include "model/network/QtUDPClient.h"
 
 /**
  * @class Model
@@ -18,7 +20,7 @@
  * It interacts with the BackupModule to load and persist data, and provides functions
  * for adding, editing, and removing items in the system.
  */
-class Model {
+class Model : public QObject {
   // Deleted copy constructor and assignment operator to prevent copying.
   Model(const Model&) = delete;
   Model& operator=(const Model&) = delete;
@@ -27,8 +29,9 @@ private:
   const std::string UNITY_PATH
       = QApplication::applicationDirPath().toStdString() + "\\unity.bin";
   bool started = false;       ///< Flag indicating if the model has been started.
-  FileSystem filesystem;
-  UsersManager usersManager;
+  QtUDPClient client;
+  // FileSystem filesystem;
+  // UsersManager usersManager;
 private:
   /**
    * @brief Private constructor for Model.
@@ -58,9 +61,9 @@ public:  ///< Getters
   //   return this->usersManager.user.getUserPermissions()[page].access;
   // }
   
-  inline std::vector<User> getSystemUsers() {
-    return this->usersManager.getUsers();
-  }
+  // inline std::vector<User> getSystemUsers() {
+  //   return this->usersManager.getUsers();
+  // }
   
 public:  ///< Functions.
   /**
@@ -72,7 +75,7 @@ public:  ///< Functions.
    * @param user The user to start the model with.
    * @return True if the model has been successfully started.
    */
-  bool start(const User& user);
+  bool start(/*const User& user*/);
   
   /**
    * @brief Shuts down the POS model.
@@ -96,9 +99,9 @@ public:  ///< Functions.
   bool saveUser(
     const QString &username, const QString &password, const QString &rol);
   
-  User findUser(const std::string& username) {
-    return this->usersManager.findUser(username);
-  };
+  // User findUser(const std::string& username) {
+  //   return this->usersManager.findUser(username);
+  // };
   
 };
 
