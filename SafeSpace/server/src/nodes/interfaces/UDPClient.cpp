@@ -18,6 +18,10 @@ UDPClient::~UDPClient() {
     closeSocket();
 }
 
+int UDPClient::getSocketFd() {
+    return this->sockfd;
+}
+
 void UDPClient::closeSocket() {
     if (sockfd > 0) {
         close(sockfd);
