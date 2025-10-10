@@ -4,6 +4,7 @@
 #include "elements/rolescombobox.h"
 #include "elements/button.h"
 #include "colors.h"
+#include "iostream"
 
 SystemUsersPage::SystemUsersPage(QWidget *parent, Model& model) :
     Page(parent, model),
@@ -22,7 +23,7 @@ void SystemUsersPage::refreshUsersTable() {
   table->setRowCount(0);
   
   
-  const std::vector<User> systemUsers = this->model.getSystemUsers();
+  const std::vector<User> systemUsers;/* = this->model.getSystemUsers();*/
   this->logger(
       LogType::DEBUG,
       "hay registrados usuarios: " + QString::number(systemUsers.size())
