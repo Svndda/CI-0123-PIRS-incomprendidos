@@ -5,6 +5,10 @@
 #include <cstring>
 #include <unistd.h>
 #include <errno.h>
+#include <vector>
+
+#include "authenticationrequest.h"
+#include "connectrequest.h"
 
 const size_t BUFFER_SIZE = 2048;
 
@@ -116,6 +120,59 @@ void ProxyNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
         // No responder inmediatamente al cliente
         out_response.clear();
         return;
+
+    }
+
+    if (len == 50) {  // AUTHENTICATION_REQUEST messages are 50 bytes
+
+      // Copiar los 50 bytes recibidos a un array para deserialización
+      std::array<uint8_t, 50> payload{};
+      std::memcpy(payload.data(), data, 50);
+
+      // Reconstruir AuthRequest a partir del buffer
+      AuthRequest req;
+      req.setSessionId(static_cast<uint16_t>(payload[0]) << 8 | payload[1]);
+
+      // Copiar username (16 bytes)
+      std::string username(reinterpret_cast<char*>(payload.data() + 2), AuthRequest::USERNAME_SIZE);
+      req.setUsername(username);
+
+      // Copiar password (32 bytes)
+      std::string password(reinterpret_cast<char*>(payload.data() + 2 + AuthRequest::USERNAME_SIZE), AuthRequest::PASSWORD_SIZE);
+      req.setPassword(password);
+
+      const uint16_t sessionId = req.getSessionId();
+      const std::string& user = req.getUsername();
+      const std::string& pass = req.getPassword();
+
+      std::cout << "[ProxyNode] AUTHENTICATION_REQUEST sessionId=" << sessionId
+                << " username=" << user
+                << " password=" << std::string(pass.size(), '*')
+                << " from " << peerStr << std::endl;
+
+      // Guardar información del cliente para responder después
+      {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        pendingClients[sessionId] = {peer, sessionId};
+        std::cout << "[ProxyNode] Stored client info for sessionId=" << sessionId << std::endl;
+      }
+
+      // Reenviar al servidor de autenticación
+      try {
+        forwardToAuthServer(data, static_cast<size_t>(len));
+        std::cout << "[ProxyNode] Successfully forwarded AUTHENTICATION_REQUEST sessionId="
+                  << sessionId << " to auth server" << std::endl;
+      } catch (const std::exception& e) {
+        std::cerr << "[ProxyNode] ERROR forwarding to auth server: " << e.what() << std::endl;
+
+        // Limpiar cliente pendiente si falla el reenvío
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        pendingClients.erase(sessionId);
+      }
+
+      // No responder inmediatamente al cliente
+      out_response.clear();
+      return;
     }
 
     // Si no es un mensaje conocido, hacer echo por defecto
