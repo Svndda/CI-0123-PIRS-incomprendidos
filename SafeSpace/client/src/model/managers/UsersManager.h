@@ -28,4 +28,6 @@ public:
   bool deleteUser(const std::string& username);
   bool updateUser(const std::string& username, const User& updatedUser);
   User findUser(const std::string& username);
+private:
+  void saveAllToFile();
 };
