@@ -7,6 +7,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
   PrintSupport
   Svg
   Network
+  OpenSSL
 )
 
 qt_standard_project_setup()
@@ -72,7 +73,9 @@ target_link_libraries(SafeSpace
     Qt6::Widgets
     Qt6::PrintSupport
     Qt6::Svg
-    Qt6::Network    
+    Qt6::Network
+    OpenSSL::SSL
+    OpenSSL::Crypto
 )
 
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -81,6 +84,7 @@ endif()
 
 target_include_directories(SafeSpace
   PRIVATE
+    ${OPENSSL_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/src/
     ${CMAKE_SOURCE_DIR}/src/model/
     ${CMAKE_SOURCE_DIR}/src/model/structures
