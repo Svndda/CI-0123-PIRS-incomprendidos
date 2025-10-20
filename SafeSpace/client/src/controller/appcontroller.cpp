@@ -12,6 +12,7 @@
 #include "view/visualizerspage.h"
 #include "view/sensorspage.h"
 #include "colors.h"
+#include <iostream>
 
 AppController::AppController(QWidget *parent)
   : QMainWindow(parent)
