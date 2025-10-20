@@ -41,7 +41,7 @@ void AuthUDPServer::loadDefaultUsers() {
     
     std::cout << " Usuarios cargados:" << std::endl;
     for (const auto& user : users) {
-        std::cout << "   - " << user.first << " (" << user.second.group << ")" << std::endl;
+        std::cout << "   - " << user.first << " (" << user.second.getGroup() << ")" << std::endl;
     }
 }
 
@@ -53,31 +53,12 @@ bool AuthUDPServer::addUser(const std::string& username, const std::string& pass
         return false;
     }
     
-    std::string password_hash = hashPassword(password);
-    
-    User new_user;
-    new_user.username = username;
-    new_user.password_hash = password_hash;
-    new_user.group = group;
-    new_user.permissions = permissions;
-    new_user.failed_attempts = 0;
-    new_user.is_locked = false;
+    std::string password_hash = User::hashSHA256(password);
+
+    const User new_user(username, password_hash, group, permissions);
     
     users[username] = new_user;
     return true;
-}
-
-std::string AuthUDPServer::hashPassword(const std::string& password) {
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256(reinterpret_cast<const unsigned char*>(password.c_str()), 
-           password.length(), hash);
-    
-    std::stringstream ss;
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
-        ss << std::hex << std::setw(2) << std::setfill('0') 
-           << static_cast<int>(hash[i]);
-    }
-    return ss.str();
 }
 
 void AuthUDPServer::onReceive(const sockaddr_in& peer, const uint8_t* data, ssize_t len,
@@ -149,8 +130,8 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
     response.setSessionId(sessionId);
     
     auto it = users.find(username);
-    if (it != users.end() && !it->second.is_locked && 
-        password_hash == it->second.password_hash) {
+    if (it != users.end() && !it->second.isLocked() &&
+        it->second.verifyHashPassword(password_hash)) {
         
         response.setStatusCode(1);
         response.setMessage("Authentication successful");
@@ -173,9 +154,7 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
         
         // Incrementar intentos fallidos si el usuario existe
         if (it != users.end()) {
-            it->second.failed_attempts++;
-            if (it->second.failed_attempts >= 3) {
-                it->second.is_locked = true;
+            if (it->second.isLocked()) {
                 std::cout << " Cuenta BLOQUEADA: " << username << std::endl;
             }
         }

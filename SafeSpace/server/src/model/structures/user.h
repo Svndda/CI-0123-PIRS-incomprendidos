@@ -1,9 +1,8 @@
 #ifndef USER_H
 #define USER_H
 
+#include <cstdint>
 #include <fstream>
-#include <qdebug.h>
-#include <qlogging.h>
 #include <string>
 #include <vector>
 #include <openssl/sha.h>
@@ -19,12 +18,12 @@
  */
 class User {
 private:
-  std::string username = "";            ///< Name of the user.
+  std::string username;            ///< Name of the user.
   std::string passwordHash;            ///< Hashed password.
   std::string group;
   uint16_t permissions;
   uint16_t failedAttemps;
-  bool isLocked;
+  bool locked;
 public:
   
   /**
@@ -33,7 +32,7 @@ public:
    * Initializes the User with a given id, name, and an optional set of page access permissions.
    *
    */
-  User(std::string _username, std::string _passwordHash,
+  User(std::string _username = "", std::string _passwordHash = "",
        std::string _group = "Usuario" , uint16_t _permissions = 4,
        uint16_t _failedAttemps = 0, bool _isLocked = false
        );
@@ -118,24 +117,32 @@ public:
    *
    * @param name The new name to set.
    */
-  void setUsername(const std::string name);
+  void setUsername(const std::string& name);
   
   /**
    * @brief Sets the user's password.
    *
    * Hashes the provided password string and stores it.
    *
-   * @param newHash The new password to set.
+   * @param password The new password to hash and set.
    */
-  void setPassword(const std::string& newHash);
+  void setPassword(const std::string& password);
   
   /**
    * @brief Verifies the provided password against the stored hash.
    *
-   * @param passwordToCheck The password to verify.
+   * @param password The password to verify.
    * @return True if the provided password matches the stored hash; otherwise, false.
    */
-  bool verifyPassword(const std::string& hashTocKE) const;
+  bool verifySimplePassword(const std::string& password);
+
+  /**
+   * @brief Verifies the provided hashed password against the stored hash.
+   *
+   * @param hash The hashed password to verify.
+   * @return True if the provided hashed password matches the stored hash; otherwise, false.
+   */
+  bool verifyHashPassword(const std::string& hash);
   
   /**
    * @brief Get the user's group.
@@ -143,13 +150,34 @@ public:
    * @return std::string 
    */
   std::string getGroup() const {return this->group;}
+
+  /**
+   * @brief Get the user's group.
+   *
+   * @return std::string
+   */
+  bool isLocked() const {return this->locked;}
   
   /**
    * @brief Get the user's password hash.
    * 
-   * @return std::string 
+   * @return std::string
    */
   const std::string& getPasswordHash() const { return passwordHash; }
+
+  /**
+   * @brief Sets the user's password hash.
+   *
+   * @param newPermissions The password to verify.
+   */
+   void setPermissions(const uint16_t newPermissions) { this->permissions = newPermissions; }
+
+  /**
+   * @brief Get the user's password hash.
+   *
+   * @param newHashedPassword The password to verify.
+   */
+  void setPasswordHash(const std::string& newHashedPassword) { this->passwordHash = newHashedPassword; }
   
   /**
    * @brief Sets the user's group.
