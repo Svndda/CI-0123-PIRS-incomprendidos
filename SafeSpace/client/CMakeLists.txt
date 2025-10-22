@@ -7,8 +7,9 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
   PrintSupport
   Svg
   Network
-  OpenSSL
 )
+
+find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
 
 qt_standard_project_setup()
 
