@@ -59,6 +59,7 @@ qt_add_executable(SafeSpace
   src/model/network/authenticationresponse.h
   
   src/model/network/qtudpclient.h src/model/network/qtudpclient.cpp
+  ../common/QtLogManager.h ../common/QtLogManager.cpp
   
 
 )
@@ -93,6 +94,7 @@ target_include_directories(SafeSpace
     ${CMAKE_SOURCE_DIR}/src/controller/
     ${CMAKE_SOURCE_DIR}/src/ui/
     ${CMAKE_SOURCE_DIR}/src/ui/elements/
+    ${CMAKE_SOURCE_DIR}/../common
     
 )
 
