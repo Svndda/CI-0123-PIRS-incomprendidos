@@ -1,5 +1,7 @@
 #include "UsersManager.h"
 
+#include <algorithm>
+
 UsersManager::UsersManager(FileSystem& fs) : fileSystem(fs) {
   // Leer contenido actual del archivo
   this->fileSystem.openFile(this->userFile);
@@ -18,7 +20,7 @@ bool UsersManager::saveUser(const User& user) {
       users.begin(), users.end(),
       [&](const User& u) {return u.getUsername() == user.getUsername();})
     ) {
-    qWarning() << "User already exists.";
+    std::cout << "User already exists.";
     return false;
   }
   
@@ -28,7 +30,7 @@ bool UsersManager::saveUser(const User& user) {
   this->fileSystem.write(this->userFile, current);
   
   users.push_back(user);
-  qDebug() << "User saved successfully:" << QString::fromStdString(user.getUsername());
+  std::cout << "User saved successfully:" << user.getUsername();
   return true;
 }
 
@@ -36,7 +38,7 @@ bool UsersManager::saveUser(const User& user) {
 void UsersManager::loadUsers(){
   std::string data = this->fileSystem.read(this->userFile);
   if (data.empty()) {
-    qDebug() << "No users found.";
+    std::cout << "No users found.";
     return;
   }
   
@@ -49,12 +51,12 @@ void UsersManager::loadUsers(){
     try {
       this->users.push_back(User::deserialize(entry));
     } catch (const std::exception& e) {
-      qWarning() << "Skipping malformed user entry:" << e.what();
+      std::cout << "Skipping malformed user entry:" << e.what();
     }
     
     start = end + 1;
   }
-  qDebug() << "Users loaded successfully:" << this->users.size();
+  std::cout << "Users loaded successfully:" << this->users.size();
 }
     
  
@@ -68,13 +70,13 @@ bool UsersManager::authenticate(const std::string& username,
   );
   
   if (it == users.end()) {
-    qWarning() << "User not found:" << QString::fromStdString(username);
+    std::cout << "User not found:" << username;
     return false;
   }
   
-  bool valid = it->verifyPassword(password);
+  bool valid = it->verifySimplePassword(password);
   if (!valid) {
-    qWarning() << "Invalid password for user:" << QString::fromStdString(username); 
+    std::cout << "Invalid password for user:" << username;
   }
   
   return valid;
@@ -89,13 +91,13 @@ bool UsersManager::deleteUser(const std::string& username){
   );
   
   if (it == users.end()) {
-    qWarning() << "User not found:" << QString::fromStdString(username);
+    std::cout << "User not found:" << username;
     return false;
   }
   
   users.erase(it, users.end());
   this->saveAllToFile();
-  qDebug() << "User deleted successfully.";
+  std::cout << "User deleted successfully.";
   return true;
 }
 
@@ -104,11 +106,11 @@ bool UsersManager::updateUser(const std::string& username, const User& updatedUs
     if (u.getUsername() == username) {
       u = updatedUser;
       this->saveAllToFile();
-      qDebug() << "User updated successfully.";
+      std::cout << "User updated successfully.";
       return true;
     }
   }
-  qWarning() << "User not found:" << QString::fromStdString(username);
+  std::cout << "User not found:" << username;
   return false;
 }
   
@@ -119,7 +121,7 @@ User UsersManager::findUser(const std::string& username){
     }
   }
   std::cout << "User not found." << std::endl;
-  return User("","");
+  return {"",""};
 }
 
 void UsersManager::saveAllToFile() {
