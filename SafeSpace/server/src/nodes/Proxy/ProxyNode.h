@@ -52,7 +52,7 @@ class ProxyNode: public UDPServer{
 
     
  public:
-    ProxyNode(uint16_t proxyPort, const std::string& authServerIp, 
+    ProxyNode(const std::string& ip, uint16_t proxyPort, const std::string& authServerIp,
             uint16_t authServerPort);
     ~ProxyNode() override;
 

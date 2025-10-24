@@ -1,8 +1,11 @@
 #include "user.h"
 
+#include <cstring>
+#include <iostream>
+
 User::User(std::string _username, std::string _passwordHash,
-    std::string _group, uint16_t _permissions,
-    uint16_t _failedAttemps, bool _isLocked)
+           std::string _group, uint16_t _permissions,
+           uint16_t _failedAttemps, bool _isLocked)
     : username(std::move(_username)), passwordHash(std::move(_passwordHash)),
     group(std::move(_group)), permissions(_permissions),
     failedAttemps(_failedAttemps), locked(_isLocked) {
@@ -49,11 +52,13 @@ void User::setPassword(const std::string& newHash) {
   this->passwordHash = hashSHA256(newHash);
 }
 
-bool User::verifySimplePassword(const std::string& passsword) {
-  std::string hashAttempt = hashSHA256(passsword);
-  if (this->passwordHash == hashAttempt) {
+bool User::verifySimplePassword(const std::string& password) {
+  std::string hashAttempt = hashSHA256(password);
+
+  if (hashAttempt.size() == this->passwordHash.size() &&
+      std::memcmp(hashAttempt.data(), this->passwordHash.data(), hashAttempt.size()) == 0) {
     return true;
-  }
+      }
 
   this->failedAttemps++;
   if (this->failedAttemps >= 3) {
@@ -63,8 +68,9 @@ bool User::verifySimplePassword(const std::string& passsword) {
   return false;
 }
 
-bool User::verifyHashPassword(const std::string& passsword) {
-  if (this->passwordHash == passsword) {
+bool User::verifyHashPassword(const std::string& hash) {
+  if (hash.size() == this->passwordHash.size()
+    && std::memcmp(hash.data(), this->passwordHash.data(), hash.size()) == 0) {
     return true;
   }
 

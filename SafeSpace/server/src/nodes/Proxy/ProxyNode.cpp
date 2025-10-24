@@ -13,8 +13,8 @@
 
 const size_t BUFFER_SIZE = 2048;
 
-ProxyNode::ProxyNode(uint16_t proxyPort, const std::string& authServerIp,
-        uint16_t authServerPort) : UDPServer(proxyPort, BUFFER_SIZE),
+ProxyNode::ProxyNode(const std::string& ip, uint16_t proxyPort, const std::string& authServerIp,
+        uint16_t authServerPort) : UDPServer(ip, proxyPort, BUFFER_SIZE),
         authClient(nullptr), authServerIp(authServerIp),
         authServerPort(authServerPort), listening(false) {
 
