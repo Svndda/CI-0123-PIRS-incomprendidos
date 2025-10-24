@@ -7,7 +7,6 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
   PrintSupport
   Svg
   Network
-  OpenSSL
 )
 
 qt_standard_project_setup()
@@ -74,8 +73,6 @@ target_link_libraries(SafeSpace
     Qt6::PrintSupport
     Qt6::Svg
     Qt6::Network
-    OpenSSL::SSL
-    OpenSSL::Crypto
 )
 
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")

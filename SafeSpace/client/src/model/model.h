@@ -21,6 +21,7 @@
  * for adding, editing, and removing items in the system.
  */
 class Model : public QObject {
+  Q_OBJECT
   // Deleted copy constructor and assignment operator to prevent copying.
   Model(const Model&) = delete;
   Model& operator=(const Model&) = delete;
@@ -30,6 +31,8 @@ private:
       = QApplication::applicationDirPath().toStdString() + "\\unity.bin";
   bool started = false;       ///< Flag indicating if the model has been started.
   QtUDPClient client;
+  User user = User();
+  
   // FileSystem filesystem;
   // UsersManager usersManager;
 private:
@@ -103,6 +106,8 @@ public:  ///< Functions.
   //   return this->usersManager.findUser(username);
   // };
   
+signals:
+  bool authenticatheResponse(bool state);
 };
 
 #endif // MODEL_H

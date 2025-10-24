@@ -10,7 +10,7 @@
 #include "model.h"
 
 Model::Model()
-  : client("172.17.0.70", 4900, this) {
+  : client("172.17.0.70", 8090, this) {
   // // USUARIOS HARDCODEADOS
   // User u1("realAdmin", "Administrador del sistema");
   // u1.setPassword("M2sv8KxpLq");
@@ -47,17 +47,24 @@ bool Model::start(/*const User& user*/) {
 bool Model::authenticate(
     const std::string& username, const std::string& password) {
   // return this->usersManager.authenticate(username, password);
-  this->connect(&client, &QtUDPClient::authResponseReceived, this, [](const AuthResponse& resp) {
-    qDebug() << "Authentication response received:";
-    qDebug() << "  Session ID:" << resp.getSessionId();
-    qDebug() << "  Status:" << resp.getStatusCode();
-    qDebug() << "  Message:" << QString::fromStdString(resp.getMessage());
-    qDebug() << "  Token:" << QString::fromStdString(resp.getSessionToken());
+  qDebug() << "Autenticando usuario";
+  this->connect(
+    &this->client, &QtUDPClient::authResponseReceived,
+    this, [this](const AuthResponse& resp) {
+      qDebug() << "Authentication response received:";
+      qDebug() << "  Session ID:" << resp.getSessionId();
+      qDebug() << "  Status:" << resp.getStatusCode();
+      qDebug() << "  Message:" << QString::fromStdString(resp.getMessage());
+      qDebug() << "  Token:" << QString::fromStdString(resp.getSessionToken());
+      
+      if (resp.getStatusCode() == 1) {
+        this->started = true;
+      }
+      
   });
+  this->client.sendAuthRequest(1001, username, User::hashSHA256(password));
   
-  client.sendAuthRequest(42, "aaron", "my_secure_password");
-  
-  return true;
+  return false;
 }
 
 bool Model::deleteUser(
