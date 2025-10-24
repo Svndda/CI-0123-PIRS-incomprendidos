@@ -39,7 +39,7 @@ class QtLogManager {
          *
          * @return copy of historial logs
          */
-        Qvector<LogEntry> getLogs() const;
+        QVector<LogEntry> getLogs() const;
         /**
          * @brief Clear all stored logs.
          */
@@ -52,14 +52,14 @@ class QtLogManager {
      */
         QtLogManager() = default;
         
-        Qvector<LogEntry> logs;
+        QVector<LogEntry> logs;
         
         mutable QMutex mutex;
 
         static void messageHandler(QtMsgType type,
                                const QMessageLogContext &context,
                                const QString &msg);
-}
+};
 
 
 #endif // QTLOGMANAGER_H
