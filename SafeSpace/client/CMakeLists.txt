@@ -26,9 +26,6 @@ qt_add_executable(SafeSpace
   src/model/structures/sensordata.h src/model/structures/sensordata.cpp
 
   # Filesystem  
-
-
-
   src/model/filesystem/iNode.h
   
   # Controller
@@ -40,25 +37,53 @@ qt_add_executable(SafeSpace
   src/colors.h
   src/view/elements/button.h src/view/elements/button.cpp
   
-  src/view/administrationpage.h src/view/administrationpage.cpp src/view/administrationpage.ui
-  src/view/registrationpage.h src/view/registrationpage.cpp src/view/registrationpage.ui
-  src/view/systemuserspage.h src/view/systemuserspage.cpp src/view/systemuserspage.ui
+  src/view/administration/administrationpage.h
+  src/view/administration/administrationpage.cpp
+  src/view/administration/administrationpage.ui
+  src/view/administration/subpages/registrationpage.h
+  src/view/administration/subpages/registrationpage.cpp
+  src/view/administration/subpages/registrationpage.ui
+  src/view/administration/subpages/systemuserspage.h
+  src/view/administration/subpages/systemuserspage.cpp
+  src/view/administration/subpages/systemuserspage.ui
   
-  src/view/accountpage.h src/view/accountpage.cpp src/view/accountpage.ui
-  src/view/visualizerspage.h src/view/visualizerspage.cpp src/view/visualizerspage.ui
-  src/view/sensorspage.h src/view/sensorspage.cpp src/view/sensorspage.ui
-  src/view/elements/rolescombobox.h src/view/elements/rolescombobox.cpp
+  src/view/account/accountpage.h
+  src/view/account/accountpage.cpp
+  src/view/account/accountpage.ui
+  
+  src/view/visualizerspage.h
+  src/view/visualizerspage.cpp
+  src/view/visualizerspage.ui
+  
+  src/view/arduinos/arduinospage.h
+  src/view/arduinos/arduinospage.cpp
+  src/view/arduinos/arduinospage.ui
+  src/view/arduinos/subpages/sensorspage.h
+  src/view/arduinos/subpages/sensorspage.cpp
+  src/view/arduinos/subpages/sensorspage.ui
+  src/view/arduinos/subpages/machinespage.h
+  src/view/arduinos/subpages/machinespage.cpp
+  src/view/arduinos/subpages/machinespage.ui
+  
+  src/view/elements/rolescombobox.h
+  src/view/elements/rolescombobox.cpp
+  
   src/model/filesystem/Layout.h
-  src/model/filesystem/DiskManager.h src/model/filesystem/DiskManager.cpp
-  src/model/filesystem/FileSystem.h src/model/filesystem/FileSystem.cpp
+  
+  src/model/filesystem/DiskManager.h
+  src/model/filesystem/DiskManager.cpp
+  
+  src/model/filesystem/FileSystem.h
+  src/model/filesystem/FileSystem.cpp
+  
   src/model/filesystem/DirEntry.h
   src/model/data/unity.bin
   src/model/network/authenticationrequest.h
   src/model/network/authenticationresponse.h
   
-  src/model/network/qtudpclient.h src/model/network/qtudpclient.cpp
-  
-
+  src/model/network/qtudpclient.h
+  src/model/network/qtudpclient.cpp
+  src/view/arduinos/subpages/registerspage.h src/view/arduinos/subpages/registerspage.cpp src/view/arduinos/subpages/registerspage.ui
 )
 
 qt_add_translations(
@@ -85,11 +110,16 @@ target_include_directories(SafeSpace
     ${CMAKE_SOURCE_DIR}/src/
     ${CMAKE_SOURCE_DIR}/src/model/
     ${CMAKE_SOURCE_DIR}/src/model/structures
-    ${CMAKE_SOURCE_DIR}/src/model/filesystem    
+    ${CMAKE_SOURCE_DIR}/src/model/filesystem
     ${CMAKE_SOURCE_DIR}/src/controller/
-    ${CMAKE_SOURCE_DIR}/src/ui/
-    ${CMAKE_SOURCE_DIR}/src/ui/elements/
-    
+    ${CMAKE_SOURCE_DIR}/src/view/
+    ${CMAKE_SOURCE_DIR}/src/view/elements/    
+    ${CMAKE_SOURCE_DIR}/src/view/arduinos/
+    ${CMAKE_SOURCE_DIR}/src/view/arduinos/subpages/
+    ${CMAKE_SOURCE_DIR}/src/view/administration/
+    ${CMAKE_SOURCE_DIR}/src/view/administration/subpages/
+    ${CMAKE_SOURCE_DIR}/src/view/account/
+    ${CMAKE_SOURCE_DIR}/src/view/account/subpages/
 )
 
 include(GNUInstallDirs)
