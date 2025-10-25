@@ -39,7 +39,7 @@ qt_add_executable(SafeSpace
   src/view/page.h src/view/page.cpp
   src/colors.h
   src/view/elements/button.h src/view/elements/button.cpp
-  src/view/elements/sensordatafield.h src/view/elements/sensordatafield.cpp src/view/elements/sensordatafield.ui
+  
   src/view/administrationpage.h src/view/administrationpage.cpp src/view/administrationpage.ui
   src/view/registrationpage.h src/view/registrationpage.cpp src/view/registrationpage.ui
   src/view/systemuserspage.h src/view/systemuserspage.cpp src/view/systemuserspage.ui
