@@ -6,6 +6,10 @@
 #include <termios.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <errno.h>
 #include <thread>
 #include <chrono>
 
@@ -17,8 +21,8 @@ static const speed_t BAUD = B9600;
 #pragma pack(push, 1)
 struct SensorPacket {
     uint8_t  msgId;     // 0x42 = SENSOR_DATA
-    int16_t  temp_x100; // temperatura * 100
-    int16_t  hum_x100;  // humedad * 100
+    int16_t  temp_x100; // temperatura * 100 (network byte order when sent)
+    int16_t  hum_x100;  // humedad * 100 (network byte order when sent)
 };
 #pragma pack(pop)
 
@@ -40,7 +44,7 @@ int openSerial() {
     if (fd < 0) { perror("open serial"); std::exit(1); }
 
     termios tty{};
-    tcgetattr(fd, &tty);
+    if (tcgetattr(fd, &tty) != 0) { perror("tcgetattr"); close(fd); std::exit(1); }
     cfsetispeed(&tty, BAUD);
     cfsetospeed(&tty, BAUD);
     tty.c_cflag |= (CLOCAL | CREAD);
@@ -51,7 +55,7 @@ int openSerial() {
     tty.c_lflag = 0;
     tty.c_oflag = 0;
     tty.c_iflag = 0;
-    tcsetattr(fd, TCSANOW, &tty);
+    if (tcsetattr(fd, TCSANOW, &tty) != 0) { perror("tcsetattr"); close(fd); std::exit(1); }
 
     std::cout << "Serial abierto: " << SERIAL_PORT << "\n";
     return fd;
@@ -64,7 +68,11 @@ int openUdpSock(sockaddr_in& dst, const std::string& ip, int port) {
     dst = {};
     dst.sin_family = AF_INET;
     dst.sin_port = htons(port);
-    inet_pton(AF_INET, ip.c_str(), &dst.sin_addr);
+    if (inet_pton(AF_INET, ip.c_str(), &dst.sin_addr) != 1) {
+        std::cerr << "inet_pton failed for IP: " << ip << "\n";
+        close(sock);
+        std::exit(1);
+    }
     return sock;
 }
 
@@ -75,6 +83,7 @@ std::string readLine(int fd) {
         ssize_t n = read(fd, &c, 1);
         if (n <= 0) break;
         if (c == '\n') break;
+        if (c == '\r') continue; // ignore CR (handle CRLF from some Arduinos)
         line.push_back(c);
     }
     return line;
@@ -109,9 +118,13 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
-        SensorPacket pkt{0x42, static_cast<int16_t>(temp*100), static_cast<int16_t>(hum*100)};
-        ssize_t sent = sendto(usock, &pkt, sizeof(pkt), 0,
-                              reinterpret_cast<sockaddr*>(&dst), sizeof(dst));
+    // Convert sensor values to integers and to network byte order
+    int16_t tval = static_cast<int16_t>(temp * 100);
+    int16_t hval = static_cast<int16_t>(hum * 100);
+    SensorPacket pkt{0x42, static_cast<int16_t>(htons(static_cast<uint16_t>(tval))),
+             static_cast<int16_t>(htons(static_cast<uint16_t>(hval)))};
+    ssize_t sent = sendto(usock, reinterpret_cast<const void*>(&pkt), sizeof(pkt), 0,
+                  reinterpret_cast<sockaddr*>(&dst), sizeof(dst));
 
         if (sent < 0)
             perror("sendto");
