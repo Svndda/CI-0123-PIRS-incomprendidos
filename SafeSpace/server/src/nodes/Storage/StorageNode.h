@@ -77,26 +77,27 @@ class StorageNode: public UDPServer {
       size_t filesStored;
    };
 
+   Stats getStats() const;
+
  private:
     // Cliente para comunicarse con el master
-    UDPClient* masterClient_;
-    std::string masterServerIp_;
-    uint16_t masterServerPort_;
-    std::string nodeId_;
-    std::string diskPath_;
+    UDPClient* masterClient;
+    std::string masterServerIp;
+    uint16_t masterServerPort;
+    std::string nodeId;
+    std::string diskPath;
     
-    // FileSystem para persistencia
-    std::unique_ptr<FileSystem> fs_;
-    mutable std::mutex fsMutex_;
+    FileSystem* fs;
+    mutable std::mutex fsMutex;
     
     // Thread para escuchar respuestas del master
-    std::thread listenerThread_;
-    std::atomic<bool> listening_;
+    std::thread listenerThread;
+    std::atomic<bool> listening;
     
     // Estadísticas
-    std::atomic<size_t> totalSensorRecords_;
-    std::atomic<size_t> totalQueries_;
-    std::atomic<size_t> errorsCount_;
+    std::atomic<size_t> totalSensorRecords;
+    std::atomic<size_t> totalQueries;
+    std::atomic<size_t> errorsCount;
     
     // Métodos privados
     void listenMasterServerResponses();
