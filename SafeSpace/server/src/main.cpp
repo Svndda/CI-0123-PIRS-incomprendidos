@@ -48,7 +48,7 @@ int main(const int argc, char* argv[]) {
     std::string localIp = argv[2];
 
     if (type == "server") {
-      if (argc != 3) {
+      if (argc != 4) {
         throw std::runtime_error("Server mode requires exactly 2 arguments.");
       }
 

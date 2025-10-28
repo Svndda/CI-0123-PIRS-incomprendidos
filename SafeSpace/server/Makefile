@@ -4,6 +4,14 @@
 CC=gcc#= C compiler
 XC=g++#= C++ compiler
 JC=javac
+
+ARDUINO_ONLY?=0#= Compile only proxy node (0|1)
+
+# Luego condiciona la definición
+ifneq ($(ARDUINO_ONLY),0)
+    DEFS+=-DARDUINE_NODE_ONLY
+endif
+
 DEFS=#= Preprocessor symbols, e.g: DEFS=-DVERBOSE
 CSTD=-std=c17#= Force compliance to a C standard, e.g: c11|gnu11|c17|c2x
 XSTD=-std=c++17#= Force compliance to a C++ standard, e.g: c++11|gnu++11|c++17|c++2x
@@ -46,6 +54,14 @@ SOURCEC=$(wildcard $(DIRS:%=%/*.c))
 SOURCEX=$(wildcard $(DIRS:%=%/*.cpp))
 SOURCEJ=$(wildcard $(DIRS:%=%/*.java))
 SOURCEP=$(wildcard $(DIRS:%=%/*.py))
+
+
+# Excluir archivos basado en las variables
+ifneq ($(ARDUINO_ONLY),0)
+    # Excluir archivos relacionados con Arduino
+    SOURCEX := $(filter-out $(SRC)/nodes/Arduino/arduino.cpp, $(SOURCEX))
+endif
+
 INPUTFC=$(strip $(HEADERC) $(SOURCEC))
 INPUTFX=$(strip $(HEADERX) $(SOURCEX))
 INPUTCX=$(strip $(INPUTFC) $(INPUTFX))
