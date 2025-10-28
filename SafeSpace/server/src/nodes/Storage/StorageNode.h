@@ -9,6 +9,47 @@
 #include <vector>
 #include <mutex>
 #include <memory>
+#include <thread>
+#include <cstdint>
+#include <atomic>
+
+// Tipos de mensajes del protocolo
+enum class MessageType : uint8_t {
+    // Consultas
+    QUERY_BY_DATE = 0x01,           // Consultar por fecha (2 bytes)
+    QUERY_BY_SENSOR = 0x02,         // Consultar por sensor ID (15 bytes)
+    
+    // Almacenamiento
+    STORE_SENSOR_DATA = 0x10,       // Guardar datos de sensores (50 bytes)
+    STORE_BITACORA = 0x11,          // Guardar bitácora
+    
+    // Respuestas
+    RESPONSE_SENSOR_DATA = 0x20,    // Respuesta con datos de sensores
+    RESPONSE_SENSOR_HISTORY = 0x21, // Respuesta con histórico
+    RESPONSE_ACK = 0x22,            // Confirmación
+    RESPONSE_ERROR = 0x23,          // Error
+    
+    // Registro y descubrimiento
+    REGISTER_NODE = 0x30,           // Registrar nodo en master
+    HEARTBEAT = 0x31                // Mantener conexión
+};
+
+// Estructura de datos de sensores
+struct SensorData {
+    uint64_t timestamp;
+    uint16_t distance;          
+    uint8_t movement;
+    int16_t temperature;
+    uint16_t uv;        
+    uint16_t microphone; 
+    uint8_t leds;       
+    uint8_t buzzer;     
+    uint16_t light;       
+    uint8_t sensorId;   
+
+    std::vector<uint8_t> toBytes() const;
+    static SensorData fromBytes(const uint8_t* data, size_t len);
+};
 
 // Estructura para respuestas
 struct Response {
@@ -21,26 +62,69 @@ struct Response {
 
 class StorageNode: public UDPServer {
  public:
-    StorageNode(uint16_t storagePort, const std::string& masterServerIp, 
+    StorageNode(uint16_t storagePort, const std::string& masterServerIp,
+                uint16_t masterServerPort, const std::string& nodeId,
                 const std::string& diskPath, size_t bufsize = 65536);
     ~StorageNode() override;
 
     void start();
 
-    void listenMasterServerResponses();
+   // Obtener estadísticas
+   struct Stats {
+      size_t totalSensorRecords;
+      size_t totalQueries;
+      size_t errorsCount;
+      size_t filesStored;
+   };
 
  private:
-    UDPClient* masterClient;
-    std::string masterServerIP;
-    std::string nodeId;
-    std::string diskPath;
-    FileSystem& fileSystem;
+    // Cliente para comunicarse con el master
+    UDPClient* masterClient_;
+    std::string masterServerIp_;
+    uint16_t masterServerPort_;
+    std::string nodeId_;
+    std::string diskPath_;
+    
+    // FileSystem para persistencia
+    std::unique_ptr<FileSystem> fs_;
+    mutable std::mutex fsMutex_;
+    
+    // Thread para escuchar respuestas del master
+    std::thread listenerThread_;
+    std::atomic<bool> listening_;
+    
+    // Estadísticas
+    std::atomic<size_t> totalSensorRecords_;
+    std::atomic<size_t> totalQueries_;
+    std::atomic<size_t> errorsCount_;
+    
+    // Métodos privados
+    void listenMasterServerResponses();
+    void registerWithMaster();
+    void sendHeartbeat();
+    
+    // Manejadores de mensajes
+    Response handleQueryByDate(const uint8_t* data, ssize_t len);
+    Response handleQueryBySensor(const uint8_t* data, ssize_t len);
+    Response handleStoreSensorData(const uint8_t* data, ssize_t len);
+    Response handleStoreBitacora(const uint8_t* data, ssize_t len);
+    
+    // Utilidades
+    std::string sockaddrToString(const sockaddr_in& addr) const;
+    std::string generateSensorFilename(uint64_t timestamp, uint8_t sensorId) const;
+    std::string generateDateIndexFilename(uint64_t timestamp) const;
+    std::string timestampToString(uint64_t timestamp) const;
+    
+    // Almacenamiento y consulta
+    bool storeSensorDataToFS(const SensorData& data);
+    std::vector<SensorData> querySensorDataByDate(uint64_t startTime, uint64_t endTime);
+    std::vector<SensorData> querySensorDataById(uint8_t sensorId, uint64_t startTime, uint64_t endTime);
 
  protected:
     /**
      * Maneja mensajes recibidos del master.
      */
-    void onReceive(const sockaddr_in& peer, const uint8_t* data, 
-                   ssize_t len, std::string& out_response) override;  
+   void onReceive(const sockaddr_in& peer, const uint8_t* data, 
+                   ssize_t len, std::string& out_response) override; 
 };
 #endif // STORAGENODE_H
