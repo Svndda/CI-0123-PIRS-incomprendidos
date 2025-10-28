@@ -3,6 +3,8 @@
 #include <csignal>
 #include <iostream>
 
+#include "Auth/auth_udp_server.h"
+
 static volatile std::sig_atomic_t stopFlag = 0;
 extern "C" void sigHandler(int) { stopFlag = 1; }
 
@@ -40,20 +42,21 @@ int main(const int argc, char* argv[]) {
   sigaction(SIGINT, &sa, nullptr);
   sigaction(SIGTERM, &sa, nullptr);
 
-  std::string type = argv[1];
-  uint16_t localPort = parsePort(argv[2]);
-
   try {
+    std::string type = argv[1];
+    uint16_t localPort = parsePort(argv[3]);
+    std::string localIp = argv[2];
+
     if (type == "server") {
       if (argc != 3) {
         throw std::runtime_error("Server mode requires exactly 2 arguments.");
       }
 
-      SafeSpaceServer server(localPort);
+      SafeSpaceServer server(localIp, localPort);
       std::cout << "[Main] Running SafeSpaceServer on port " << localPort << std::endl;
 
-      // Ejemplo: registrar un destino de descubrimiento local (opcional)
-      server.addDiscoverTarget("127.0.0.1", 6000);
+      // // Ejemplo: registrar un destino de descubrimiento local (opcional)
+      // server.addDiscoverTarget("127.0.0.1", 6000);
 
       server.serveBlocking();
 
@@ -61,22 +64,44 @@ int main(const int argc, char* argv[]) {
       std::cout << "[Main] Server stopped cleanly." << std::endl;
 
     } else if (type == "proxy") {
-      if (argc != 5) {
-        throw std::runtime_error("Proxy mode requires 4 arguments: proxy <local_port> <server_ip> <server_port>");
+      if (argc != 8) {
+        throw std::runtime_error("Proxy mode requires 7 arguments:"
+        " proxy <local_ip> <local_port>"
+        " <authNode_ip> <authNode_port>"
+        " <masterNode_Ip> <masterNode_Port>"
+        );
       }
 
-      std::string serverIp = argv[3];
-      uint16_t serverPort = parsePort(argv[4]);
+      std::string authNodeIp = argv[4];
+      uint16_t authNodePort = parsePort(argv[5]);
+      std::string masterNodeIp = argv[6];
+      uint16_t masterNodePort = parsePort(argv[7]);
 
-      ProxyNode proxy(localPort, serverIp, serverPort);
-      std::cout << "[Main] Running ProxyNode on port " << localPort
-                << " → forwarding to " << serverIp << ":" << serverPort << std::endl;
+
+      std::cout << "Datos de AuthNode" << authNodeIp << ": " << authNodePort << std::endl;
+      std::cout << "Dtos de MasterNode" << masterNodeIp << ": " << masterNodePort << std::endl;
+
+
+      ProxyNode proxy(
+        localIp, localPort,
+        authNodeIp, authNodePort,
+        masterNodeIp, masterNodePort
+      );
+
+      std::cout << "[Main] Running ProxyNode on ip" << localIp
+        <<  " and port " << localPort
+        << " → forwarding to AuthNode " << authNodeIp << ":" << authNodePort
+        << "and  → forwarding to MasterNode " << masterNodeIp << masterNodePort << std::endl;
 
       proxy.start();
 
       if (stopFlag) proxy.stop();
       std::cout << "[Main] ProxyNode stopped cleanly." << std::endl;
 
+    } else if (type ==  "auth") {
+      AuthUDPServer server(localIp, localPort);
+      std::cout << " Iniciando AuthUDPServer en puerto: " << localPort << std::endl;
+      server.serveBlocking();
     } else {
       throw std::runtime_error("Invalid component type: " + type +
                                " (must be 'server' or 'proxy')");

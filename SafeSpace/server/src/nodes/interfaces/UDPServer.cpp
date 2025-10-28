@@ -10,11 +10,13 @@
 #include <iostream>
 #include <stdexcept>
 #include <errno.h>
+#include <utility>
 #include <vector>
 
-UDPServer::UDPServer(uint16_t port, size_t bufsize)
+UDPServer::UDPServer(std::string ip, uint16_t port, size_t bufsize)
   : sockfd_(-1),
     port_(port),
+    ip_(std::move(ip)),
     bufsize_(bufsize),
     handler_{},
     running_(false)
@@ -38,13 +40,19 @@ UDPServer::UDPServer(uint16_t port, size_t bufsize)
   addr.sin_addr.s_addr = INADDR_ANY;
   addr.sin_port = htons(port_);
 
+  // Convert IP from string to binary
+  if (::inet_pton(AF_INET, ip_.c_str(), &addr.sin_addr) <= 0) {
+    ::close(sockfd_);
+    throw std::runtime_error(std::string("Invalid IP address: ") + ip_);
+  }
+
+  // Bind socket to given IP and port
   if (::bind(sockfd_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
     ::close(sockfd_);
     throw std::runtime_error(std::string("bind() failed: ") + std::strerror(errno));
   }
 
-  // Bound successfully
-  std::cout << "UDPServer: bound to port " << port_ << std::endl;
+  std::cout << "UDPServer: bound to " << ip_ << ":" << port_ << std::endl;
 }
 
 UDPServer::~UDPServer() {

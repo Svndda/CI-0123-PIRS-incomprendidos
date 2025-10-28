@@ -56,8 +56,6 @@ x86/
 *.qmake.cache
 
 # Qmake specific files
-Makefile
-Makefile.*
 *.d
 
 # Cmake specific files

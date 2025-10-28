@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <arpa/inet.h>
 #include <thread>
+#include <utility>
 
 /**
  * Nodo Proxy que actuá como servidor para clientes finales y como cliente hacia
@@ -14,10 +15,26 @@
  */
 class ProxyNode: public UDPServer{
  private:
-    // Cliente UDP para comunicarse con servidor de autenticación.
-    UDPClient* authClient;
-    std::string authServerIp;  // IP del servidor de autenticación
-    uint16_t authServerPort;  // Puerto del servidor de autenticación
+
+    struct AuthServerInfo{
+      UDPClient* client;  //< Client to communicate with the Authentication node.
+      std::string ip;     //< Authentication node ip address.
+      uint16_t port;      //< Authentication node ipd address port.
+
+      AuthServerInfo(const std::nullptr_t null, std::string  string, uint16_t uint16)
+      : client(null), ip(std::move(string)), port(uint16) {};
+    } authNode;
+
+    /**
+     * @brief Struct that hold the information related to the communication with the Master Server/Node.
+     */
+    struct MasterServerInfo {
+      UDPClient* client;  //< Client to communicate with the Master node.
+      std::string ip;     //< Master node ip address.
+      uint16_t port;      //< Master node ipd address port.
+      MasterServerInfo(const std::nullptr_t null, std::string  string, const uint16_t uint16)
+    : client(null), ip(std::move(string)), port(uint16) {};
+    } masterNode;
 
     /**
      * Mapeo de msgId a información del cliente original para retornar
@@ -27,6 +44,7 @@ class ProxyNode: public UDPServer{
         sockaddr_in addr;
         uint8_t msgId;
     };
+
     std::unordered_map<uint8_t, ClientInfo> pendingClients;
     std::mutex clientsMutex;
 
@@ -52,8 +70,8 @@ class ProxyNode: public UDPServer{
 
     
  public:
-    ProxyNode(uint16_t proxyPort, const std::string& authServerIp, 
-            uint16_t authServerPort);
+    ProxyNode(const std::string& ip, uint16_t proxyPort, const std::string& authServerIp,
+            uint16_t authServerPort, const std::string& masterServerIp, uint16_t masterServerPort);
     ~ProxyNode() override;
 
     // Inicia Proxy
