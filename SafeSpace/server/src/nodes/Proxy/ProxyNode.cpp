@@ -193,9 +193,10 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
     // No responder inmediatamente al cliente
     out_response.clear();
     return;
-  } else if () {
-
   }
+  // else if () {
+  //
+  // }
 
   // Si no es un mensaje conocido, hacer echo por defecto
   std::cout << "[ProxyNode] Unknown message format (" << len
@@ -235,37 +236,37 @@ void ProxyNode::forwardToAuthServer(const uint8_t *data, size_t len) {
   }
 }
 
-void ProxyNode::forwardToMasterServer(const uint8_t *data, size_t len) {
-  if (this->authNode.client == nullptr) {
-    throw std::runtime_error("[ProxyNode] Auth client not initialized");
-  }
-
-  if (data == nullptr || len == 0) {
-    throw std::runtime_error("[ProxyNode] Invalid data to forward");
-  }
-
-  // Dirección de auth server
-  sockaddr_in serverAddr{};
-  serverAddr.sin_family = AF_INET;
-  serverAddr.sin_port = htons(this->authNode.port);
-
-  if (inet_aton(this->authNode.ip.c_str(), &serverAddr.sin_addr) == 0) {
-    throw std::runtime_error("[ProxyNode] Invalid auth server IP: "
-                             + this->authNode.ip);
-  }
-
-  ssize_t sent = ::sendto(this->authNode.client->getSocketFd(), data, len, 0,
-                          reinterpret_cast<const sockaddr *>(&serverAddr), sizeof(serverAddr));
-
-  if (sent < 0) {
-    throw std::runtime_error(std::string("[ProxyNode] sendto auth server failed: ")
-                             + std::strerror(errno));
-  }
-
-  if (static_cast<size_t>(sent) != len) {
-    throw std::runtime_error("[ProxyNode] Incomplete send to auth server");
-  }
-}
+// void ProxyNode::forwardToMasterServer(const uint8_t *data, size_t len) {
+//   if (this->authNode.client == nullptr) {
+//     throw std::runtime_error("[ProxyNode] Auth client not initialized");
+//   }
+//
+//   if (data == nullptr || len == 0) {
+//     throw std::runtime_error("[ProxyNode] Invalid data to forward");
+//   }
+//
+//   // Dirección de auth server
+//   sockaddr_in serverAddr{};
+//   serverAddr.sin_family = AF_INET;
+//   serverAddr.sin_port = htons(this->authNode.port);
+//
+//   if (inet_aton(this->authNode.ip.c_str(), &serverAddr.sin_addr) == 0) {
+//     throw std::runtime_error("[ProxyNode] Invalid auth server IP: "
+//                              + this->authNode.ip);
+//   }
+//
+//   ssize_t sent = ::sendto(this->authNode.client->getSocketFd(), data, len, 0,
+//                           reinterpret_cast<const sockaddr *>(&serverAddr), sizeof(serverAddr));
+//
+//   if (sent < 0) {
+//     throw std::runtime_error(std::string("[ProxyNode] sendto auth server failed: ")
+//                              + std::strerror(errno));
+//   }
+//
+//   if (static_cast<size_t>(sent) != len) {
+//     throw std::runtime_error("[ProxyNode] Incomplete send to auth server");
+//   }
+// }
 
 void ProxyNode::listenAuthServerResponses() {
   std::cout << "[ProxyNode] Auth server response listener thread started (ID: "
