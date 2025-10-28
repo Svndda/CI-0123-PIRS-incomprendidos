@@ -64,18 +64,34 @@ int main(const int argc, char* argv[]) {
       std::cout << "[Main] Server stopped cleanly." << std::endl;
 
     } else if (type == "proxy") {
-      if (argc != 6) {
-        throw std::runtime_error("Proxy mode requires 5 arguments: proxy <local_ip> <local_port> <server_ip> <server_port>");
+      if (argc != 8) {
+        throw std::runtime_error("Proxy mode requires 7 arguments:"
+        " proxy <local_ip> <local_port>"
+        " <authNode_ip> <authNode_port>"
+        " <masterNode_Ip> <masterNode_Port>"
+        );
       }
 
-      uint16_t serverPort = parsePort(argv[5]);
-      std::string serverIp = argv[4];
+      std::string authNodeIp = argv[4];
+      uint16_t authNodePort = parsePort(argv[5]);
+      std::string masterNodeIp = argv[6];
+      uint16_t masterNodePort = parsePort(argv[7]);
 
-      std::cout << serverIp << ": " << serverPort << std::endl;
 
-      ProxyNode proxy(localIp, localPort, serverIp, serverPort);
-      std::cout << "[Main] Running ProxyNode on ip" << localIp <<  " and port " << localPort
-                << " → forwarding to " << serverIp << ":" << serverPort << std::endl;
+      std::cout << "Datos de AuthNode" << authNodeIp << ": " << authNodePort << std::endl;
+      std::cout << "Dtos de MasterNode" << masterNodeIp << ": " << masterNodePort << std::endl;
+
+
+      ProxyNode proxy(
+        localIp, localPort,
+        authNodeIp, authNodePort,
+        masterNodeIp, masterNodePort
+      );
+
+      std::cout << "[Main] Running ProxyNode on ip" << localIp
+        <<  " and port " << localPort
+        << " → forwarding to AuthNode " << authNodeIp << ":" << authNodePort
+        << "and  → forwarding to MasterNode " << masterNodeIp << masterNodePort << std::endl;
 
       proxy.start();
 
