@@ -6,6 +6,10 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include <thread>
+
+// Critical events node
+#include "CriticalEvents/CriticalEventsNode.h"
 
 /**
  * @brief SafeSpaceServer routes datagrams between endpoints.
@@ -43,6 +47,10 @@ private:
   // map msg_id -> requester
   std::map<uint8_t, sockaddr_in> pendingRequesters_{};
   std::mutex pendingMutex_;
+
+  // Critical events collector (runs in background)
+  CriticalEventsNode* criticalEventsNode_{nullptr};
+  std::thread criticalThread_;
 };
 
 #endif // SERVER_SAFESPACESERVER_H
