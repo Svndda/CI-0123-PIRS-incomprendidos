@@ -59,7 +59,7 @@ qt_add_executable(SafeSpace
   src/model/network/authenticationresponse.h
   
   src/model/network/qtudpclient.h src/model/network/qtudpclient.cpp
-  ../common/QtLogManager.h ../common/QtLogManager.cpp
+  ../common/LogManager.h ../common/LogManager.cpp
   
 
 )
