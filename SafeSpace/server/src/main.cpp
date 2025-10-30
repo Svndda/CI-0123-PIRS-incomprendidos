@@ -1,115 +1,71 @@
-#include "SafeSpaceServer.h"
-#include "Proxy/ProxyNode.h"
-#include <csignal>
 #include <iostream>
+#include <csignal>
+#include <atomic>
+#include "nodes/Intermediary/IntermediaryNode.h"
 
-#include "Auth/auth_udp_server.h"
+std::atomic<bool> running{true};
 
-static volatile std::sig_atomic_t stopFlag = 0;
-extern "C" void sigHandler(int) { stopFlag = 1; }
-
-/**
- * @brief Validates and parses command-line arguments.
- */
-void validateArgs(int argc, char* argv[]) {
-  if (argc < 3) {
-    std::cerr << "Usage:\n"
-              << "  " << argv[0] << " server <local_port>\n"
-              << "  " << argv[0] << " proxy <local_port> <server_ip> <server_port>\n"
-              << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
+void signalHandler(int signal) {
+    std::cout << "\n[Main] Recibida señal de interrupción. Cerrando..." << std::endl;
+    running = false;
 }
 
-/**
- * @brief Converts a string to a valid port number (uint16_t).
- */
-uint16_t parsePort(const std::string& str) {
-  int port = std::stoi(str);
-  if (port <= 0 || port > 65535) {
-    throw std::invalid_argument("Invalid port number: " + str);
-  }
-  return static_cast<uint16_t>(port);
+void printUsage(const char* program_name) {
+    std::cout << "Uso: " << program_name << " <PUERTO_ESCUCHA> <MASTER_IP> <MASTER_PUERTO>" << std::endl;
+    std::cout << "Ejemplo: " << program_name << " 9999 127.0.0.1 8888" << std::endl;
+    std::cout << "O usar valores por defecto: " << program_name << std::endl;
 }
 
-int main(const int argc, char* argv[]) {
-  validateArgs(argc, argv);
-
-  struct sigaction sa{};
-  sa.sa_handler = sigHandler;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0;
-  sigaction(SIGINT, &sa, nullptr);
-  sigaction(SIGTERM, &sa, nullptr);
-
-  try {
-    std::string type = argv[1];
-    uint16_t localPort = parsePort(argv[3]);
-    std::string localIp = argv[2];
-
-    if (type == "server") {
-      if (argc != 4) {
-        throw std::runtime_error("Server mode requires exactly 2 arguments.");
-      }
-
-      SafeSpaceServer server(localIp, localPort);
-      std::cout << "[Main] Running SafeSpaceServer on port " << localPort << std::endl;
-
-      // // Ejemplo: registrar un destino de descubrimiento local (opcional)
-      // server.addDiscoverTarget("127.0.0.1", 6000);
-
-      server.serveBlocking();
-
-      if (stopFlag) server.stop();
-      std::cout << "[Main] Server stopped cleanly." << std::endl;
-
-    } else if (type == "proxy") {
-      if (argc != 8) {
-        throw std::runtime_error("Proxy mode requires 7 arguments:"
-        " proxy <local_ip> <local_port>"
-        " <authNode_ip> <authNode_port>"
-        " <masterNode_Ip> <masterNode_Port>"
-        );
-      }
-
-      std::string authNodeIp = argv[4];
-      uint16_t authNodePort = parsePort(argv[5]);
-      std::string masterNodeIp = argv[6];
-      uint16_t masterNodePort = parsePort(argv[7]);
-
-
-      std::cout << "Datos de AuthNode" << authNodeIp << ": " << authNodePort << std::endl;
-      std::cout << "Dtos de MasterNode" << masterNodeIp << ": " << masterNodePort << std::endl;
-
-
-      ProxyNode proxy(
-        localIp, localPort,
-        authNodeIp, authNodePort,
-        masterNodeIp, masterNodePort
-      );
-
-      std::cout << "[Main] Running ProxyNode on ip" << localIp
-        <<  " and port " << localPort
-        << " → forwarding to AuthNode " << authNodeIp << ":" << authNodePort
-        << "and  → forwarding to MasterNode " << masterNodeIp << masterNodePort << std::endl;
-
-      proxy.start();
-
-      if (stopFlag) proxy.stop();
-      std::cout << "[Main] ProxyNode stopped cleanly." << std::endl;
-
-    } else if (type ==  "auth") {
-      AuthUDPServer server(localIp, localPort);
-      std::cout << " Iniciando AuthUDPServer en puerto: " << localPort << std::endl;
-      server.serveBlocking();
-    } else {
-      throw std::runtime_error("Invalid component type: " + type +
-                               " (must be 'server' or 'proxy')");
+int main(int argc, char* argv[]) {
+    // Configurar manejador de señales
+    std::signal(SIGINT, signalHandler);
+    std::signal(SIGTERM, signalHandler);
+    
+    // Valores por defecto
+    int listen_port = 9999;
+    std::string master_ip = "127.0.0.1";
+    int master_port = 8888;
+    
+    // Parsear argumentos de línea de comandos
+    if (argc == 4) {
+        listen_port = std::stoi(argv[1]);
+        master_ip = argv[2];
+        master_port = std::stoi(argv[3]);
+    } else if (argc != 1) {
+        printUsage(argv[0]);
+        return 1;
     }
-
-  } catch (const std::exception& ex) {
-    std::cerr << "[Fatal] " << ex.what() << std::endl;
-    return EXIT_FAILURE;
-  }
-  return EXIT_SUCCESS;
+    
+    std::cout << "==========================================" << std::endl;
+    std::cout << "    INTERMEDIARY NODE - SAFESPACE" << std::endl;
+    std::cout << "==========================================" << std::endl;
+    std::cout << "Puerto escucha: " << listen_port << std::endl;
+    std::cout << "Master node: " << master_ip << ":" << master_port << std::endl;
+    std::cout << "==========================================" << std::endl;
+    std::cout << "Para probar, ejecuta en otra terminal:" << std::endl;
+    std::cout << "echo '{\"temp\":25.5,\"humidity\":60.0}' | \\" << std::endl;
+    std::cout << "./scripts/compile_and_run_arduino_node.sh \\" << std::endl; 
+    std::cout << "127.0.0.1 " << listen_port << " stdin" << std::endl;
+    std::cout << "==========================================" << std::endl;
+    std::cout << "Presiona Ctrl+C para terminar" << std::endl;
+    std::cout << "==========================================" << std::endl;
+    
+    // Crear e iniciar el nodo intermediario
+    IntermediaryNode node(listen_port, master_ip, master_port);
+    
+    if (!node.start()) {
+        std::cerr << "Error: No se pudo iniciar el IntermediaryNode" << std::endl;
+        return 1;
+    }
+    
+    // Bucle principal de espera
+    while (running) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    
+    // Detener el nodo
+    node.stop();
+    
+    std::cout << "Aplicación terminada correctamente." << std::endl;
+    return 0;
 }
