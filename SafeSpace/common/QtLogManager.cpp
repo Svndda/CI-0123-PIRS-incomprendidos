@@ -27,6 +27,7 @@ void QtLogManager::messageHandler(QtMsgType type,
                                   const QMessageLogContext &context,
                                   const QString &msg)
 {
+    // Evitar advertencias de variables no usadas
     Q_UNUSED(context);
 
     LogLevel level;
