@@ -99,7 +99,7 @@ void LogManager::disableRemote() {
     }
     remoteConfigured = false;
 }
-void LogManager::setNodeName(const std::string& nodeName) {
+void LogManager::sendNodeName(const std::string& nodeName) {
     std::lock_guard<std::mutex> lock(remoteMutex);
     nodeIdentifier = sanitize(nodeName.empty() ? "node" : nodeName);
 }
