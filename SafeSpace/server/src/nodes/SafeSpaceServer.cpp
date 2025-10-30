@@ -8,9 +8,29 @@
 SafeSpaceServer::SafeSpaceServer(uint16_t port)
   : UDPServer(port, 2048) {
   std::cout << "SafeSpaceServer: initialized on port " << port << std::endl;
+  // Start critical events node on a nearby port (port+1) to collect logs from nodes
+  try {
+    uint16_t critPort = static_cast<uint16_t>(port + 1);
+    criticalEventsNode_ = new CriticalEventsNode(critPort);
+    criticalThread_ = std::thread([this]() {
+      if (criticalEventsNode_) criticalEventsNode_->serveBlocking();
+    });
+    std::cout << "SafeSpaceServer: started CriticalEventsNode on port " << (port + 1) << std::endl;
+  } catch (const std::exception& ex) {
+    std::cerr << "SafeSpaceServer: failed to start CriticalEventsNode: " << ex.what() << std::endl;
+  }
 }
 
-SafeSpaceServer::~SafeSpaceServer() = default;
+SafeSpaceServer::~SafeSpaceServer() {
+  // stop critical events node if running
+  if (criticalEventsNode_) {
+    criticalEventsNode_->stop();
+    // UDPServer::stop signals serveBlocking to finish; join thread
+    if (criticalThread_.joinable()) criticalThread_.join();
+    delete criticalEventsNode_;
+    criticalEventsNode_ = nullptr;
+  }
+}
 
 sockaddr_in SafeSpaceServer::makeSockaddr(const std::string& ip, uint16_t port) {
   sockaddr_in a{};
