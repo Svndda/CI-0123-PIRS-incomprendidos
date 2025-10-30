@@ -14,7 +14,7 @@
 #include <chrono>
 
 // CONFIGURACIÓN BASE
-static const char* SERIAL_PORT = "/dev/ttyACM0";
+static const char* DEFAULT_SERIAL_PORT = "/dev/ttyACM0";
 static const speed_t BAUD = B9600;
 
 // Datagrama SENSOR_DATA
@@ -39,9 +39,18 @@ bool parseJsonLine(const std::string& line, double& temp, double& hum) {
     } catch (...) { return false; }
 }
 
-int openSerial() {
-    int fd = open(SERIAL_PORT, O_RDONLY | O_NOCTTY);
-    if (fd < 0) { perror("open serial"); std::exit(1); }
+int openSerial(const char* serial_port) {
+    if (strcmp(serial_port, "stdin") == 0) {
+        std::cout << "[Arduino_Node] Usando entrada estándar (stdin) para lectura\n";
+        return STDIN_FILENO; // 0 es el file descriptor para stdin
+    }
+
+    int fd = open(serial_port, O_RDONLY | O_NOCTTY);
+    if (fd < 0) { 
+        std::cerr << "[Arduino_Node] Error abriendo puerto serial " << serial_port << ": "; 
+        perror(""); 
+        std::exit(1); 
+    }
 
     termios tty{};
     if (tcgetattr(fd, &tty) != 0) { perror("tcgetattr"); close(fd); std::exit(1); }
@@ -57,7 +66,7 @@ int openSerial() {
     tty.c_iflag = 0;
     if (tcsetattr(fd, TCSANOW, &tty) != 0) { perror("tcsetattr"); close(fd); std::exit(1); }
 
-    std::cout << "Serial abierto: " << SERIAL_PORT << "\n";
+    std::cout << "[Arduino_Node] Serial abierto: " << serial_port << "\n";
     return fd;
 }
 
@@ -92,22 +101,29 @@ std::string readLine(int fd) {
 // MAIN
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        std::cerr << "Uso: ./Arduino_Node <IP_NODO_MAESTRO> <PUERTO>\n";
+        std::cerr << "Uso: ./Arduino_Node <IP_NODO_MAESTRO> <PUERTO> [SERIAL_PORT|stdin]\n";
         return 1;
     }
 
     std::string masterIP = argv[1];
     int masterPort = std::stoi(argv[2]);
+    const char* serialPort = (argc >= 4) ? argv[3] : DEFAULT_SERIAL_PORT;
 
     std::cout << "[Arduino_Node] Enviando lecturas a " << masterIP << ":" << masterPort << "\n";
+    std::cout << "[Arduino_Node] Puerto serial: " << serialPort << "\n";
 
-    int sfd = openSerial();
+    int sfd = openSerial(serialPort);
     sockaddr_in dst{};
     int usock = openUdpSock(dst, masterIP, masterPort);
 
     while (true) {
         std::string line = readLine(sfd);
         if (line.empty()) { 
+            // Si estamos en stdin y no hay datos, salir después de un intento
+            if (sfd == STDIN_FILENO) {
+                std::cout << "[Arduino_Node] No hay más datos en stdin, terminando...\n";
+                break;
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             continue;
         }
@@ -115,24 +131,38 @@ int main(int argc, char* argv[]) {
         double temp=0, hum=0;
         if (!parseJsonLine(line, temp, hum)) {
             std::cerr << "[Arduino_Node] Formato inválido: " << line << "\n";
+            
+            // Si estamos en stdin y el formato es inválido, terminar
+            if (sfd == STDIN_FILENO) {
+                break;
+            }
             continue;
         }
 
-    // Convert sensor values to integers and to network byte order
-    int16_t tval = static_cast<int16_t>(temp * 100);
-    int16_t hval = static_cast<int16_t>(hum * 100);
-    SensorPacket pkt{0x42, static_cast<int16_t>(htons(static_cast<uint16_t>(tval))),
-             static_cast<int16_t>(htons(static_cast<uint16_t>(hval)))};
-    ssize_t sent = sendto(usock, reinterpret_cast<const void*>(&pkt), sizeof(pkt), 0,
-                  reinterpret_cast<sockaddr*>(&dst), sizeof(dst));
+        // Convert sensor values to integers and to network byte order
+        int16_t tval = static_cast<int16_t>(temp * 100);
+        int16_t hval = static_cast<int16_t>(hum * 100);
+        SensorPacket pkt{0x42, 
+                        static_cast<int16_t>(htons(static_cast<uint16_t>(tval))),
+                        static_cast<int16_t>(htons(static_cast<uint16_t>(hval)))};
+        
+        ssize_t sent = sendto(usock, reinterpret_cast<const void*>(&pkt), sizeof(pkt), 0,
+                      reinterpret_cast<sockaddr*>(&dst), sizeof(dst));
 
         if (sent < 0)
             perror("sendto");
         else
             std::cout << "[Arduino_Node] SENSOR_DATA temp=" << temp << " hum=" << hum << " enviado.\n";
+
+        // Si estamos en stdin, procesar solo una línea y salir
+        if (sfd == STDIN_FILENO) {
+            break;
+        }
     }
 
     close(usock);
-    close(sfd);
+    if (sfd != STDIN_FILENO) {
+        close(sfd);
+    }
     return 0;
 }

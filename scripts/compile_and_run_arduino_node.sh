@@ -4,10 +4,20 @@ set -euo pipefail
 # Small helper to compile and run Arduino_Node.cpp
 # Usage: ./compile_and_run_arduino_node.sh MASTER_IP PORT [SERIAL_PATH|stdin]
 
-PROJ_DIR="/home/YiYhuan/Desktop/CI-0123-PIRS-incomprendidos"
+PROJ_DIR="/home/david/Desktop/PI_REDES/CI-0123-PIRS-incomprendidos"
 SRC="$PROJ_DIR/SafeSpace/server/src/nodes/Arduino/Arduino_Node.cpp"
 OUT="/tmp/Arduino_Node_test"
 CXXFLAGS="-std=c++17 -Wall -Wextra -O2 -pthread"
+
+echo "Buscando archivo fuente: $SRC"
+
+# Verificar si el archivo existe
+if [ ! -f "$SRC" ]; then
+    echo "Error: No se encuentra el archivo $SRC"
+    echo "Buscando archivos Arduino_Node.cpp en el sistema..."
+    find "$PROJ_DIR" -name "Arduino_Node.cpp" -type f 2>/dev/null || echo "No se encontraron archivos"
+    exit 1
+fi
 
 echo "Compilando $SRC ..."
 g++ $CXXFLAGS "$SRC" -o "$OUT"
