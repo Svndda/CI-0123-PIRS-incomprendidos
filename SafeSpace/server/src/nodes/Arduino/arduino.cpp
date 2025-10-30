@@ -5,6 +5,16 @@
 #include <Wire.h>
 #include <Adafruit_BMP085.h>
 #define seaLevelPressure_hPa 1013.25
+// Incluimos librería
+#include <DHT.h>
+ 
+// Definimos el pin digital donde se conecta el sensor
+#define DHTPIN 2
+// Dependiendo del tipo de sensor
+#define DHTTYPE DHT11
+ 
+// Inicializamos el sensor DHT11
+DHT dht(DHTPIN, DHTTYPE);
 
 Adafruit_BMP085 bmp;
 
@@ -19,6 +29,7 @@ void setup() {
 	pinMode(echoPin, INPUT);  
 
   Serial.begin(9600);
+  dht.begin();
   if (!bmp.begin()) {
     Serial.println("Could not find a valid BMP085 sensor, check wiring!");
     while (1) {}
@@ -38,6 +49,18 @@ void loop() {
 
   Serial.print("Distance: ");  
 	Serial.println(distance);
+
+  // Leemos la humedad relativa
+  float h = dht.readHumidity();
+ 
+  // Comprobamos si ha habido algún error en la lectura
+  if (isnan(h)) {
+    Serial.println("Error obteniendo los datos del sensor DHT11");
+    return;
+  }
+
+  Serial.print("Humedad: ");
+  Serial.println(h);
 
 
   Serial.print("Temperature = ");
