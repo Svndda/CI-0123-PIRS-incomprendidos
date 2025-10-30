@@ -7,7 +7,7 @@
 #include <iomanip>
 #include <sstream>
 #include <iostream>
-
+#include <netinet/in.h>
 // severity levels for logging
 enum class LogLevel {
     Debug,
@@ -51,6 +51,26 @@ class LogManager {
         void warning(const std::string& msg);
         void critical(const std::string& msg);
         void fatal(const std::string& msg);
+        /**
+         * @brief Configure remote logging.
+         * 
+         * @param ip 
+         * @param port 
+         * @param nodeName 
+         */
+        void configureRemote(const std::string& ip, uint16_t port, const std::string& nodeName);
+        /**
+         * @brief  Disable remote logging.
+         * 
+         * 
+         */
+        void disableRemote();
+        /**
+         * @brief Send the local node's name to the remote server.
+         * 
+         * @param nodeName 
+         */
+        void sendNodeName(const std::string& nodeName);
 
     private:
     /**
@@ -58,12 +78,74 @@ class LogManager {
      * 
      */
         LogManager() = default;
-
+        /**
+         * @brief Construct a new Log Manager object    
+         * 
+         */
+        LogManager(const LogManager&) = delete;
+         /**
+          * @brief Assignment operator for LogManager.  
+          * 
+          * @return LogManager& 
+          */
+        LogManager& operator=(const LogManager&) = delete;
+        /**
+         * @brief Get the current timestamp.
+         * 
+         * @return std::string 
+         */
         std::string currentTimestamp() const;
+        /**
+         * @brief Send a log message to the remote server.
+         * 
+         * @param level 
+         * @param timestamp 
+         * @param message 
+         */
+        void sendToRemote(LogLevel level, const std::string& timestamp, const std::string& message);
+        /**
+         * @brief Sanitize a string for safe logging.
+         * 
+         * @param text 
+         * @return std::string 
+         */
+        std::string sanitize(const std::string& text) const;
+        /**
+         * @brief   Stored log entries.
+         * 
+         */
         std::vector<LogEntry> logs;
+        /**
+         * @brief Mutex for protecting log access.
+         * 
+         */
         mutable std::mutex mutex;
-
-       
+        /**
+         * @brief Mutex for protecting remote log access.
+         * 
+         */
+        mutable std::mutex remoteMutex;
+        /**
+         * @brief Socket for remote logging.
+         * 
+         */
+        int remoteSocket{-1};
+        /**
+         * @brief Address for remote logging.
+         * 
+         */
+        sockaddr_in remoteAddr{};
+        /**
+         * @brief Flag indicating whether remote logging is configured.
+         * 
+         */
+        bool remoteConfigured{false};
+        /**
+         * @brief Identifier for the local node.
+         * 
+         */
+        std::string nodeIdentifier{"node"};
+           
 };
 
 
