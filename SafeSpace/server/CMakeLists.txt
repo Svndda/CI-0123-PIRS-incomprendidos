@@ -32,6 +32,8 @@ add_executable(server
         src/model/model.h
         src/nodes/SafeSpaceServer.cpp
         src/nodes/SafeSpaceServer.h
+        src/nodes/CriticalEvents/CriticalEventsNode.cpp
+        src/nodes/CriticalEvents/CriticalEventsNode.h
         src/main.cpp
         src/nodes/interfaces/UDPServer.cpp
         src/nodes/interfaces/UDPServer.h
