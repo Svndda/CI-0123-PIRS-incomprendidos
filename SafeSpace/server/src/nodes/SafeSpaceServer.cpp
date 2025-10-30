@@ -5,8 +5,8 @@
 #include <cstring>
 #include <iostream>
 
-SafeSpaceServer::SafeSpaceServer(uint16_t port)
-  : UDPServer(port, 2048) {
+SafeSpaceServer::SafeSpaceServer(const std::string& ip, uint16_t port)
+  : UDPServer(ip, port, 1024) {
   std::cout << "SafeSpaceServer: initialized on port " << port << std::endl;
 }
 

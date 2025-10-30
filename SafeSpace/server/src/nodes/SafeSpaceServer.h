@@ -14,7 +14,7 @@
 class SafeSpaceServer final : public UDPServer {
 public:
   /** Construct and bind server on port. */
-  explicit SafeSpaceServer(uint16_t port);
+  explicit SafeSpaceServer(const std::string& ip, uint16_t port);
 
   /** Virtual destructor. */
   ~SafeSpaceServer() override;

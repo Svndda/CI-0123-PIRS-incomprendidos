@@ -23,8 +23,8 @@ struct DiscoverResponse {
 };
 #pragma pack(pop)
 
-AuthUDPServer::AuthUDPServer(uint16_t port) 
-    : UDPServer(port, 1024) {
+AuthUDPServer::AuthUDPServer(const std::string& ip, uint16_t port)
+    : UDPServer(ip, port, 1024) {
     loadDefaultUsers();
     std::cout << " AuthUDPServer iniciado en puerto UDP " << port << std::endl;
 }
@@ -165,6 +165,8 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
     // Serializar AuthResponse a buffer
     auto response_buffer = response.toBuffer();
     out_response.assign(response_buffer.begin(), response_buffer.end());
+    sendTo(peer, reinterpret_cast<const uint8_t*>(response_buffer.data()), response_buffer.size());
+
     
     std::cout << " AUTH_RESPONSE enviado - status: " 
               << static_cast<int>(response.getStatusCode()) << std::endl;

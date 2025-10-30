@@ -25,6 +25,7 @@ class UDPClient {
          * 
          */
         ~UDPClient();
+
         /**
          * @brief Sends a message to the server.
          * 

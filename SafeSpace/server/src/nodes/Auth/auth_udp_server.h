@@ -28,7 +28,7 @@ private:
     std::mutex sessions_mutex;
 
 public:
-    AuthUDPServer(uint16_t port);
+    AuthUDPServer(const std::string& ip, uint16_t port);
     ~AuthUDPServer();
 
     bool addUser(const std::string& username, const std::string& password, 
