@@ -522,3 +522,7 @@ int FileSystem::closeFile(const std::string& name) {
     n.flags = 0;  // Marcar como cerrado
     return 0;
 }
+
+const std::vector<DirEntry>& FileSystem::getDirectory() const {
+    return directory;
+}
