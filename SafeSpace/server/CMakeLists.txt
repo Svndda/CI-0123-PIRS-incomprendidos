@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.10)
 project(server)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -32,6 +32,8 @@ add_executable(server
         src/model/model.h
         src/nodes/SafeSpaceServer.cpp
         src/nodes/SafeSpaceServer.h
+        src/nodes/CriticalEvents/CriticalEventsNode.cpp
+        src/nodes/CriticalEvents/CriticalEventsNode.h
         src/main.cpp
         src/nodes/interfaces/UDPServer.cpp
         src/nodes/interfaces/UDPServer.h
