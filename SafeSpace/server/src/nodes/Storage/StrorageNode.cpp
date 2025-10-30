@@ -1,13 +1,15 @@
 #include "StorageNode.h"
-#include <iostream>
-#include <iomanip>
-#include <sstream>
-#include <cstring>
+#include <algorithm>
 #include <arpa/inet.h>
 #include <chrono>
+#include <cstring>
+#include <iostream>
+#include <iomanip>
 #include <unistd.h>
+#include <regex>
+#include <sstream>
 
-const size_t BUFFER_SIZE = 2048;
+const size_t BUFFER_SIZE = 65535;
 
 std::vector<uint8_t> SensorData::toBytes() const {
     std::vector<uint8_t> bytes;
@@ -23,7 +25,7 @@ std::vector<uint8_t> SensorData::toBytes() const {
 
     int16_t temp_net = htons(temperature);
     bytes.insert(bytes.end(), (uint8_t*)&temp_net, (uint8_t*)&temp_net + 2);
-    
+        
     uint16_t uv_net = htons(uv);
     bytes.insert(bytes.end(), (uint8_t*)&uv_net, (uint8_t*)&uv_net + 2);
     
@@ -498,22 +500,79 @@ bool StorageNode::storeSensorDataToFS(const SensorData& data) {
 
 std::vector<SensorData> StorageNode::querySensorDataByDate(uint64_t startTime, uint64_t endTime) {
     std::vector<SensorData> results;
-    
-    // TODO: Implementar búsqueda eficiente con índices
-    // Por ahora, esta es una implementación simple
-    
-    std::cout << "[StorageNode] Query by date not fully implemented yet" << std::endl;
-    
+
+    // Recorremos las entradas del directorio virtual
+    for (const auto& entry : fs->getDirectory()) {
+        if (entry.inode_id == 0) continue; // entrada vacía
+
+        std::string filename(entry.name);
+
+        // Coincide con formato sensor_<id>_<timestamp>.dat
+        std::smatch match;
+        std::regex pattern(R"(sensor_(\d+)_(\d+)\.dat)");
+        if (!std::regex_match(filename, match, pattern)) continue;
+
+        uint64_t timestamp = std::stoull(match[2].str());
+        if (timestamp < startTime || timestamp > endTime) continue;
+
+        if (fs->openFile(filename) != 0) continue;
+        std::string raw = fs->read(filename);
+        fs->closeFile(filename);
+
+        if (raw.size() < sizeof(SensorData)) continue;
+
+        try {
+            SensorData sd = SensorData::fromBytes(reinterpret_cast<const uint8_t*>(raw.data()), raw.size());
+            results.push_back(sd);
+        } catch (...) {
+            std::cerr << "[StorageNode] Corrupt file: " << filename << "\n";
+        }
+    }
+
+    std::sort(results.begin(), results.end(), [](const SensorData& a, const SensorData& b) {
+        return a.timestamp < b.timestamp;
+    });
+
+    std::cout << "[StorageNode] " << results.size() << " registers found within date range.\n";
     return results;
 }
 
 std::vector<SensorData> StorageNode::querySensorDataById(uint8_t sensorId, uint64_t startTime, uint64_t endTime) {
     std::vector<SensorData> results;
-    
-    // TODO: Implementar búsqueda por sensor ID en rango de tiempo
-    
-    std::cout << "[StorageNode] Query by sensor ID not fully implemented yet" << std::endl;
-    
+
+    for (const auto& entry : fs->getDirectory()) {
+        if (entry.inode_id == 0) continue;
+
+        std::string filename(entry.name);
+        std::smatch match;
+        std::regex pattern(R"(sensor_(\d+)_(\d+)\.dat)");
+        if (!std::regex_match(filename, match, pattern)) continue;
+
+        uint8_t fileId = static_cast<uint8_t>(std::stoi(match[1].str()));
+        uint64_t timestamp = std::stoull(match[2].str());
+
+        if (fileId != sensorId) continue;
+        if (timestamp < startTime || timestamp > endTime) continue;
+
+        if (fs->openFile(filename) != 0) continue;
+        std::string raw = fs->read(filename);
+        fs->closeFile(filename);
+
+        if (raw.size() < sizeof(SensorData)) continue;
+
+        try {
+            SensorData sd = SensorData::fromBytes(reinterpret_cast<const uint8_t*>(raw.data()), raw.size());
+            results.push_back(sd);
+        } catch (...) {
+            std::cerr << "[StorageNode] Corrupt file: " << filename << "\n";
+        }
+    }
+
+    std::sort(results.begin(), results.end(), [](const SensorData& a, const SensorData& b) {
+        return a.timestamp < b.timestamp;
+    });
+
+    std::cout << "[StorageNode] " << results.size() << " registers found for the sensor " << (int)sensorId << ".\n";
     return results;
 }
 
