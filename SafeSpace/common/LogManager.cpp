@@ -1,11 +1,6 @@
 #include "LogManager.h"
 #include <ctime>
 
-#ifdef QT_CORE_LIB
-#include <QLoggingCategory>
-#include <QString>
-#endif
-
 
 LogManager& LogManager::instance(){
     static LogManager instance;
