@@ -23,9 +23,13 @@ static const speed_t BAUD = B9600;
 // Datagrama SENSOR_DATA
 #pragma pack(push, 1)
 struct SensorPacket {
-    uint8_t  msgId;     // 0x42 = SENSOR_DATA
-    int16_t  temp_x100; // temperatura * 100 (network byte order when sent)
-    int16_t  hum_x100;  // humedad * 100 (network byte order when sent)
+    uint8_t  msgId;           // 0x42 = SENSOR_DATA
+    float    distance;        // distancia en cm
+    float    temperature;     // temperatura en °C
+    float    pressure;        // presión en Pa
+    float    altitude;        // altitud en metros
+    float    sealevelPressure; // presión a nivel del mar en Pa
+    float    realAltitude;    // altitud real en metros
 };
 #pragma pack(pop)
 

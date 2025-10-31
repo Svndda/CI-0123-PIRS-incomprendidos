@@ -4,20 +4,22 @@
 #include <string>
 #include <atomic>
 #include <thread>
+#include "SensorPacket.h"
+
 #include "../../model/structures/sensordata.h"
 
 // Estructura del paquete recibido de Arduino 
-#pragma pack(push, 1)
-struct SensorPacket {
-    uint8_t  msgId;           // 0x42 = SENSOR_DATA
-    float    distance;        // distancia en cm
-    float    temperature;     // temperatura en °C
-    float    pressure;        // presión en Pa
-    float    altitude;        // altitud en metros
-    float    sealevelPressure; // presión a nivel del mar en Pa
-    float    realAltitude;    // altitud real en metros
-};
-#pragma pack(pop)
+// #pragma pack(push, 1)
+// struct SensorPacket {
+//     uint8_t  msgId;           // 0x42 = SENSOR_DATA
+//     float    distance;        // distancia en cm
+//     float    temperature;     // temperatura en °C
+//     float    pressure;        // presión en Pa
+//     float    altitude;        // altitud en metros
+//     float    sealevelPressure; // presión a nivel del mar en Pa
+//     float    realAltitude;    // altitud real en metros
+// };
+// #pragma pack(pop)
 
 class IntermediaryNode {
 private:

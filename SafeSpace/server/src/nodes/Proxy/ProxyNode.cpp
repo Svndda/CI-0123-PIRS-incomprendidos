@@ -241,36 +241,34 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
     return;
   }
 
-  if (len == 5 && data[0] == 0x42) {
-    struct SensorPacket {
-      uint8_t  msgId;
-      int16_t  temp_x100;
-      int16_t  hum_x100;
-    } __attribute__((packed));
+  if (len == sizeof(SensorPacket)) {
+    const auto* pkt = reinterpret_cast<const SensorPacket*>(data);
 
-    const SensorPacket* pkt = reinterpret_cast<const SensorPacket*>(data);
+    if (pkt->msgId == 0x42) {
+      // Obtener IP del remitente
+      char ipbuf[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
 
-    // Convertir desde orden de red a host
-    double temperature = ntohs(pkt->temp_x100) / 100.0;
-    double humidity    = ntohs(pkt->hum_x100) / 100.0;
+      std::cout << "[SafeSpaceServer] SENSOR_PACKET recibido desde "
+                << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
 
-    // Obtener IP y puerto del remitente
-    char ipbuf[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
+      // Imprimir campos
+      std::cout << "  ▸ Distancia: " << pkt->distance << " cm" << std::endl;
+      std::cout << "  ▸ Temperatura: " << pkt->temperature << " °C" << std::endl;
+      std::cout << "  ▸ Presión: " << pkt->pressure << " Pa" << std::endl;
+      std::cout << "  ▸ Altitud: " << pkt->altitude << " m" << std::endl;
+      std::cout << "  ▸ Presión nivel del mar: " << pkt->sealevelPressure << " Pa" << std::endl;
+      std::cout << "  ▸ Altitud real: " << pkt->realAltitude << " m" << std::endl;
+    }
 
-    std::cout << "SafeSpaceServer: SENSOR_DATA recibido desde "
-              << ipbuf << ":" << ntohs(peer.sin_port)
-              << " -> Temp=" << temperature
-              << "°C  Hum=" << humidity << "%" << std::endl;
+    // Si no es un mensaje conocido, hacer echo por defecto
+    std::cout << "[ProxyNode] Unknown message format (" << len
+        << " bytes), using default behavior" << std::endl;
+    UDPServer::onReceive(peer, data, len, out_response);
   }
-
-  // Si no es un mensaje conocido, hacer echo por defecto
-  std::cout << "[ProxyNode] Unknown message format (" << len
-      << " bytes), using default behavior" << std::endl;
-  UDPServer::onReceive(peer, data, len, out_response);
 }
 
-void ProxyNode::forwardToAuthServer(const uint8_t *data, size_t len) {
+void ProxyNode::forwardToAuthServer(const uint8_t *data, size_t len)  {
   if (this->authNode.client == nullptr) {
     throw std::runtime_error("[ProxyNode] Auth client not initialized");
   }
