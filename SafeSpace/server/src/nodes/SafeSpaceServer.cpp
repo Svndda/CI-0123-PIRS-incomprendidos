@@ -5,18 +5,40 @@
 #include <cstring>
 #include <iostream>
 
-SafeSpaceServer::SafeSpaceServer(const std::string& ip, uint16_t port)
-  : UDPServer(ip, port, 1024) {
+#include "../../../common/LogManager.h"
+#include "SensorPacket.h"
+
+enum class LogLevel;
+
+SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
+                                 const std::string& storageIp, const uint16_t storagePort,
+                                 const std::string& eventsIp, const uint16_t eventsPort,
+                                 const std::string& proxyIp, const uint16_t proxyPort)
+  : UDPServer(ip, port, 2048)
+  , storageNode(nullptr, storageIp, storagePort)
+  , eventsNode(nullptr, eventsIp, eventsPort)
+  , proxyNode(nullptr, proxyIp, proxyPort) {
   std::cout << "SafeSpaceServer: initialized on port " << port << std::endl;
   // Start critical events node on a nearby port (port+1) to collect logs from nodes
   try {
-    uint16_t critPort = static_cast<uint16_t>(port + 1);
-    criticalEventsNode_ = new CriticalEventsNode(critPort);
-    criticalThread_ = std::thread([this]() {
-      if (criticalEventsNode_) criticalEventsNode_->serveBlocking();
-    });
+    // uint16_t critPort = static_cast<uint16_t>(port + 1);
+    // criticalEventsNode_ = new CriticalEventsNode(critPort);
+    // criticalThread_ = std::thread([this]() {
+    //   if (criticalEventsNode_) criticalEventsNode_->serveBlocking();
+    // });
+    if (!storageNode.client) {
+      storageNode.client = new UDPClient(storageNode.ip, storageNode.port);
+      std::cout << "[SafeSpaceServer] Created Storage UDP client to "
+                << storageNode.ip << ":" << storageNode.port << std::endl;
+    }
+
+    if (!proxyNode.client) {
+      proxyNode.client = new UDPClient(proxyNode.ip, proxyNode.port);
+      std::cout << "[SafeSpaceServer] Created Proxy UDP client to "
+                << proxyNode.ip << ":" << proxyNode.port << std::endl;
+    }
     std::cout << "SafeSpaceServer: started CriticalEventsNode on port " << (port + 1) << std::endl;
-  } catch (const std::exception& ex) {
+  } catch (const std::exception &ex) {
     std::cerr << "SafeSpaceServer: failed to start CriticalEventsNode: " << ex.what() << std::endl;
   }
 }
@@ -54,10 +76,31 @@ void SafeSpaceServer::clearDiscoverTargets() {
   discoverTargets_.clear();
 }
 
-void SafeSpaceServer::onReceive(const sockaddr_in& peer,
-                                const uint8_t* data,
-                                ssize_t len,
-                                std::string& out_response) {
+void SafeSpaceServer::onReceive(
+  const sockaddr_in& peer, const uint8_t* data,
+  ssize_t len, std::string& out_response) {
+  // Verificar si es un log del LogManager (empieza con "LOG")
+  if (len >= 5 && data[0] == 'L' && data[1] == 'O' && data[2] == 'G') {
+    // Es un log del AuthNode, reenviarlo al master
+    auto& logger = LogManager::instance();
+
+    // Parsear el nivel de log
+    uint8_t level = data[3];
+    uint8_t nodeNameLen = data[4];
+
+    if (len >= 5 + nodeNameLen) {
+      std::string nodeName(reinterpret_cast<const char*>(data + 5), nodeNameLen);
+      std::string message(reinterpret_cast<const char*>(data + 5 + nodeNameLen), len - 5 - nodeNameLen);
+
+      // Reenviar log al master con prefijo [FROM_AUTH]
+      LogLevel logLevel = static_cast<LogLevel>(level);
+      logger.log(logLevel, "[FROM_" + nodeName + "] " + message);
+
+      std::cout << "[ProxyNode] Forwarded log from " << nodeName << " to master" << std::endl;
+    }
+    return; // No generar respuesta para logs
+  }
+
   // DISCOVER (2 bytes)
   if (len == 2) {
     std::array<uint8_t, 2> a = { data[0], data[1] };
@@ -138,6 +181,62 @@ void SafeSpaceServer::onReceive(const sockaddr_in& peer,
     out_response.clear();
     return;
   }
+
+  if (len == sizeof(SensorPacket) && data[0] == 0x42) {
+    const SensorPacket* pkt = reinterpret_cast<const SensorPacket*>(data);
+
+    // Obtener IP y puerto del remitente
+    char ipbuf[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
+
+    std::cout << "[SafeSpaceServer] SENSOR_PACKET recibido desde "
+              << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
+    std::cout << "  ▸ Distancia: " << pkt->distance << " cm" << std::endl;
+    std::cout << "  ▸ Temperatura: " << pkt->temperature << " °C" << std::endl;
+    std::cout << "  ▸ Presión: " << pkt->pressure << " Pa" << std::endl;
+    std::cout << "  ▸ Altitud: " << pkt->altitude << " m" << std::endl;
+    std::cout << "  ▸ Presión nivel del mar: " << pkt->sealevelPressure << " Pa" << std::endl;
+    std::cout << "  ▸ Altitud real: " << pkt->realAltitude << " m" << std::endl;
+
+    try {
+      // ======= ENVÍO A PROXY NODE =======
+      sockaddr_in proxyAddr{};
+      proxyAddr.sin_family = AF_INET;
+      proxyAddr.sin_port = htons(proxyNode.port);
+      if (inet_aton(proxyNode.ip.c_str(), &proxyAddr.sin_addr) == 0) {
+        throw std::runtime_error("[SafeSpaceServer] Invalid ProxyNode IP: " + proxyNode.ip);
+      }
+
+      ssize_t sentToProxy = ::sendto(
+        proxyNode.client->getSocketFd(),
+        reinterpret_cast<const void*>(pkt),
+        sizeof(SensorPacket),
+        0,
+        reinterpret_cast<const sockaddr*>(&proxyAddr),
+        sizeof(proxyAddr)
+      );
+
+      if (sentToProxy < 0) {
+        std::cerr << "[SafeSpaceServer] ❌ ERROR enviando SENSOR_PACKET al ProxyNode: "
+                  << std::strerror(errno) << std::endl;
+      } else if (static_cast<size_t>(sentToProxy) != sizeof(SensorPacket)) {
+        std::cerr << "[SafeSpaceServer] ⚠️ WARNING: envío incompleto a ProxyNode ("
+                  << sentToProxy << " / " << sizeof(SensorPacket) << " bytes)" << std::endl;
+      } else {
+        std::cout << "[SafeSpaceServer] ✅ SENSOR_PACKET reenviado al ProxyNode en "
+                  << proxyNode.ip << ":" << proxyNode.port << std::endl;
+      }
+    } catch (const std::exception& ex) {
+      std::cerr << "[SafeSpaceServer] Exception al reenviar SENSOR_PACKET: "
+                << ex.what() << std::endl;
+    }
+
+    // Generar respuesta ACK simple al emisor original (Arduino / Intermediario)
+    std::string ack = "ACK_SENSOR";
+    out_response.assign(ack.begin(), ack.end());
+    return;
+  }
+
 
   // Fallback: let base class behavior handle it (echo)
   UDPServer::onReceive(peer, data, len, out_response);

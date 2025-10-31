@@ -1,7 +1,11 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.10)
 project(server)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Find required packages
+find_package(OpenSSL REQUIRED)
 
 include_directories(src)
 include_directories(src/model)
@@ -32,11 +36,29 @@ add_executable(server
         src/model/model.h
         src/nodes/SafeSpaceServer.cpp
         src/nodes/SafeSpaceServer.h
+        src/nodes/Intermediary/IntermediaryNode.cpp
+        src/nodes/Intermediary/IntermediaryNode.h
+        src/nodes/Arduino/Arduino_Node.cpp
+        src/nodes/Arduino/Arduino_Node.h
         src/nodes/CriticalEvents/CriticalEventsNode.cpp
         src/nodes/CriticalEvents/CriticalEventsNode.h
+        src/nodes/Proxy/ProxyNode.cpp
+        src/nodes/Proxy/ProxyNode.h
+        src/nodes/Auth/auth_udp_server.cpp
+        src/nodes/Auth/auth_udp_server.h
+        ../common/LogManager.cpp
+        ../common/LogManager.h
         src/main.cpp
         src/nodes/interfaces/UDPServer.cpp
         src/nodes/interfaces/UDPServer.h
+        src/nodes/interfaces/UDPClient.cpp
+        src/nodes/interfaces/UDPClient.h
         src/model/structures/DiscoverRequest.h
         src/model/structures/DiscoverResponse.h
+        src/model/structures/authenticationrequest.h
+        src/model/structures/authenticationresponse.h
+        src/model/structures/SensorPacket.h
 )
+
+# Link libraries
+target_link_libraries(server OpenSSL::SSL OpenSSL::Crypto)
