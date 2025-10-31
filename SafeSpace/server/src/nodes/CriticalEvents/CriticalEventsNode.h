@@ -7,7 +7,7 @@
 class CriticalEventsNode : public UDPServer {
 public:
     // Listen on given UDP port and append received events to a host file
-    explicit CriticalEventsNode(uint16_t port, const std::string& outPath = "data/events.log");
+    explicit CriticalEventsNode(const std::string& ip, uint16_t port, std::string  outPath = "data/events.log");
     ~CriticalEventsNode() override;
 
     void onReceive(const sockaddr_in& peer, const uint8_t* data, ssize_t len, std::string& out_response) override;

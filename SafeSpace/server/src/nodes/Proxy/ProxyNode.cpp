@@ -86,6 +86,12 @@ ProxyNode::~ProxyNode() {
     std::cout << "[ProxyNode] Auth client destroyed" << std::endl;
   }
 
+  if (this->masterNode.client != nullptr) {
+    delete this->masterNode.client;
+    this->masterNode.client = nullptr;
+    std::cout << "[ProxyNode] Master client destroyed" << std::endl;
+  }
+
   std::cout << "[ProxyNode] Shutdown complete" << std::endl;
 }
 
@@ -234,9 +240,29 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
     out_response.clear();
     return;
   }
-  // else if () {
-  //
-  // }
+
+  if (len == 5 && data[0] == 0x42) {
+    struct SensorPacket {
+      uint8_t  msgId;
+      int16_t  temp_x100;
+      int16_t  hum_x100;
+    } __attribute__((packed));
+
+    const SensorPacket* pkt = reinterpret_cast<const SensorPacket*>(data);
+
+    // Convertir desde orden de red a host
+    double temperature = ntohs(pkt->temp_x100) / 100.0;
+    double humidity    = ntohs(pkt->hum_x100) / 100.0;
+
+    // Obtener IP y puerto del remitente
+    char ipbuf[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
+
+    std::cout << "SafeSpaceServer: SENSOR_DATA recibido desde "
+              << ipbuf << ":" << ntohs(peer.sin_port)
+              << " -> Temp=" << temperature
+              << "°C  Hum=" << humidity << "%" << std::endl;
+  }
 
   // Si no es un mensaje conocido, hacer echo por defecto
   std::cout << "[ProxyNode] Unknown message format (" << len
