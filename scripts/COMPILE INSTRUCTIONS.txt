@@ -1,0 +1,10 @@
+
+COMPILE ARDUINO Node
+From repo root:
+
+mkdir -p SafeSpace/server/bin
+g++ -std=gnu++17 -pthread -O2 -Wall -Wextra \
+  -ISafeSpace/server/src/nodes/Arduino \
+  -o SafeSpace/server/bin/Arduino_Node \
+  SafeSpace/server/src/nodes/Arduino/Arduino_Node.cpp \
+  SafeSpace/server/src/nodes/Arduino/Arduino_Node_main.cpp

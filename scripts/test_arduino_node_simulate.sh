@@ -14,8 +14,8 @@ PORT="${2:-9999}"
 
 CXXFLAGS="-std=c++17 -Wall -Wextra -O2 -pthread"
 
-echo "Compiling $SRC..."
-g++ $CXXFLAGS "$SRC" -o "$OUT"
+echo "Compiling $SRC (with main wrapper)..."
+g++ $CXXFLAGS "$SRC" SafeSpace/server/src/nodes/Arduino/Arduino_Node_main.cpp -o "$OUT"
 
 rm -f "$RECV"
 
@@ -28,17 +28,20 @@ s.bind(("0.0.0.0", int($PORT)))
 # receive up to 3 packets or timeout
 s.settimeout(6.0)
 for i in range(3):
-    try:
-        data,addr=s.recvfrom(4096)
-    except socket.timeout:
-        break
-    if len(data) < 5:
-        print('short', len(data), data.hex())
-        continue
-    msgId = data[0]
-    t = int.from_bytes(data[1:3], 'big', signed=True)
-    h = int.from_bytes(data[3:5], 'big', signed=True)
-    print(f"hex={data.hex()} msgId=0x{msgId:02x} temp_x100={t} hum_x100={h} from={addr}")
+  try:
+    data,addr=s.recvfrom(4096)
+  except socket.timeout:
+    break
+  if len(data) < 13:
+    print('short', len(data), data.hex())
+    continue
+  msgId = data[0]
+  t = int.from_bytes(data[1:3], 'big', signed=True)
+  h = int.from_bytes(data[3:5], 'big', signed=True)
+  dist = int.from_bytes(data[5:7], 'big', signed=True)
+  press = int.from_bytes(data[7:11], 'big', signed=True)
+  alt = int.from_bytes(data[11:13], 'big', signed=True)
+  print(f"hex={data.hex()} msgId=0x{msgId:02x} temp_x100={t} hum_x100={h} dist_x100={dist} press_pa={press} alt_x100={alt} from={addr}")
 sys.stdout.flush()
 PY
 listener_pid=$!
@@ -46,8 +49,8 @@ listener_pid=$!
 echo "Listener started (pid=$listener_pid), waiting 0.5s before starting node..."
 sleep 0.5
 
-# Run node in simulate mode; it will run until we kill it
-"$OUT" "$MASTER_IP" "$PORT" simulate &
+# Run node in simulate mode in binary format; it will run until we kill it
+"$OUT" "$MASTER_IP" "$PORT" simulate binary &
 node_pid=$!
 
 # Wait for listener to finish (it will exit after timeout or after receiving packets)
