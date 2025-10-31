@@ -3,18 +3,16 @@
 
 class SensorData {
 public:
-  const int distance;
-  const int movement;
-  const int temperature;
-  const int uv;
-  const int microphone;
-  const int led;
-  const int buzzer;
-  const int ligth;
+  const float distance;
+  const float temperature;
+  const float pressure;
+  const float altitude;
+  const float sealevelPressure;
+  const float realAltitude;
+
 public:
-  SensorData(const int _dist = -1, const int _mov = -1, const int _temp = -1,
-             const int _uv = -1, const int _micro = -1, const int _led = -1,
-             const int _buzzer = -1, const int _ligth = -1);
+  SensorData(const float _dist = 0, const float _temp = 0, const float _press = 0,
+             const float _alt = 0, const float _sealPress = 0, const float _realAlt = 0);
 };
 
 #endif // SENSORDATA_H
