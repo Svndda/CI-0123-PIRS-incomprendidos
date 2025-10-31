@@ -50,29 +50,44 @@ void IntermediaryNode::setupMasterConnection() {
 }
 
 void IntermediaryNode::processSensorPacket(const SensorPacket& packet) {
-    // Los datos ya vienen en formato float, no necesitamos conversión
-    std::cout << "[IntermediaryNode] Datos recibidos:" << std::endl;
-    std::cout << "  - Distancia: " << packet.distance << " cm" << std::endl;
-    std::cout << "  - Temperatura: " << packet.temperature << " °C" << std::endl;
-    std::cout << "  - Presión: " << packet.pressure << " Pa" << std::endl;
-    std::cout << "  - Altitud: " << packet.altitude << " m" << std::endl;
-    std::cout << "  - Presión nivel del mar: " << packet.sealevelPressure << " Pa" << std::endl;
-    std::cout << "  - Altitud real: " << packet.realAltitude << " m" << std::endl;
+    // Convertir de network byte order a host byte order
+    int16_t temp_raw = ntohs(static_cast<uint16_t>(packet.temp_x100));
+    int16_t hum_raw = ntohs(static_cast<uint16_t>(packet.hum_x100));
+    int16_t distance_raw = ntohs(static_cast<uint16_t>(packet.distance_x100));
+    int32_t pressure_raw = ntohl(static_cast<uint32_t>(packet.pressure_pa));
+    int16_t altitude_raw = ntohs(static_cast<uint16_t>(packet.altitude_x100));
+    
+    // Convertir a valores reales
+    double temperature = static_cast<double>(temp_raw) / 100.0;
+    double humidity = static_cast<double>(hum_raw) / 100.0;
+    double distance = static_cast<double>(distance_raw) / 100.0;
+    double pressure = static_cast<double>(pressure_raw);
+    double altitude = static_cast<double>(altitude_raw) / 100.0;
 
-    // Crear objeto SensorData con los nuevos campos
+    std::cout << "[IntermediaryNode] Datos recibidos:" << std::endl;
+    std::cout << "  - Temperatura: " << temperature << " °C" << std::endl;
+    std::cout << "  - Humedad: " << humidity << " %" << std::endl;
+    std::cout << "  - Distancia: " << distance << " m" << std::endl;
+    std::cout << "  - Presión: " << pressure << " Pa" << std::endl;
+    std::cout << "  - Altitud: " << altitude << " m" << std::endl;
+
+    // Crear objeto SensorData (usando los campos disponibles)
+    // Nota: El paquete actual no incluye sealevelPressure ni realAltitude
+    // Por ahora usamos los mismos valores o valores por defecto
     SensorData sensorData(
-        packet.distance,      // distance
-        packet.temperature,   // temperature  
-        packet.pressure,      // pressure
-        packet.altitude,      // altitude
-        packet.sealevelPressure, // sealevelPressure
-        packet.realAltitude   // realAltitude
+        distance,      // distance (convertido a float)
+        temperature,   // temperature  
+        pressure,      // pressure
+        altitude,      // altitude
+        pressure,      // sealevelPressure (usamos pressure como placeholder)
+        altitude       // realAltitude (usamos altitude como placeholder)
     );
 
     std::cout << "[IntermediaryNode] Preparado para enviar SensorData al Master_node:" << std::endl;
-    std::cout << "[IntermediaryNode] - Distancia: " << sensorData.distance << " cm" << std::endl;
+    std::cout << "[IntermediaryNode] - Distancia: " << sensorData.distance << " m" << std::endl;
     std::cout << "[IntermediaryNode] - Temperatura: " << sensorData.temperature << " °C" << std::endl;
     std::cout << "[IntermediaryNode] - Presión: " << sensorData.pressure << " Pa" << std::endl;
+    std::cout << "[IntermediaryNode] - Altitud: " << sensorData.altitude << " m" << std::endl;
     
     // TODO: Cuando el Master_node esté listo, descomentar:
     // send(master_sock, &sensorData, sizeof(sensorData), 0);
@@ -114,7 +129,7 @@ void IntermediaryNode::workerThread() {
                 continue;
             }
 
-            // Verificar que tenemos un paquete completo (nuevo tamaño: 25 bytes)
+            // Verificar que tenemos un paquete completo (nuevo tamaño: 13 bytes)
             if (n == sizeof(SensorPacket)) {
                 SensorPacket* packet = reinterpret_cast<SensorPacket*>(buffer);
                 
@@ -127,6 +142,7 @@ void IntermediaryNode::workerThread() {
             } else {
                 std::cerr << "[IntermediaryNode] Paquete de tamaño incorrecto: " << n 
                           << " bytes (esperaba " << sizeof(SensorPacket) << ")" << std::endl;
+                std::cerr << "[IntermediaryNode] ¿Está el ArduinoNode configurado en modo binary?" << std::endl;
             }
         }
     }
@@ -153,6 +169,7 @@ bool IntermediaryNode::start() {
     worker_thread_ = std::thread(&IntermediaryNode::workerThread, this);
 
     std::cout << "[IntermediaryNode] Listo para recibir datos de Arduino_node..." << std::endl;
+    std::cout << "[IntermediaryNode] Esperando paquetes binarios de " << sizeof(SensorPacket) << " bytes" << std::endl;
     return true;
 }
 
