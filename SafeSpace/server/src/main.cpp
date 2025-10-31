@@ -3,6 +3,7 @@
 #include <csignal>
 #include <iostream>
 
+#include "Arduino/Arduino_Node.h"
 #include "Auth/auth_udp_server.h"
 
 static volatile std::sig_atomic_t stopFlag = 0;
@@ -44,15 +45,27 @@ int main(const int argc, char* argv[]) {
 
   try {
     std::string type = argv[1];
-    uint16_t localPort = parsePort(argv[3]);
     std::string localIp = argv[2];
+    uint16_t localPort = parsePort(argv[3]);
 
     if (type == "server") {
-      if (argc != 4) {
-        throw std::runtime_error("Server mode requires exactly 2 arguments.");
+      if (argc != 10) {
+        throw std::runtime_error("Master mode requires 8 arguments:"
+        " server <local_ip> <local_port>"
+        " <storageNode_ip> <storageNode_Port>"
+        " <eventsNode_ip> <eventsNode_Port>"
+        " <ProxyNode_ip> <ProxyNode_Port>"
+        );
       }
 
-      SafeSpaceServer server(localIp, localPort);
+      std::string storageIp = argv[4];
+      uint16_t storagePort = parsePort(argv[5]);
+      std::string eventsIp = argv[6];
+      uint16_t eventsPort = parsePort(argv[7]);
+      std::string proxyIp = argv[8];
+      uint16_t proxyPort = parsePort(argv[9]);
+
+      SafeSpaceServer server(localIp, localPort, storageIp, storagePort, eventsIp, eventsPort, proxyIp, proxyPort);
       std::cout << "[Main] Running SafeSpaceServer on port " << localPort << std::endl;
 
       // // Ejemplo: registrar un destino de descubrimiento local (opcional)
@@ -62,6 +75,17 @@ int main(const int argc, char* argv[]) {
 
       if (stopFlag) server.stop();
       std::cout << "[Main] Server stopped cleanly." << std::endl;
+
+    } else if (type == "events") {
+      if (argc != 5) {
+        throw std::runtime_error("Events mode requires 7 arguments:"
+        " events <local_ip> <local_port>" "out.txt"
+        );
+      }
+
+      std::string outPath = argv[4];
+      CriticalEventsNode node(localIp, localPort, outPath);
+      node.serveBlocking();
 
     } else if (type == "proxy") {
       if (argc != 8) {
@@ -102,11 +126,26 @@ int main(const int argc, char* argv[]) {
       AuthUDPServer server(localIp, localPort);
       std::cout << " Iniciando AuthUDPServer en puerto: " << localPort << std::endl;
       server.serveBlocking();
+
+    } else if (type == "arduino") {
+      if (argc < 4) {
+          std::cerr << "Uso: ./Arduino_Node <IP_NODO_MAESTRO> <PUERTO> [SERIAL_PATH|stdin|simulate]\n";
+          return 1;
+      }
+
+      std::string masterIP = argv[2];
+      int masterPort = parsePort(argv[3]);
+      std::string serialPath = "";
+      if (argc >= 5) serialPath = argv[4];
+
+      std::cout << "failling";
+
+     ArduinoNode node(masterIP, masterPort, serialPath);
+     node.run();
     } else {
       throw std::runtime_error("Invalid component type: " + type +
-                               " (must be 'server' or 'proxy')");
+                               " (must be 'server', 'storage' , 'proxy', 'auth', 'events', 'inter' , 'arduino')");
     }
-
   } catch (const std::exception& ex) {
     std::cerr << "[Fatal] " << ex.what() << std::endl;
     return EXIT_FAILURE;
