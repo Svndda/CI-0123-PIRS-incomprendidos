@@ -78,6 +78,13 @@ class StorageNode: public UDPServer {
    };
 
    Stats getStats() const;
+   
+       // Método público para pruebas
+    void testReceive(const uint8_t* data, ssize_t len, std::string& out_response) {
+        sockaddr_in testPeer{};
+        onReceive(testPeer, data, len, out_response);
+    }
+
 
  private:
     // Cliente para comunicarse con el master
