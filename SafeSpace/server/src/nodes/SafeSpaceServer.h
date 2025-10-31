@@ -10,7 +10,10 @@
 
 // Critical events node
 #include "CriticalEvents/CriticalEventsNode.h"
+<<<<<<< Log_Integration
+=======
 #include "interfaces/UDPClient.h"
+>>>>>>> Server
 
 /**
  * @brief SafeSpaceServer routes datagrams between endpoints.
