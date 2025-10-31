@@ -1,4 +1,5 @@
 #include "auth_udp_server.h"
+#include "../../common/LogManager.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -26,32 +27,30 @@ struct DiscoverResponse {
 AuthUDPServer::AuthUDPServer(const std::string& ip, uint16_t port)
     : UDPServer(ip, port, 1024) {
     auto& logger = LogManager::instance();
-    // Set node name for logging
-    logger.setNodeName("AuthNode");
-    // Check environment variables for remote logging
-    const char* masterIp = std::getenv("MASTER_LOG_IP");
-    const char* masterPort = std::getenv("MASTER_LOG_PORT");
-    // Configure remote logging if environment variables are set
-    if (masterIp != nullptr && masterPort != nullptr) {
+    // Check environment variables for proxy logging
+    const char* proxyIp = std::getenv("PROXY_LOG_IP");
+    const char* proxyPort = std::getenv("PROXY_LOG_PORT");
+    // Configure proxy logging if environment variables are set
+    if (proxyIp != nullptr && proxyPort != nullptr) {
         try {
-            int parsedPort = std::stoi(masterPort);
+            int parsedPort = std::stoi(proxyPort);
             // Validate port range
             if (parsedPort > 0 && parsedPort <= 65535) {
-                logger.configureRemote(masterIp, static_cast<uint16_t>(parsedPort), "AuthNode");
+                logger.configureRemote(proxyIp, static_cast<uint16_t>(parsedPort), "AuthNode");
                 std::ostringstream oss;
-                oss << "Configured remote logging to master " << masterIp << ":" << parsedPort;
+                oss << "Configured remote logging to proxy " << proxyIp << ":" << parsedPort;
                 logger.info(oss.str());
             } else {
                 // Log a warning if the port is out of range
-                logger.warning("MASTER_LOG_PORT out of range, skipping remote log configuration");
+                logger.warning("PROXY_LOG_PORT out of range, skipping remote log configuration");
             }
             // Catch invalid port format
         } catch (const std::exception& ex) {
-            logger.warning(std::string("Failed to parse MASTER_LOG_PORT: ") + ex.what());
+            logger.warning(std::string("Failed to parse PROXY_LOG_PORT: ") + ex.what());
         }
     } else {
         // Environment variables not set
-        logger.debug("MASTER_LOG_IP/MASTER_LOG_PORT not set; remote logging disabled");
+        logger.debug("PROXY_LOG_IP/PROXY_LOG_PORT not set; remote logging disabled");
     }
         loadDefaultUsers();
     std::cout << " AuthUDPServer iniciado en puerto UDP " << port << std::endl;

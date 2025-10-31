@@ -32,6 +32,11 @@ class LogManager {
          * @return LogManager&
          */
         static LogManager& instance();
+        
+        /**
+         * @brief Destructor for LogManager
+         */
+        ~LogManager();
 
         /**
          *

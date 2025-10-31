@@ -1,4 +1,5 @@
 #include "ProxyNode.h"
+#include "../../common/LogManager.h"
 #include "../../model/structures/DiscoverRequest.h"
 #include "../../model/structures/DiscoverResponse.h"
 #include <iostream>
@@ -21,6 +22,22 @@ ProxyNode::ProxyNode(
   authNode(nullptr, authServerIp, authServerPort),
   masterNode(nullptr, masterServerIp, masterServerPort),
   listening(false) {
+
+  // Configurar LogManager para reenvío al master
+  auto& logger = LogManager::instance();
+  const char* masterLogIp = std::getenv("MASTER_LOG_IP");
+  const char* masterLogPort = std::getenv("MASTER_LOG_PORT");
+  if (masterLogIp != nullptr && masterLogPort != nullptr) {
+    try {
+      int parsedPort = std::stoi(masterLogPort);
+      if (parsedPort > 0 && parsedPort <= 65535) {
+        logger.configureRemote(masterLogIp, static_cast<uint16_t>(parsedPort), "ProxyNode");
+        logger.info("ProxyNode configured to forward logs to master");
+      }
+    } catch (const std::exception& ex) {
+      std::cerr << "[ProxyNode] Failed to configure log forwarding: " << ex.what() << std::endl;
+    }
+  }
 
   try {
     // Crea cliente UDP para comunicarse con el servidor de autenticación.
@@ -96,6 +113,29 @@ void ProxyNode::start() {
 void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
                           ssize_t len, std::string &out_response) {
   std::string peerStr = sockaddrToString(peer);
+  
+  // Verificar si es un log del LogManager (empieza con "LOG")
+  if (len >= 5 && data[0] == 'L' && data[1] == 'O' && data[2] == 'G') {
+    // Es un log del AuthNode, reenviarlo al master
+    auto& logger = LogManager::instance();
+    
+    // Parsear el nivel de log
+    uint8_t level = data[3];
+    uint8_t nodeNameLen = data[4];
+    
+    if (len >= 5 + nodeNameLen) {
+      std::string nodeName(reinterpret_cast<const char*>(data + 5), nodeNameLen);
+      std::string message(reinterpret_cast<const char*>(data + 5 + nodeNameLen), len - 5 - nodeNameLen);
+      
+      // Reenviar log al master con prefijo [FROM_AUTH]
+      LogLevel logLevel = static_cast<LogLevel>(level);
+      logger.log(logLevel, "[FROM_" + nodeName + "] " + message);
+      
+      std::cout << "[ProxyNode] Forwarded log from " << nodeName << " to master" << std::endl;
+    }
+    return; // No generar respuesta para logs
+  }
+  
   std::cout << "[ProxyNode] Received " << len << " bytes from client "
       << peerStr << std::endl;
 

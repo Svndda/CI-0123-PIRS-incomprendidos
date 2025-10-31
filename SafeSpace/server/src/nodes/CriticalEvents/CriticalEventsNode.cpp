@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 
 CriticalEventsNode::CriticalEventsNode(uint16_t port, const std::string& outPath)
-    : UDPServer(port, 2048), outPath_(outPath) {
+    : UDPServer("0.0.0.0", port, 2048), outPath_(outPath) {
     // ensure output directory exists (best-effort)
     // do not fail on missing dir; appendLine will create file if needed
     std::cout << "[CriticalEventsNode] listening on UDP port " << port << " -> " << outPath_ << std::endl;
