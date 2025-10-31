@@ -1,5 +1,6 @@
 #include "SafeSpaceServer.h"
 #include "Proxy/ProxyNode.h"
+#include "nodes/Storage/StorageNode.h"
 #include <csignal>
 #include <iostream>
 
@@ -14,6 +15,7 @@ void validateArgs(int argc, char* argv[]) {
     std::cerr << "Usage:\n"
               << "  " << argv[0] << " server <local_port>\n"
               << "  " << argv[0] << " proxy <local_port> <server_ip> <server_port>\n"
+              << "  " << argv[0] << " storage <disk_file>\n"
               << std::endl;
     std::exit(EXIT_FAILURE);
   }
@@ -77,10 +79,83 @@ int main(const int argc, char* argv[]) {
       if (stopFlag) proxy.stop();
       std::cout << "[Main] ProxyNode stopped cleanly." << std::endl;
 
+    } else if (type == "storage") {
+            if (argc != 3)
+                throw std::runtime_error("Storage mode requires the disk file path.");
+
+            // Configuración del Storage Node
+            const uint16_t storagePort = 6000;
+            const std::string masterIp = "127.0.0.1";
+            const uint16_t masterPort = 5000;
+            const std::string nodeId = "storage1";
+            const std::string diskPath = "registers.bin";
+
+            // Crear instancia de StorageNode
+            StorageNode storage(storagePort, masterIp, masterPort, nodeId, diskPath);
+            
+            std::cout << "\n=== Testing StorageNode Connectivity ===\n" << std::endl;
+
+            // Test 1: Crear y almacenar datos de prueba
+            std::cout << "Test 1: Creating test data..." << std::endl;
+            SensorData testData{
+                .timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()),
+                .distance = 150,
+                .movement = 1,
+                .temperature = 2500, // 25.00°C
+                .uv = 500,
+                .microphone = 300,
+                .leds = 0x03,
+                .buzzer = 1,
+                .light = 800,
+                .sensorId = 1
+            };
+
+            // Convertir a bytes para simular mensaje
+            std::vector<uint8_t> message;
+            message.push_back(static_cast<uint8_t>(MessageType::STORE_SENSOR_DATA));
+            auto sensorBytes = testData.toBytes();
+            message.insert(message.end(), sensorBytes.begin(), sensorBytes.end());
+
+            // Simular recepción de mensaje
+            sockaddr_in testPeer{};
+            std::string response;
+            storage.testReceive(message.data(), message.size(), response);
+
+            // Test 2: Consultar datos
+            std::cout << "\nTest 2: Querying stored data..." << std::endl;
+            uint64_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            uint64_t start = now - 3600; // última hora
+
+            std::vector<uint8_t> queryMsg;
+            queryMsg.push_back(static_cast<uint8_t>(MessageType::QUERY_BY_SENSOR));
+            queryMsg.push_back(1); // sensorId
+            
+            // Agregar timestamps en network byte order
+            uint64_t startNet = htobe64(start);
+            uint64_t endNet = htobe64(now);
+            const uint8_t* startBytes = reinterpret_cast<const uint8_t*>(&startNet);
+            const uint8_t* endBytes = reinterpret_cast<const uint8_t*>(&endNet);
+            
+            queryMsg.insert(queryMsg.end(), startBytes, startBytes + 8);
+            queryMsg.insert(queryMsg.end(), endBytes, endBytes + 8);
+
+            std::string queryResponse;
+            storage.testReceive(queryMsg.data(), queryMsg.size(), queryResponse);
+
+            // Mostrar estadísticas
+            auto stats = storage.getStats();
+            std::cout << "\nStorage Node Statistics:" << std::endl;
+            std::cout << "Total records: " << stats.totalSensorRecords << std::endl;
+            std::cout << "Total queries: " << stats.totalQueries << std::endl;
+            std::cout << "Errors: " << stats.errorsCount << std::endl;
+
+            std::cout << "\n=== StorageNode Tests Completed ===\n" << std::endl;
+
+    
     } else {
-      throw std::runtime_error("Invalid component type: " + type +
-                               " (must be 'server' or 'proxy')");
-    }
+        throw std::runtime_error("Invalid component type: " + type +
+                                    " (must be 'server', 'proxy', or 'storage')");
+    }        
 
   } catch (const std::exception& ex) {
     std::cerr << "[Fatal] " << ex.what() << std::endl;
