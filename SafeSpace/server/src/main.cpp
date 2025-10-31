@@ -88,7 +88,7 @@ int main(const int argc, char* argv[]) {
             const std::string masterIp = "127.0.0.1";
             const uint16_t masterPort = 5000;
             const std::string nodeId = "storage1";
-            const std::string diskPath = "registers.bin";
+            const std::string diskPath = "model/data/registers.bin";
 
             // Crear instancia de StorageNode
             StorageNode storage(storagePort, masterIp, masterPort, nodeId, diskPath);

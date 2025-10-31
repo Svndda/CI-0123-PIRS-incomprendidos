@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.31.6)
 project(server)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -35,6 +35,19 @@ add_executable(server
         src/main.cpp
         src/nodes/interfaces/UDPServer.cpp
         src/nodes/interfaces/UDPServer.h
+        src/nodes/interfaces/UDPClient.cpp
+        src/nodes/interfaces/UDPClient.h
         src/model/structures/DiscoverRequest.h
         src/model/structures/DiscoverResponse.h
+
+        src/nodes/Storage/StorageNode.h
+        src/nodes/Storage/StorageNode.cpp
+        src/nodes/Proxy/ProxyNode.h
+        src/nodes/Proxy/ProxyNode.cpp
 )
+
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+target_link_libraries(server PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
+
+find_package(OpenSSL REQUIRED)
+target_link_libraries(server PRIVATE OpenSSL::SSL OpenSSL::Crypto)
