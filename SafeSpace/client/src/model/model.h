@@ -10,7 +10,7 @@
 // #include "model/managers/UsersManager.h"
 // #include "model/filesystem/FileSystem.h"
 #include "model/structures/user.h"
-#include "model/network/QtUDPClient.h"
+#include "model/network/qtudpclient.h"
 
 /**
  * @class Model

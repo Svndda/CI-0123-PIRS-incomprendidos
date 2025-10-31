@@ -4,6 +4,8 @@
 #include <string>
 #include <atomic>
 #include <thread>
+#include "SensorPacket.h"
+
 #include "../../model/structures/sensordata.h"
 
 // Estructura del paquete recibido de Arduino (compatible con ArduinoNode extendido)

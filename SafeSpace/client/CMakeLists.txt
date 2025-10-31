@@ -7,8 +7,9 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
   PrintSupport
   Svg
   Network
-  OpenSSL
 )
+
+find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
 
 qt_standard_project_setup()
 
@@ -58,6 +59,7 @@ qt_add_executable(SafeSpace
   src/model/network/authenticationresponse.h
   
   src/model/network/qtudpclient.h src/model/network/qtudpclient.cpp
+  ../common/LogManager.h ../common/LogManager.cpp
   
 
 )
@@ -92,6 +94,7 @@ target_include_directories(SafeSpace
     ${CMAKE_SOURCE_DIR}/src/controller/
     ${CMAKE_SOURCE_DIR}/src/ui/
     ${CMAKE_SOURCE_DIR}/src/ui/elements/
+    ${CMAKE_SOURCE_DIR}/../common
     
 )
 

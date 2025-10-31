@@ -9,6 +9,8 @@
 #include <thread>
 #include <utility>
 
+#include "SensorPacket.h"
+
 /**
  * Nodo Proxy que actuá como servidor para clientes finales y como cliente hacia
  * el nodo de Autenticación.
