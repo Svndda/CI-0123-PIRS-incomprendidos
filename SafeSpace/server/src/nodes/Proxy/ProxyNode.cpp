@@ -24,20 +24,13 @@ ProxyNode::ProxyNode(
   masterNode(nullptr, masterServerIp, masterServerPort),
   listening(false) {
 
-  // Configurar LogManager para reenvío al master
+  // Configurar LogManager para reenvío al SafeSpaceServer usando parámetros directos
   auto& logger = LogManager::instance();
-  const char* masterLogIp = std::getenv("MASTER_LOG_IP");
-  const char* masterLogPort = std::getenv("MASTER_LOG_PORT");
-  if (masterLogIp != nullptr && masterLogPort != nullptr) {
-    try {
-      int parsedPort = std::stoi(masterLogPort);
-      if (parsedPort > 0 && parsedPort <= 65535) {
-        logger.configureRemote(masterLogIp, static_cast<uint16_t>(parsedPort), "ProxyNode");
-        logger.info("ProxyNode configured to forward logs to master");
-      }
-    } catch (const std::exception& ex) {
-      std::cerr << "[ProxyNode] Failed to configure log forwarding: " << ex.what() << std::endl;
-    }
+  try {
+    logger.configureRemote(masterNode.ip, masterNode.port, "ProxyNode");
+    logger.info("ProxyNode configured to forward logs to SafeSpaceServer at " + masterNode.ip + ":" + std::to_string(masterNode.port));
+  } catch (const std::exception& ex) {
+    std::cerr << "[ProxyNode] Failed to configure SafeSpace log forwarding: " << ex.what() << std::endl;
   }
 
   try {
@@ -508,9 +501,59 @@ void ProxyNode::handleAuthResponse(const uint8_t *buffer, size_t length) {
       << " status=" << static_cast<int>(resp.getStatusCode())
       << " token=" << resp.getSessionToken() << std::endl;
 
-
   ClientInfo clientInfo;
   bool found = false;
+
+  {
+    std::lock_guard<std::mutex> lock(clientsMutex);
+    auto it = pendingClients.find(sessionId);
+    if (it != pendingClients.end()) {
+      clientInfo = it->second;
+      found = true;
+    }
+  }
+
+  // Generar logs y tracking de intentos fallidos
+  auto& logger = LogManager::instance();
+  
+  if (resp.getStatusCode() == 1) {
+    // Autenticación exitosa
+    logger.info("Authentication successful for sessionId " + std::to_string(sessionId));
+    
+    // Limpiar intentos fallidos si existe el cliente
+    if (found) {
+      std::string clientIp = inet_ntoa(clientInfo.addr.sin_addr);
+      std::lock_guard<std::mutex> lock(failedAttemptsMutex);
+      failedAttempts.erase(clientIp);
+    }
+  } else {
+    // Autenticación fallida
+    logger.warning("Authentication failed for sessionId " + std::to_string(sessionId));
+    
+    // Incrementar contador de intentos fallidos
+    if (found) {
+      std::string clientIp = inet_ntoa(clientInfo.addr.sin_addr);
+      
+      {
+        std::lock_guard<std::mutex> lock(failedAttemptsMutex);
+        failedAttempts[clientIp]++;
+        int attempts = failedAttempts[clientIp];
+        
+        if (attempts >= 3) {
+          logger.error("SECURITY ALERT: Client " + clientIp + 
+                      " failed authentication 3 times - potential attack!");
+          // Opcional: reiniciar contador después de la alerta
+          failedAttempts[clientIp] = 0;
+        }
+      }
+    }
+  }
+
+  // Ahora eliminar el cliente de pendientes
+  if (found) {
+    std::lock_guard<std::mutex> lock(clientsMutex);
+    pendingClients.erase(sessionId);
+  }
 
   {
     std::lock_guard<std::mutex> lock(clientsMutex);
