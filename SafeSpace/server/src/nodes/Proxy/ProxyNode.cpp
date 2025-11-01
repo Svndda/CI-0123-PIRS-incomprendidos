@@ -11,6 +11,7 @@
 #include "authenticationrequest.h"
 #include "authenticationresponse.h"
 #include "connectrequest.h"
+#include "sensordata.h"
 
 const size_t BUFFER_SIZE = 2048;
 
@@ -145,48 +146,6 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
   std::cout << "[ProxyNode] Received " << len << " bytes from client "
       << peerStr << std::endl;
 
-
-  // if (len == 2) {
-  //   // Verificar si es un mensaje de DISCOVER (2 bytes)
-  //   std::array<uint8_t, 2> payload = {data[0], data[1]};
-  //   DiscoverRequest req = DiscoverRequest::fromBytes(payload);
-  //   uint8_t msgId = req.msgId();
-  //   uint8_t flags = req.rflags();
-  //
-  //   std::cout << "[ProxyNode] DISCOVER request msgId="
-  //       << static_cast<int>(msgId)
-  //       << " flags=" << static_cast<int>(flags)
-  //       << " from " << peerStr << std::endl;
-  //
-  //
-  //   {
-  //     // Guardar información del cliente para responder después
-  //     std::lock_guard<std::mutex> lock(clientsMutex);
-  //     pendingClients[msgId] = {peer, msgId};
-  //     std::cout << "[ProxyNode] Stored client info for msgId="
-  //         << static_cast<int>(msgId) << std::endl;
-  //   }
-  //
-  //
-  //   try {
-  //     // Reenviar al servidor de autenticación
-  //     forwardToAuthServer(data, static_cast<size_t>(len));
-  //     std::cout << "[ProxyNode] Successfully forwarded DISCOVER msgId="
-  //         << static_cast<int>(msgId) << " to auth server" << std::endl;
-  //   } catch (const std::exception &e) {
-  //     std::cerr << "[ProxyNode] ERROR forwarding to auth server: "
-  //         << e.what() << std::endl;
-  //
-  //     // Limpiar el cliente pendiente si falla el reenvío
-  //     std::lock_guard<std::mutex> lock(clientsMutex);
-  //     pendingClients.erase(msgId);
-  //   }
-  //
-  //   // No responder inmediatamente al cliente
-  //   out_response.clear();
-  //   return;
-  // }
-
   if (len == 50) {
     // AUTHENTICATION_REQUEST messages are 50 bytes
 
@@ -241,28 +200,63 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
     return;
   }
 
-  if (len == 5 && data[0] == 0x42) {
-    struct SensorPacket {
-      uint8_t  msgId;
-      int16_t  temp_x100;
-      int16_t  hum_x100;
-    } __attribute__((packed));
-
-    const SensorPacket* pkt = reinterpret_cast<const SensorPacket*>(data);
-
-    // Convertir desde orden de red a host
-    double temperature = ntohs(pkt->temp_x100) / 100.0;
-    double humidity    = ntohs(pkt->hum_x100) / 100.0;
+  if (len == sizeof(SensorData)) {
+    const auto* pkt = reinterpret_cast<const SensorData*>(data);
 
     // Obtener IP y puerto del remitente
     char ipbuf[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
 
-    std::cout << "SafeSpaceServer: SENSOR_DATA recibido desde "
-              << ipbuf << ":" << ntohs(peer.sin_port)
-              << " -> Temp=" << temperature
-              << "°C  Hum=" << humidity << "%" << std::endl;
+    std::cout << "[SafeSpaceServer] SENSOR_PACKET recibido desde "
+              << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
+    std::cout << "  ▸ Temperatura: " << pkt->temperature << " °C" << std::endl;
+    std::cout << "  ▸ Distancia: " << pkt->distance << " cm" << std::endl;
+    std::cout << "  ▸ Presión: " << pkt->pressure<< " Pa" << std::endl;
+    std::cout << "  ▸ Presión a nivel de mar: " << pkt->sealevelPressure << " cm" << std::endl;
+    std::cout << "  ▸ Altitud: " << pkt->altitude << " m" << std::endl;
+    std::cout << "  ▸ Altitud Real: " << pkt->realAltitude << " cm" << std::endl;
+
+    // Generar respuesta ACK simple al emisor original (Master)
+    std::string ack = "ACK_SENSOR";
+    out_response.assign(ack.begin(), ack.end());
+    return;
   }
+
+  if (len == sizeof(ConnectRequest)) {
+    const auto* pkt = reinterpret_cast<const ConnectRequest*>(data);
+    if (pkt->IDENTIFIER == ConnectRequest::IDENTIFIER) {
+      // Obtener IP del remitente
+      char ipbuf[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
+      const auto sessionId = pkt->getSessionId();
+
+      std::cout << "[ProxyNode] ConnectRequest recibido desde "
+                << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
+
+    // Guardar información del cliente para responder después
+    {
+      std::lock_guard<std::mutex> lock(clientsMutex);
+      pendingClients[sessionId] = {peer, sessionId};
+      std::cout << "[ProxyNode] Stored client info for sessionId=" << sessionId << std::endl;
+    }
+
+    // try {
+    //   forwardToMasterServer(data, static_cast<size_t>(len));
+    //   std::cout << "[ProxyNode] Successfully forwarded ConnectRequest sessionId="
+    //       << sessionId << " to auth server" << std::endl;
+    // } catch (const std::exception &e) {
+    //   std::cerr << "[ProxyNode] ERROR forwarding to auth server: " << e.what() << std::endl;
+
+    //   // Limpiar cliente pendiente si falla el reenvío
+    //   std::lock_guard<std::mutex> lock(clientsMutex);
+    //   pendingClients.erase(sessionId);
+    // }
+
+    // No responder inmediatamente al cliente
+    out_response.clear();
+    }
+  }
+
 
   // Si no es un mensaje conocido, hacer echo por defecto
   std::cout << "[ProxyNode] Unknown message format (" << len
@@ -270,7 +264,7 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
   UDPServer::onReceive(peer, data, len, out_response);
 }
 
-void ProxyNode::forwardToAuthServer(const uint8_t *data, size_t len) {
+void ProxyNode::forwardToAuthServer(const uint8_t *data, size_t len)  {
   if (this->authNode.client == nullptr) {
     throw std::runtime_error("[ProxyNode] Auth client not initialized");
   }
@@ -302,37 +296,37 @@ void ProxyNode::forwardToAuthServer(const uint8_t *data, size_t len) {
   }
 }
 
-// void ProxyNode::forwardToMasterServer(const uint8_t *data, size_t len) {
-//   if (this->authNode.client == nullptr) {
-//     throw std::runtime_error("[ProxyNode] Auth client not initialized");
-//   }
-//
-//   if (data == nullptr || len == 0) {
-//     throw std::runtime_error("[ProxyNode] Invalid data to forward");
-//   }
-//
-//   // Dirección de auth server
-//   sockaddr_in serverAddr{};
-//   serverAddr.sin_family = AF_INET;
-//   serverAddr.sin_port = htons(this->authNode.port);
-//
-//   if (inet_aton(this->authNode.ip.c_str(), &serverAddr.sin_addr) == 0) {
-//     throw std::runtime_error("[ProxyNode] Invalid auth server IP: "
-//                              + this->authNode.ip);
-//   }
-//
-//   ssize_t sent = ::sendto(this->authNode.client->getSocketFd(), data, len, 0,
-//                           reinterpret_cast<const sockaddr *>(&serverAddr), sizeof(serverAddr));
-//
-//   if (sent < 0) {
-//     throw std::runtime_error(std::string("[ProxyNode] sendto auth server failed: ")
-//                              + std::strerror(errno));
-//   }
-//
-//   if (static_cast<size_t>(sent) != len) {
-//     throw std::runtime_error("[ProxyNode] Incomplete send to auth server");
-//   }
-// }
+void ProxyNode::forwardToMasterServer(const uint8_t *data, size_t len) {
+  if (this->masterNode.client == nullptr) {
+    throw std::runtime_error("[ProxyNode] Master client not initialized");
+  }
+
+  if (data == nullptr || len == 0) {
+    throw std::runtime_error("[ProxyNode] Invalid data to forward");
+  }
+
+  // Dirección de auth server
+  sockaddr_in serverAddr{};
+  serverAddr.sin_family = AF_INET;
+  serverAddr.sin_port = htons(this->masterNode.port);
+
+  if (inet_aton(this->masterNode.ip.c_str(), &serverAddr.sin_addr) == 0) {
+    throw std::runtime_error("[ProxyNode] Invalid auth server IP: "
+                             + this->masterNode.ip);
+  }
+
+  ssize_t sent = ::sendto(this->masterNode.client->getSocketFd(), data, len, 0,
+                          reinterpret_cast<const sockaddr *>(&serverAddr), sizeof(serverAddr));
+
+  if (sent < 0) {
+    throw std::runtime_error(std::string("[ProxyNode] sendto master server failed: ")
+                             + std::strerror(errno));
+  }
+
+  if (static_cast<size_t>(sent) != len) {
+    throw std::runtime_error("[ProxyNode] Incomplete send to master server");
+  }
+}
 
 void ProxyNode::listenAuthServerResponses() {
   std::cout << "[ProxyNode] Auth server response listener thread started (ID: "
@@ -443,6 +437,44 @@ void ProxyNode::listenAuthServerResponses() {
       << std::endl;
 }
 
+// void ProxyNode::forwardToClients(const uint8_t *data, size_t len) {
+
+//   for (auto& client : this->pendingClients) {
+
+//     this->sendTo(client.second.addr, data, len);
+//   }
+
+
+//   // if (this->masterNode.client == nullptr) {
+//   //   throw std::runtime_error("[ProxyNode] Master client not initialized");
+//   // }
+
+//   // if (data == nullptr || len == 0) {
+//   //   throw std::runtime_error("[ProxyNode] Invalid data to forward");
+//   // }
+
+//   // // Dirección de auth server
+//   // sockaddr_in serverAddr{};
+//   // serverAddr.sin_family = AF_INET;
+//   // serverAddr.sin_port = htons(this->masterNode.port);
+
+//   // if (inet_aton(this->masterNode.ip.c_str(), &serverAddr.sin_addr) == 0) {
+//   //   throw std::runtime_error("[ProxyNode] Invalid auth server IP: "
+//   //                            + this->masterNode.ip);
+//   // }
+
+//   // ssize_t sent = ::sendto(this->masterNode.client->getSocketFd(), data, len, 0,
+//   //                         reinterpret_cast<const sockaddr *>(&serverAddr), sizeof(serverAddr));
+
+//   // if (sent < 0) {
+//   //   throw std::runtime_error(std::string("[ProxyNode] sendto master server failed: ")
+//   //                            + std::strerror(errno));
+//   // }
+
+//   // if (static_cast<size_t>(sent) != len) {
+//   //   throw std::runtime_error("[ProxyNode] Incomplete send to master server");
+//   // }
+// }
 
 void ProxyNode::handleAuthResponse(const uint8_t *buffer, size_t length) {
   // Safecheck

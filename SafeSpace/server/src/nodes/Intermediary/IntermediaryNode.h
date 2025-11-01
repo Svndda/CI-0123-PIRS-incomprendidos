@@ -4,26 +4,19 @@
 #include <string>
 #include <atomic>
 #include <thread>
-#include "../../model/structures/sensordata.h"
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include "SensorPacket.h"
 
-// Estructura del paquete recibido de Arduino 
-#pragma pack(push, 1)
-struct SensorPacket {
-    uint8_t  msgId;           // 0x42 = SENSOR_DATA
-    float    distance;        // distancia en cm
-    float    temperature;     // temperatura en °C
-    float    pressure;        // presión en Pa
-    float    altitude;        // altitud en metros
-    float    sealevelPressure; // presión a nivel del mar en Pa
-    float    realAltitude;    // altitud real en metros
-};
-#pragma pack(pop)
+#include "../../model/structures/sensordata.h"
 
 class IntermediaryNode {
 private:
     int listen_port_;
     std::string master_ip_;
     int master_port_;
+    int master_sock_;          ///< Socket usado para enviar datos al Master
+    sockaddr_in master_addr_;  ///< Dirección del Master
     int listen_sock_;
     std::atomic<bool> running_;
     std::thread worker_thread_;

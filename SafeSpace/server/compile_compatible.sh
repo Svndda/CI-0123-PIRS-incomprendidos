@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 mkdir -p bin
 mkdir -p build
 
-echo "🔨 Compilando con nuevos datos del Arduino..."
+echo "🔨 Compilando IntermediaryNode compatible con ArduinoNode extendido..."
 g++ -std=c++17 -Wall -Wextra -O2 -pthread -Isrc/model/structures -Isrc/nodes/Intermediary \
     src/nodes/Intermediary/IntermediaryNode.cpp \
     src/model/structures/sensordata.cpp \
@@ -13,16 +13,14 @@ g++ -std=c++17 -Wall -Wextra -O2 -pthread -Isrc/model/structures -Isrc/nodes/Int
     -o bin/IntermediaryNodeApp
 
 if [ $? -eq 0 ]; then
-    echo " Compilación exitosa!"
+    echo "✅ Compilación exitosa!"
     echo ""
-    echo " Ejecutar con:"
+    echo "🎯 Ejecutar con:"
     echo "   bin/IntermediaryNodeApp"
     echo "   bin/IntermediaryNodeApp <PUERTO> <MASTER_IP> <MASTER_PUERTO>"
     echo ""
-    echo " Ejemplos:"
-    echo "   bin/IntermediaryNodeApp"
-    echo "   bin/IntermediaryNodeApp 9999 127.0.0.1 8888"
+    echo "📋 Compatible con ArduinoNode en formato binary"
 else
-    echo " Error en la compilación"
+    echo "❌ Error en la compilación"
     exit 1
 fi

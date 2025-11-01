@@ -9,6 +9,8 @@
 #include <thread>
 #include <utility>
 
+#include "SensorPacket.h"
+
 /**
  * Nodo Proxy que actuá como servidor para clientes finales y como cliente hacia
  * el nodo de Autenticación.
@@ -53,6 +55,8 @@ class ProxyNode: public UDPServer{
 
     // Envía datos crudos al servidor de autenticación.
     void forwardToAuthServer(const uint8_t* data, size_t len);
+
+    void forwardToMasterServer(const uint8_t *data, size_t len);
 
     // Escucha respuestas del servidor de autenticación
     void listenAuthServerResponses();

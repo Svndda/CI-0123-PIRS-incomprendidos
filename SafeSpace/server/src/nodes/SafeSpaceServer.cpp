@@ -5,11 +5,17 @@
 #include <cstring>
 #include <iostream>
 
+#include "sensordata.h"
+#include "../../../common/LogManager.h"
+#include "SensorPacket.h"
+
+enum class LogLevel;
+
 SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
-  const std::string& storageIp, const uint16_t storagePort,
-  const std::string& eventsIp, const uint16_t eventsPort,
-  const std::string& proxyIp, const uint16_t proxyPort)
-  : UDPServer(ip, port, 1024)
+                                 const std::string& storageIp, const uint16_t storagePort,
+                                 const std::string& eventsIp, const uint16_t eventsPort,
+                                 const std::string& proxyIp, const uint16_t proxyPort)
+  : UDPServer(ip, port, 2048)
   , storageNode(nullptr, storageIp, storagePort)
   , eventsNode(nullptr, eventsIp, eventsPort)
   , proxyNode(nullptr, proxyIp, proxyPort) {
@@ -71,10 +77,31 @@ void SafeSpaceServer::clearDiscoverTargets() {
   discoverTargets_.clear();
 }
 
-void SafeSpaceServer::onReceive(const sockaddr_in& peer,
-                                const uint8_t* data,
-                                ssize_t len,
-                                std::string& out_response) {
+void SafeSpaceServer::onReceive(
+  const sockaddr_in& peer, const uint8_t* data,
+  ssize_t len, std::string& out_response) {
+  // Verificar si es un log del LogManager (empieza con "LOG")
+  if (len >= 5 && data[0] == 'L' && data[1] == 'O' && data[2] == 'G') {
+    // Es un log del AuthNode, reenviarlo al master
+    auto& logger = LogManager::instance();
+
+    // Parsear el nivel de log
+    uint8_t level = data[3];
+    uint8_t nodeNameLen = data[4];
+
+    if (len >= 5 + nodeNameLen) {
+      std::string nodeName(reinterpret_cast<const char*>(data + 5), nodeNameLen);
+      std::string message(reinterpret_cast<const char*>(data + 5 + nodeNameLen), len - 5 - nodeNameLen);
+
+      // Reenviar log al master con prefijo [FROM_AUTH]
+      LogLevel logLevel = static_cast<LogLevel>(level);
+      logger.log(logLevel, "[FROM_" + nodeName + "] " + message);
+
+      std::cout << "[ProxyNode] Forwarded log from " << nodeName << " to master" << std::endl;
+    }
+    return; // No generar respuesta para logs
+  }
+
   // DISCOVER (2 bytes)
   if (len == 2) {
     std::array<uint8_t, 2> a = { data[0], data[1] };
@@ -156,99 +183,36 @@ void SafeSpaceServer::onReceive(const sockaddr_in& peer,
     return;
   }
 
-  // 3️⃣ Manejo de SENSOR_DATA (ArduinoNode)
-  if (len == 5 && data[0] == 0x42) {
-    struct SensorPacket {
-      uint8_t  msgId;
-      int16_t  temp_x100;
-      int16_t  hum_x100;
-    } __attribute__((packed));
-
-    const SensorPacket* pkt = reinterpret_cast<const SensorPacket*>(data);
-
-    // Convertir desde orden de red a host
-    double temperature = ntohs(pkt->temp_x100) / 100.0;
-    double humidity    = ntohs(pkt->hum_x100) / 100.0;
+  if (len == sizeof(SensorData)) {
+    const auto* pkt = reinterpret_cast<const SensorData*>(data);
 
     // Obtener IP y puerto del remitente
     char ipbuf[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
 
-    std::cout << "SafeSpaceServer: SENSOR_DATA recibido desde "
-              << ipbuf << ":" << ntohs(peer.sin_port)
-              << " -> Temp=" << temperature
-              << "°C  Hum=" << humidity << "%" << std::endl;
+    std::cout << "[SafeSpaceServer] SENSOR_PACKET recibido desde "
+              << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
+    std::cout << "  ▸ Temperatura: " << pkt->temperature << " °C" << std::endl;
+    std::cout << "  ▸ Distancia: " << pkt->distance << " cm" << std::endl;
+    std::cout << "  ▸ Presión: " << pkt->pressure<< " Pa" << std::endl;
+    std::cout << "  ▸ Presión a nivel de mar: " << pkt->sealevelPressure << " cm" << std::endl;
+    std::cout << "  ▸ Altitud: " << pkt->altitude << " m" << std::endl;
+    std::cout << "  ▸ Altitud Real: " << pkt->realAltitude << " cm" << std::endl;
 
-    // Forward SensorPacket to Storage Node and Proxy Node
     try {
-      // Lazy initialization: create clients only once
-          // ======= ENVÍO A STORAGE NODE =======
-      sockaddr_in storageAddr{};
-      storageAddr.sin_family = AF_INET;
-      storageAddr.sin_port = htons(storageNode.port);
-      if (inet_aton(storageNode.ip.c_str(), &storageAddr.sin_addr) == 0) {
-        throw std::runtime_error("[SafeSpaceServer] Invalid StorageNode IP: " + storageNode.ip);
-      }
-
-      ssize_t sentToStorage = ::sendto(
-        storageNode.client->getSocketFd(),
-        data,
-        static_cast<size_t>(len),
-        0,
-        reinterpret_cast<const sockaddr*>(&storageAddr),
-        sizeof(storageAddr)
-      );
-
-      if (sentToStorage < 0) {
-        std::cerr << "[SafeSpaceServer] ERROR sending SENSOR_DATA to StorageNode: "
-                  << std::strerror(errno) << std::endl;
-      } else if (static_cast<size_t>(sentToStorage) != static_cast<size_t>(len)) {
-        std::cerr << "[SafeSpaceServer] WARNING: Incomplete send to StorageNode "
-                  << "(sent " << sentToStorage << " of " << len << " bytes)" << std::endl;
-      } else {
-        std::cout << "[SafeSpaceServer] Forwarded SENSOR_DATA to StorageNode at "
-                  << storageNode.ip << ":" << storageNode.port << std::endl;
-      }
-
-      // ======= ENVÍO A PROXY NODE =======
-      sockaddr_in proxyAddr{};
-      proxyAddr.sin_family = AF_INET;
-      proxyAddr.sin_port = htons(proxyNode.port);
-      if (inet_aton(proxyNode.ip.c_str(), &proxyAddr.sin_addr) == 0) {
-        throw std::runtime_error("[SafeSpaceServer] Invalid ProxyNode IP: " + proxyNode.ip);
-      }
-
-      ssize_t sentToProxy = ::sendto(
-        proxyNode.client->getSocketFd(),
-        data,
-        static_cast<size_t>(len),
-        0,
-        reinterpret_cast<const sockaddr*>(&proxyAddr),
-        sizeof(proxyAddr)
-      );
-
-      if (sentToProxy < 0) {
-        std::cerr << "[SafeSpaceServer] ERROR sending SENSOR_DATA to ProxyNode: "
-                  << std::strerror(errno) << std::endl;
-      } else if (static_cast<size_t>(sentToProxy) != static_cast<size_t>(len)) {
-        std::cerr << "[SafeSpaceServer] WARNING: Incomplete send to ProxyNode "
-                  << "(sent " << sentToProxy << " of " << len << " bytes)" << std::endl;
-      } else {
-        std::cout << "[SafeSpaceServer] Forwarded SENSOR_DATA to ProxyNode at "
-                  << proxyNode.ip << ":" << proxyNode.port << std::endl;
-      }
-
-
+      storageNode.client->sendRaw(pkt, sizeof(SensorData));
+      proxyNode.client->sendRaw(pkt, sizeof(SensorData));
     } catch (const std::exception& ex) {
-      std::cerr << "[SafeSpaceServer] Exception while forwarding SENSOR_DATA: "
+      std::cerr << "[SafeSpaceServer] Exception al reenviar SENSOR_PACKET: "
                 << ex.what() << std::endl;
     }
 
-    // (Opcional) Generar respuesta ACK simple
+    // Generar respuesta ACK simple al emisor original (Arduino / Intermediario)
     std::string ack = "ACK_SENSOR";
     out_response.assign(ack.begin(), ack.end());
     return;
   }
+
 
   // Fallback: let base class behavior handle it (echo)
   UDPServer::onReceive(peer, data, len, out_response);

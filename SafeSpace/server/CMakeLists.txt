@@ -36,6 +36,10 @@ add_executable(server
         src/model/model.h
         src/nodes/SafeSpaceServer.cpp
         src/nodes/SafeSpaceServer.h
+        src/nodes/Intermediary/IntermediaryNode.cpp
+        src/nodes/Intermediary/IntermediaryNode.h
+        src/nodes/Arduino/Arduino_Node.cpp
+        src/nodes/Arduino/Arduino_Node.h
         src/nodes/CriticalEvents/CriticalEventsNode.cpp
         src/nodes/CriticalEvents/CriticalEventsNode.h
         src/nodes/Proxy/ProxyNode.cpp
@@ -53,6 +57,7 @@ add_executable(server
         src/model/structures/DiscoverResponse.h
         src/model/structures/authenticationrequest.h
         src/model/structures/authenticationresponse.h
+        src/model/structures/SensorPacket.h
 )
 
 # Link libraries
