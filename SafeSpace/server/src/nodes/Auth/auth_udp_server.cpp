@@ -52,7 +52,7 @@ AuthUDPServer::AuthUDPServer(const std::string& ip, uint16_t port)
         // Environment variables not set
         logger.debug("PROXY_LOG_IP/PROXY_LOG_PORT not set; remote logging disabled");
     }
-        loadDefaultUsers();
+    loadDefaultUsers();
     std::cout << " AuthUDPServer iniciado en puerto UDP " << port << std::endl;
      {
         std::ostringstream oss;
