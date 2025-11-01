@@ -5,6 +5,7 @@
 #include <cstring>
 #include <iostream>
 
+#include "sensordata.h"
 #include "../../../common/LogManager.h"
 #include "SensorPacket.h"
 
@@ -182,8 +183,8 @@ void SafeSpaceServer::onReceive(
     return;
   }
 
-  if (len == sizeof(SensorPacket) && data[0] == 0x42) {
-    const SensorPacket* pkt = reinterpret_cast<const SensorPacket*>(data);
+  if (len == sizeof(SensorData)) {
+    const auto* pkt = reinterpret_cast<const SensorData*>(data);
 
     // Obtener IP y puerto del remitente
     char ipbuf[INET_ADDRSTRLEN];
@@ -191,41 +192,16 @@ void SafeSpaceServer::onReceive(
 
     std::cout << "[SafeSpaceServer] SENSOR_PACKET recibido desde "
               << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
-    std::cout << "  ▸ Distancia: " << pkt->distance << " cm" << std::endl;
     std::cout << "  ▸ Temperatura: " << pkt->temperature << " °C" << std::endl;
-    std::cout << "  ▸ Presión: " << pkt->pressure << " Pa" << std::endl;
+    std::cout << "  ▸ Distancia: " << pkt->distance << " cm" << std::endl;
+    std::cout << "  ▸ Presión: " << pkt->pressure<< " Pa" << std::endl;
+    std::cout << "  ▸ Presión a nivel de mar: " << pkt->sealevelPressure << " cm" << std::endl;
     std::cout << "  ▸ Altitud: " << pkt->altitude << " m" << std::endl;
-    std::cout << "  ▸ Presión nivel del mar: " << pkt->sealevelPressure << " Pa" << std::endl;
-    std::cout << "  ▸ Altitud real: " << pkt->realAltitude << " m" << std::endl;
+    std::cout << "  ▸ Altitud Real: " << pkt->realAltitude << " cm" << std::endl;
 
     try {
-      // ======= ENVÍO A PROXY NODE =======
-      sockaddr_in proxyAddr{};
-      proxyAddr.sin_family = AF_INET;
-      proxyAddr.sin_port = htons(proxyNode.port);
-      if (inet_aton(proxyNode.ip.c_str(), &proxyAddr.sin_addr) == 0) {
-        throw std::runtime_error("[SafeSpaceServer] Invalid ProxyNode IP: " + proxyNode.ip);
-      }
-
-      ssize_t sentToProxy = ::sendto(
-        proxyNode.client->getSocketFd(),
-        reinterpret_cast<const void*>(pkt),
-        sizeof(SensorPacket),
-        0,
-        reinterpret_cast<const sockaddr*>(&proxyAddr),
-        sizeof(proxyAddr)
-      );
-
-      if (sentToProxy < 0) {
-        std::cerr << "[SafeSpaceServer] ❌ ERROR enviando SENSOR_PACKET al ProxyNode: "
-                  << std::strerror(errno) << std::endl;
-      } else if (static_cast<size_t>(sentToProxy) != sizeof(SensorPacket)) {
-        std::cerr << "[SafeSpaceServer] ⚠️ WARNING: envío incompleto a ProxyNode ("
-                  << sentToProxy << " / " << sizeof(SensorPacket) << " bytes)" << std::endl;
-      } else {
-        std::cout << "[SafeSpaceServer] ✅ SENSOR_PACKET reenviado al ProxyNode en "
-                  << proxyNode.ip << ":" << proxyNode.port << std::endl;
-      }
+      storageNode.client->sendRaw(pkt, sizeof(SensorData));
+      proxyNode.client->sendRaw(pkt, sizeof(SensorData));
     } catch (const std::exception& ex) {
       std::cerr << "[SafeSpaceServer] Exception al reenviar SENSOR_PACKET: "
                 << ex.what() << std::endl;

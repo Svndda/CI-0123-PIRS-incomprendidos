@@ -146,18 +146,18 @@ int main(const int argc, char* argv[]) {
 
     } else if (type == "arduino") {
       if (argc < 4) {
-          std::cerr << "Uso: ./Arduino_Node <IP_NODO_MAESTRO> <PUERTO> [SERIAL_PATH|stdin|simulate]\n";
+          std::cerr << "Uso: ./Arduino_Node <IP_NODO_MAESTRO> <PUERTO> [SERIAL_PATH|stdin|simulate] format=json|binary|both]\n";
           return 1;
       }
 
       std::string masterIP = argv[2];
       int masterPort = parsePort(argv[3]);
       std::string serialPath = "";
+      std::string mode;
       if (argc >= 5) serialPath = argv[4];
+      if (argc >= 6) mode = argv[5];
 
-      std::cout << "failling";
-
-     ArduinoNode node(masterIP, masterPort, serialPath);
+     ArduinoNode node(masterIP, masterPort, serialPath, mode);
      node.run();
     } else {
       throw std::runtime_error("Invalid component type: " + type +

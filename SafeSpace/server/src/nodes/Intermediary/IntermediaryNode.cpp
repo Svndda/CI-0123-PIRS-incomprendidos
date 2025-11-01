@@ -45,7 +45,21 @@ bool IntermediaryNode::createUdpSocket() {
 }
 
 void IntermediaryNode::setupMasterConnection() {
-    std::cout << "[IntermediaryNode] Configurado para enviar a Master_node en " 
+    master_sock_ = socket(AF_INET, SOCK_DGRAM, 0);
+    if (master_sock_ < 0) {
+        perror("socket");
+        throw std::runtime_error("Error creando socket UDP para el Master");
+    }
+
+    memset(&master_addr_, 0, sizeof(master_addr_));
+    master_addr_.sin_family = AF_INET;
+    master_addr_.sin_port = htons(master_port_);
+
+    if (inet_aton(master_ip_.c_str(), &master_addr_.sin_addr) == 0) {
+        throw std::runtime_error("Dirección IP inválida para el Master: " + master_ip_);
+    }
+
+    std::cout << "[IntermediaryNode] Conexión UDP configurada con Master en "
               << master_ip_ << ":" << master_port_ << std::endl;
 }
 
@@ -89,8 +103,22 @@ void IntermediaryNode::processSensorPacket(const SensorPacket& packet) {
     std::cout << "[IntermediaryNode] - Presión: " << sensorData.pressure << " Pa" << std::endl;
     std::cout << "[IntermediaryNode] - Altitud: " << sensorData.altitude << " m" << std::endl;
     
-    // TODO: Cuando el Master_node esté listo, descomentar:
-    // send(master_sock, &sensorData, sizeof(sensorData), 0);
+    ssize_t sent = sendto(
+      master_sock_,
+      reinterpret_cast<const void*>(&sensorData),
+      sizeof(SensorData),
+      0,
+      reinterpret_cast<const sockaddr*>(&master_addr_),
+      sizeof(master_addr_)
+    );
+
+    if (sent < 0) {
+        std::cerr << "[IntermediaryNode] ERROR enviando SensorData al Master: "
+                  << std::strerror(errno) << std::endl;
+    } else {
+        std::cout << "[IntermediaryNode] SensorData enviado exitosamente al Master "
+                  << master_ip_ << ":" << master_port_ << std::endl;
+    }
 }
 
 void IntermediaryNode::workerThread() {
@@ -187,6 +215,12 @@ void IntermediaryNode::stop() {
         close(listen_sock_);
         listen_sock_ = -1;
     }
+
+    if (master_sock_ != -1) {
+        close(master_sock_);
+        master_sock_ = -1;
+    }
+
     
     std::cout << "[IntermediaryNode] Detenido" << std::endl;
 }

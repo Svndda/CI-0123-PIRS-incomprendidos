@@ -18,22 +18,11 @@
 #include <map>
 #include <sstream>
 #include <iomanip>
+#include "SensorPacket.h"
 
 // Base serial port if none specified
 static const char* DEFAULT_SERIAL_PORT = "/dev/ttyACM0";
 static const speed_t BAUD = B9600;
-
-// Datagrama SENSOR_DATA (extended)
-#pragma pack(push, 1)
-struct SensorPacket {
-    uint8_t  msgId;          // 0x42 = SENSOR_DATA
-    int16_t  temp_x100;      // temperatura * 100 (network byte order when sent)
-    int16_t  hum_x100;       // humedad * 100 (network byte order when sent)
-    int16_t  distance_x100;  // distance units *100 (e.g., meters*100) as signed int16
-    int32_t  pressure_pa;    // pressure in Pascals as 32-bit integer (network byte order)
-    int16_t  altitude_x100;  // altitude *100 (meters) as signed int16
-};
-#pragma pack(pop)
 
 bool ArduinoNode::parseJsonLine(const std::string& line, double& temp, double& hum) {
     auto tpos = line.find("\"temp\":");

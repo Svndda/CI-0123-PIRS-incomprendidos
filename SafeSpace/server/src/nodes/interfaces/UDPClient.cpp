@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <thread>
 #include <chrono>
+#include <cstring>
 
 UDPClient::UDPClient(const std::string& serverIp, uint16_t serverPort) 
     : serverIp(serverIp), serverPort(serverPort) {
@@ -27,6 +28,32 @@ void UDPClient::closeSocket() {
         close(sockfd);
         sockfd = -1;
         std::cout << "[UDPClient] Socket closed." << std::endl;
+    }
+}
+
+void UDPClient::sendRaw(const void* data, size_t length) {
+    if (sockfd < 0) {
+        throw std::runtime_error("[UDPClient] Socket is not initialized");
+    }
+
+    sockaddr_in serverAddr{};
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(serverPort);
+    serverAddr.sin_addr.s_addr = inet_addr(serverIp.c_str());
+
+    ssize_t sent = ::sendto(sockfd, data, static_cast<socklen_t>(length), 0,
+                            reinterpret_cast<sockaddr*>(&serverAddr),
+                            sizeof(serverAddr));
+
+    if (sent < 0) {
+        throw std::runtime_error("[UDPClient] Failed to send raw data: " +
+                                 std::string(std::strerror(errno)));
+    } else if (static_cast<size_t>(sent) != length) {
+        std::cerr << "[UDPClient] Warning: partial send (" << sent
+                  << " / " << length << " bytes)" << std::endl;
+    } else {
+        std::cout << "[UDPClient] Sent " << sent << " bytes to "
+                  << serverIp << ":" << serverPort << std::endl;
     }
 }
 
