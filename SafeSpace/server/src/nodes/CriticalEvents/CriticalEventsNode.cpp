@@ -5,10 +5,11 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <utility>
 #include <arpa/inet.h>
 
-CriticalEventsNode::CriticalEventsNode(uint16_t port, const std::string& outPath)
-    : UDPServer("0.0.0.0", port, 2048), outPath_(outPath) {
+CriticalEventsNode::CriticalEventsNode(const std::string& ip, uint16_t port, std::string  outPath)
+    : UDPServer(ip, port, 2048), outPath_(std::move(outPath)) {
     // ensure output directory exists (best-effort)
     // do not fail on missing dir; appendLine will create file if needed
     std::cout << "[CriticalEventsNode] listening on UDP port " << port << " -> " << outPath_ << std::endl;
