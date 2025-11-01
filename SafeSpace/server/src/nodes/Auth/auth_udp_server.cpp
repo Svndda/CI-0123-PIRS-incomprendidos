@@ -50,7 +50,7 @@ AuthUDPServer::AuthUDPServer(const std::string& ip, uint16_t port)
         }
     } else {
         // Environment variables not set
-        logger.debug("PROXY_LOG_IP/PROXY_LOG_PORT not set; remote logging disabled");
+        logger.info("PROXY_LOG_IP/PROXY_LOG_PORT not set; remote logging disabled");
     }
     loadDefaultUsers();
     std::cout << " AuthUDPServer iniciado en puerto UDP " << port << std::endl;
@@ -74,12 +74,12 @@ void AuthUDPServer::loadDefaultUsers() {
     std::cout << " Usuarios cargados:" << std::endl;
     // Log de usuarios cargados
     auto& logger = LogManager::instance();
-    logger.debug("Usuarios cargados:");
+    logger.info("Usuarios cargados:");
     for (const auto& user : users) {
         std::cout << "   - " << user.first << " (" << user.second.getGroup() << ")" << std::endl;
         std::ostringstream oss;
         oss << "   - " << user.first << " (" << user.second.getGroup() << ")";
-        logger.debug(oss.str());
+        logger.info(oss.str());
     }
 }
 
@@ -113,7 +113,7 @@ void AuthUDPServer::onReceive(const sockaddr_in& peer, const uint8_t* data, ssiz
         std::ostringstream oss;
         oss << "Recibidos " << len << " bytes de "
             << ipStr << ":" << peerPort;
-        logger.debug(oss.str());
+        logger.info(oss.str());
     }
     if (len == sizeof(DiscoverRequest)) {
         handleDiscover(peer, data, len, out_response);

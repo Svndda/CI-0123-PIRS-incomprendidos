@@ -34,11 +34,9 @@ void LogManager::log(LogLevel level, const std::string& message) {
     std::string prefix;
     // print log message
     switch (level) {
-        case LogLevel::Debug: prefix = "[DEBUG] "; break;
         case LogLevel::Info: prefix = "[INFO] "; break;
         case LogLevel::Warning: prefix = "[WARNING] "; break;
-        case LogLevel::Critical: prefix = "[CRITICAL] "; break;
-        case LogLevel::Fatal: prefix = "[FATAL] "; break;
+        case LogLevel::Error: prefix = "[ERROR] "; break;
     }
     std::cout << prefix << message << std::endl;
     sendToRemote(level, timestamp, message);
@@ -54,21 +52,17 @@ void LogManager::clearLogs() {
     logs.clear();
 }
 
-void LogManager::debug(const std::string& msg)  { 
-    log(LogLevel::Debug, msg); 
-}
+
 void LogManager::info(const std::string& msg)   { 
     log(LogLevel::Info, msg); 
 }
 void LogManager::warning(const std::string& msg) { 
     log(LogLevel::Warning, msg); 
 }
-void LogManager::critical(const std::string& msg){ 
-    log(LogLevel::Critical, msg); 
+void LogManager::error(const std::string& msg){ 
+    log(LogLevel::Error, msg); 
 }
-void LogManager::fatal(const std::string& msg)   { 
-    log(LogLevel::Fatal, msg); 
-}
+
 
 void LogManager::configureRemote(const std::string& ip, uint16_t port, const std::string& nodeName) {
     std::lock_guard<std::mutex> lock(remoteMutex);
