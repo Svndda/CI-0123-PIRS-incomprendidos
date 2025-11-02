@@ -79,7 +79,7 @@ int main(const int argc, char* argv[]) {
 
     } else if (type == "events") {
       if (argc != 5) {
-        throw std::runtime_error("Events mode requires 7 arguments:"
+        throw std::runtime_error("Events mode requires 3 arguments:"
         " events <local_ip> <local_port>" "out.txt"
         );
       }
@@ -90,7 +90,7 @@ int main(const int argc, char* argv[]) {
 
     } else if (type == "proxy") {
       if (argc != 8) {
-        throw std::runtime_error("Proxy mode requires 7 arguments:"
+        throw std::runtime_error("Proxy mode requires 6 arguments:"
         " proxy <local_ip> <local_port>"
         " <authNode_ip> <authNode_port>"
         " <masterNode_Ip> <masterNode_Port>"
@@ -130,8 +130,8 @@ int main(const int argc, char* argv[]) {
 
     } else if (type == "inter") {
       if (argc != 5) {
-        throw std::runtime_error("Proxy mode requires 7 arguments:"
-        " intermediary <masterNode_ip> <masterNode_port> <interNode_port> "
+        throw std::runtime_error("Proxy mode requires 3 arguments:"
+        " intermediary <masterNode_ip> <masterNode_port> <local_port> "
         );
       }
 
