@@ -13,7 +13,7 @@ const size_t BUFFER_SIZE = 65535;
 
 std::vector<uint8_t> SensorData::toBytes() const {
     std::vector<uint8_t> bytes;
-    bytes.reserve(24);
+    bytes.reserve(22); // 22 bytes exactos de datos del sensor
 
     uint64_t ts_net = htobe64(timestamp);
     bytes.insert(bytes.end(), (uint8_t*)&ts_net, (uint8_t*)&ts_net + 8);
@@ -45,7 +45,7 @@ std::vector<uint8_t> SensorData::toBytes() const {
 }
 
 SensorData SensorData::fromBytes(const uint8_t* data, size_t len) {
-    if (len < 24) {
+    if (len < 22) {
         throw std::runtime_error("Invalid sensor data length");
     }
     
@@ -369,8 +369,8 @@ Response StorageNode::handleStoreSensorData(const uint8_t* data, ssize_t len) {
     Response resp;
     resp.msgId = static_cast<uint8_t>(MessageType::RESPONSE_ACK);
     
-    // Parsear datos del sensor (mínimo 24 bytes + 1 byte tipo)
-    if (len < 25) {
+    // Parsear datos del sensor (mínimo 22 bytes + 1 byte tipo)
+    if (len < 23) {
         resp.status = 1;
         errorsCount++;
         std::cerr << "[StorageNode] Invalid sensor data length: " << len << std::endl;
