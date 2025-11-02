@@ -50,6 +50,10 @@ class ProxyNode: public UDPServer{
     std::unordered_map<uint8_t, ClientInfo> pendingClients;
     std::mutex clientsMutex;
 
+    // Tracking de intentos fallidos de autenticación
+    std::unordered_map<std::string, int> failedAttempts;  // IP -> count
+    std::mutex failedAttemptsMutex;
+
     // Convierte sockaddr_in para logging.
     std::string sockaddrToString(const sockaddr_in& addr) const;
 

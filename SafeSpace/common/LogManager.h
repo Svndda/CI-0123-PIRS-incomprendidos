@@ -10,11 +10,9 @@
 #include <netinet/in.h>
 // severity levels for logging
 enum class LogLevel {
-    Debug,
     Info,
     Warning,
-    Critical,
-    Fatal
+    Error,
 };
 
 struct LogEntry {
@@ -51,11 +49,9 @@ class LogManager {
          * @brief Append a message with the provided severity.
          */
         void log(LogLevel level, const std::string& message);
-        void debug(const std::string& msg);
         void info(const std::string& msg);
         void warning(const std::string& msg);
-        void critical(const std::string& msg);
-        void fatal(const std::string& msg);
+        void error(const std::string& msg);
         /**
          * @brief Configure remote logging.
          * 

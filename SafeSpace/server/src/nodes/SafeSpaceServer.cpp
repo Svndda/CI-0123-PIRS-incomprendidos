@@ -20,6 +20,11 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
   , eventsNode(nullptr, eventsIp, eventsPort)
   , proxyNode(nullptr, proxyIp, proxyPort) {
   std::cout << "SafeSpaceServer: initialized on port " << port << std::endl;
+  
+  // Configurar LogManager para enviar logs a CriticalEventsNode
+  auto& logger = LogManager::instance();
+  logger.configureRemote(eventsIp, eventsPort, "SafeSpaceServer");
+  logger.info("SafeSpaceServer logging system initialized");
   // Start critical events node on a nearby port (port+1) to collect logs from nodes
   try {
     // uint16_t critPort = static_cast<uint16_t>(port + 1);
@@ -97,7 +102,7 @@ void SafeSpaceServer::onReceive(
       LogLevel logLevel = static_cast<LogLevel>(level);
       logger.log(logLevel, "[FROM_" + nodeName + "] " + message);
 
-      std::cout << "[ProxyNode] Forwarded log from " << nodeName << " to master" << std::endl;
+      std::cout << "[SafeSpaceServer] Forwarded log from " << nodeName << " to CriticalEventsNode" << std::endl;
     }
     return; // No generar respuesta para logs
   }

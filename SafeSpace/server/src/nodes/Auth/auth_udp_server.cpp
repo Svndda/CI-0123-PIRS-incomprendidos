@@ -1,5 +1,4 @@
 #include "auth_udp_server.h"
-#include "../../common/LogManager.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -26,39 +25,8 @@ struct DiscoverResponse {
 
 AuthUDPServer::AuthUDPServer(const std::string& ip, uint16_t port)
     : UDPServer(ip, port, 1024) {
-    auto& logger = LogManager::instance();
-    // Check environment variables for proxy logging
-    const char* proxyIp = std::getenv("PROXY_LOG_IP");
-    const char* proxyPort = std::getenv("PROXY_LOG_PORT");
-    // Configure proxy logging if environment variables are set
-    if (proxyIp != nullptr && proxyPort != nullptr) {
-        try {
-            int parsedPort = std::stoi(proxyPort);
-            // Validate port range
-            if (parsedPort > 0 && parsedPort <= 65535) {
-                logger.configureRemote(proxyIp, static_cast<uint16_t>(parsedPort), "AuthNode");
-                std::ostringstream oss;
-                oss << "Configured remote logging to proxy " << proxyIp << ":" << parsedPort;
-                logger.info(oss.str());
-            } else {
-                // Log a warning if the port is out of range
-                logger.warning("PROXY_LOG_PORT out of range, skipping remote log configuration");
-            }
-            // Catch invalid port format
-        } catch (const std::exception& ex) {
-            logger.warning(std::string("Failed to parse PROXY_LOG_PORT: ") + ex.what());
-        }
-    } else {
-        // Environment variables not set
-        logger.debug("PROXY_LOG_IP/PROXY_LOG_PORT not set; remote logging disabled");
-    }
-        loadDefaultUsers();
+    loadDefaultUsers();
     std::cout << " AuthUDPServer iniciado en puerto UDP " << port << std::endl;
-     {
-        std::ostringstream oss;
-        oss << "AuthUDPServer iniciado en puerto UDP " << port;
-        logger.info(oss.str());
-    }
 }
 
 AuthUDPServer::~AuthUDPServer() {
@@ -72,14 +40,8 @@ void AuthUDPServer::loadDefaultUsers() {
     addUser("guestAA", "aB7nyZt9Qw1", "guest", 4);
     
     std::cout << " Usuarios cargados:" << std::endl;
-    // Log de usuarios cargados
-    auto& logger = LogManager::instance();
-    logger.debug("Usuarios cargados:");
     for (const auto& user : users) {
         std::cout << "   - " << user.first << " (" << user.second.getGroup() << ")" << std::endl;
-        std::ostringstream oss;
-        oss << "   - " << user.first << " (" << user.second.getGroup() << ")";
-        logger.debug(oss.str());
     }
 }
 
@@ -101,47 +63,31 @@ bool AuthUDPServer::addUser(const std::string& username, const std::string& pass
 
 void AuthUDPServer::onReceive(const sockaddr_in& peer, const uint8_t* data, ssize_t len,
                              std::string& out_response) {
-    auto& logger = LogManager::instance();
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &peer.sin_addr, ipStr, sizeof(ipStr));
     uint16_t peerPort = ntohs(peer.sin_port);
     
     std::cout << " AuthUDPServer: " << len << " bytes de " 
               << ipStr << ":" << peerPort << std::endl;
-    // Log de recepción                            
-    {
-        std::ostringstream oss;
-        oss << "Recibidos " << len << " bytes de "
-            << ipStr << ":" << peerPort;
-        logger.debug(oss.str());
-    }
+    
     if (len == sizeof(DiscoverRequest)) {
         handleDiscover(peer, data, len, out_response);
     } else if (len == 50) { // Tamaño de AuthRequest
         handleAuthRequest(peer, data, len, out_response);
     } else {
         std::cout << " Longitud no soportada: " << len << " bytes" << std::endl;
-        std::ostringstream oss;
-        oss << "Longitud no soportada: " << len << " bytes";
-        logger.warning(oss.str());
     }
 }
 
 void AuthUDPServer::handleDiscover(const sockaddr_in& peer, const uint8_t* data, ssize_t len, 
                                   std::string& out_response) {
     const DiscoverRequest* discover = reinterpret_cast<const DiscoverRequest*>(data);
-    auto& logger = LogManager::instance();
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &peer.sin_addr, ipStr, sizeof(ipStr));
     
     std::cout << " DISCOVER - msgId: " << static_cast<int>(discover->msgId)
               << " desde " << ipStr << std::endl;
-    {
-        std::ostringstream oss;
-        oss << "DISCOVER - msgId: " << static_cast<int>(discover->msgId)
-            << " desde " << ipStr;
-        logger.info(oss.str());
-    }
+    
     DiscoverResponse response;
     response.msgId = discover->msgId;
     response.sensorId = 1;
@@ -151,7 +97,6 @@ void AuthUDPServer::handleDiscover(const sockaddr_in& peer, const uint8_t* data,
     out_response.assign(reinterpret_cast<const char*>(&response), sizeof(response));
     
     std::cout << " DISCOVER_RESP enviado" << std::endl;
-    logger.info("DISCOVER_RESP enviado");
 }
 
 void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* data, ssize_t len,
@@ -159,7 +104,6 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
     // Crear AuthRequest desde el buffer recibido
     std::array<uint8_t, 50> buffer;
     std::memcpy(buffer.data(), data, 50);
-    auto& logger = LogManager::instance();
     // Reconstruir AuthRequest manualmente desde el buffer
     uint16_t sessionId = (buffer[0] << 8) | buffer[1];
     
@@ -176,12 +120,6 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
     
     std::cout << " AUTH_REQUEST - sessionId: " << sessionId
               << ", usuario: '" << username << "'" << std::endl;
-    {
-        std::ostringstream oss;
-        oss << "AUTH_REQUEST - sessionId: " << sessionId
-            << ", usuario: '" << username << "'";
-        logger.info(oss.str());
-    }
 
     // Procesar autenticación
     std::lock_guard<std::mutex> lock(users_mutex);
@@ -206,17 +144,7 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
         }
         
         std::cout << " Autenticación EXITOSA: " << username << std::endl;
-        {
-            std::ostringstream oss;
-            oss << "Autenticación EXITOSA: " << username;
-            logger.info(oss.str());
-        }
         std::cout << "   Token de sesión: " << sessionToken << std::endl;
-        {
-            std::ostringstream oss;
-            oss << "   Token de sesión: " << sessionToken;
-            logger.info(oss.str());
-        }
     } else {
         response.setStatusCode(0);
         response.setMessage("Invalid credentials");
@@ -226,20 +154,10 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
         if (it != users.end()) {
             if (it->second.isLocked()) {
                 std::cout << " Cuenta BLOQUEADA: " << username << std::endl;
-                {
-                    std::ostringstream oss;
-                    oss << "Cuenta BLOQUEADA: " << username;
-                    logger.warning(oss.str());
-                }
             }
         }
         
         std::cout << " Autenticación FALLIDA: " << username << std::endl;
-        {
-            std::ostringstream oss;
-            oss << "Autenticación FALLIDA: " << username;
-            logger.warning(oss.str());
-        }
     }
 
     // Serializar AuthResponse a buffer
@@ -250,12 +168,6 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
     
     std::cout << " AUTH_RESPONSE enviado - status: " 
               << static_cast<int>(response.getStatusCode()) << std::endl;
-    {
-        std::ostringstream oss;
-        oss << "AUTH_RESPONSE enviado - status: " 
-            << static_cast<int>(response.getStatusCode());
-        logger.info(oss.str());
-    }
 }
 
 std::string AuthUDPServer::generateSessionID() {
