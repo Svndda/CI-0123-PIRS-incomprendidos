@@ -227,7 +227,7 @@ int FileSystem::create(const std::string& name) {
     n.blocks_used = 0;
     std::memset(n.direct, 0, sizeof(n.direct));
     n.indirect1   = 0;
-    n.flags       = 1; 
+    n.flags       = 0; 
 
     if (!disk.writeInode(inodeOffset(inodeId), n)) {
         std::cerr << "[FS] Error al persistir i-nodo.\n";
