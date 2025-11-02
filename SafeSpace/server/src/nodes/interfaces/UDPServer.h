@@ -6,6 +6,7 @@
 #define SERVER_UDPSERVER_H
 
 #include <cstdint>
+#include "../../common/LogManager.h"
 #include <functional>
 #include <string>
 #include <atomic>
@@ -46,6 +47,7 @@ public:
   size_t bufsize_;
   Handler handler_;
   std::atomic<bool> running_;
+  LogManager& logger = LogManager::instance();
 
  public:
   /**
