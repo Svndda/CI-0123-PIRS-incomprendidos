@@ -136,6 +136,12 @@ bool FileSystem::mount() {
     inodeTable.resize(superBlock.inode_count);
     for (uint64_t i = 0; i < superBlock.inode_count; ++i) {
         disk.readInode(superBlock.inode_table_offset + i * superBlock.inode_size, inodeTable[i]);
+        
+        // Asegurar que todos los archivos estén marcados como cerrados al montar
+        // Esto previene problemas de archivos que quedaron "abiertos" de sesiones anteriores
+        if (inodeTable[i].inode_id != 0) {
+            inodeTable[i].flags = 0; // cerrado
+        }
     }
 
     // Cargar directorio
@@ -221,7 +227,7 @@ int FileSystem::create(const std::string& name) {
     n.blocks_used = 0;
     std::memset(n.direct, 0, sizeof(n.direct));
     n.indirect1   = 0;
-    n.flags       = 1; // activo
+    n.flags       = 1; 
 
     if (!disk.writeInode(inodeOffset(inodeId), n)) {
         std::cerr << "[FS] Error al persistir i-nodo.\n";
