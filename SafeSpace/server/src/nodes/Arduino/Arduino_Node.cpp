@@ -120,7 +120,7 @@ void ArduinoNode::stop() {
 void ArduinoNode::sendJson(const std::string& json, int usock) {
     ssize_t sent = sendto(usock, json.data(), json.size(), 0,
                           reinterpret_cast<sockaddr*>(&dst_), sizeof(dst_));
-    if (sent < 0)
+    if (sent < 0) {
         perror("sendto");
         try {
             auto& logger = LogManager::instance();
@@ -128,7 +128,7 @@ void ArduinoNode::sendJson(const std::string& json, int usock) {
         } catch (const std::exception& ex) {
             std::cerr << "[ArduinoNode] Warning: Could not log JSON send error: " << ex.what() << std::endl;
         }
-    else
+    } else {
         std::cout << "[Arduino_Node] JSON sent: " << json << "\n";
         try {
             auto& logger = LogManager::instance();
@@ -138,6 +138,7 @@ void ArduinoNode::sendJson(const std::string& json, int usock) {
         } catch (const std::exception& ex) {
             std::cerr << "[ArduinoNode] Warning: Could not log JSON send success: " << ex.what() << std::endl;
         }
+    }
 }
 
 void ArduinoNode::sendBinarySensor(double temp, double hum, double distance, double pressure, double altitude, int usock) {
