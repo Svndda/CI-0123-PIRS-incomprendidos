@@ -3,7 +3,7 @@
 
 #include <QWidget>
 #include <QStackedWidget>
-#include "model/model.h"
+#include "model.h"
 #include "page.h"
 
 namespace Ui {

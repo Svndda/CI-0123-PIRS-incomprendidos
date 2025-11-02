@@ -10,7 +10,7 @@
 #include "model.h"
 
 Model::Model()
-  : client("172.17.0.70", 4900, this) {
+  : client("127.0.0.1", 8090, this) {
   // // USUARIOS HARDCODEADOS
   // User u1("realAdmin", "Administrador del sistema");
   // u1.setPassword("M2sv8KxpLq");
@@ -31,6 +31,23 @@ Model::Model()
   // User u5("guestBB", "Invitado 2");
   // u5.setPassword("z9dsRk5Tg");
   // this->usersManager.saveUser(u5);
+
+  std::time_t now = std::time(nullptr);
+
+  for (int i = 0; i < 20; ++i) {
+      this->sensorsData.emplace_back(
+          i + 1,                // id
+          now + i * 60,         // timestamp (cada uno 1 min después)
+          100 + i * 5,          // distance
+          i % 2,                // movement (0 o 1)
+          20 + i,               // temperature
+          3 + i % 5,            // uv
+          40 + i * 2,           // microphone
+          i % 2,                // led (on/off)
+          (i % 3 == 0) ? 1 : 0, // buzzer (solo algunos activos)
+          200 + i * 10          // ligth
+          );
+  }
 }
 
 Model& Model::getInstance() {
@@ -47,15 +64,24 @@ bool Model::start(/*const User& user*/) {
 bool Model::authenticate(
     const std::string& username, const std::string& password) {
   // return this->usersManager.authenticate(username, password);
-  this->connect(&client, &QtUDPClient::authResponseReceived, this, [](const AuthResponse& resp) {
-    qDebug() << "Authentication response received:";
-    qDebug() << "  Session ID:" << resp.getSessionId();
-    qDebug() << "  Status:" << resp.getStatusCode();
-    qDebug() << "  Message:" << QString::fromStdString(resp.getMessage());
-    qDebug() << "  Token:" << QString::fromStdString(resp.getSessionToken());
+    std::cout << "Autentiando usuarios" << std::endl ;
+  qDebug() << "Autenticando usuario";
+  this->connect(
+    &this->client, &QtUDPClient::authResponseReceived,
+    this, [this](const AuthResponse& resp) {
+      qInfo() << "Authentication response received:";
+      qInfo() << "  Session ID:" << resp.getSessionId();
+      qInfo() << "  Status:" << resp.getStatusCode();
+      qInfo() << "  Message:" << QString::fromStdString(resp.getMessage());
+      qInfo() << "  Token:" << QString::fromStdString(resp.getSessionToken());
+      
+      if (resp.getStatusCode() == 1) {
+        this->started = true;
+      }
+      emit this->authenticatheResponse(this->started);
+
   });
-  
-  client.sendAuthRequest(42, "aaron", "my_secure_password");
+  this->client.sendAuthRequest(1001, username, User::hashSHA256(password));
   
   return true;
 }

@@ -14,9 +14,13 @@ LoginPage::LoginPage(QWidget *parent,
   connect(this->ui->sendCredentials_button, &QPushButton::clicked, this, []() {
     qDebug() << "Botón clicado!";
   });
-  // this->renderer = new QSvgRenderer(
-  //   QString(":/images/bg1.svg"), this
-  // );
+  this->connect(&this->model, &Model::authenticatheResponse, this, [this]
+    (bool state) {
+    qDebug() << "State del la autenticacion recibido.";
+    if (state) {
+      emit this->userAuthenticated();
+    }
+  });
 }
 
 LoginPage::~LoginPage() {

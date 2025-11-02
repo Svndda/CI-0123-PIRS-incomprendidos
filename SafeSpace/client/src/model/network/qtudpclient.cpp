@@ -1,19 +1,26 @@
 #include "qtudpclient.h"
 
-QtUDPClient::QtUDPClient(const QString &serverIp, quint16 serverPort, QObject *parent)
+QtUDPClient::QtUDPClient(
+    const QString &serverIp, quint16 serverPort, QObject *parent)
     : QObject(parent),
     udpSocket(new QUdpSocket(this)),
     serverAddress(QHostAddress(serverIp)),
     serverPort(serverPort) {
   
   if (!serverAddress.isNull()) {
-    qDebug() << "[QtUDPClient] Initialized for" << serverIp << ":" << serverPort;
+    qDebug() << "[QtUDPClient] Initialized for"
+             << serverIp << ":" << serverPort;
   } else {
     emit errorOccurred("[QtUDPClient] Invalid server IP address");
   }
   
   // Connect signal for incoming datagrams
-  connect(udpSocket, &QUdpSocket::readyRead, this, &QtUDPClient::handleReadyRead);
+  this->connect(
+      this->udpSocket,
+      &QUdpSocket::readyRead,
+      this,
+      &QtUDPClient::handleReadyRead
+  );
 }
 
 QtUDPClient::~QtUDPClient() {
@@ -34,16 +41,27 @@ void QtUDPClient::sendAuthRequest(std::uint16_t sessionId,
   auto buffer = request.toBuffer();
   
   // Convert std::array to QByteArray for transmission
-  QByteArray datagram(reinterpret_cast<const char*>(buffer.data()), static_cast<int>(buffer.size()));
+  QByteArray datagram(
+      reinterpret_cast<const char*>(buffer.data()),
+      static_cast<int>(buffer.size())
+  );
+  
+  qDebug() << "[QtUDPClient] Sending datagram";
+  
   
   // Send datagram to the configured server address and port
   qint64 sent = udpSocket->writeDatagram(datagram, serverAddress, serverPort);
   
   if (sent < 0) {
-    emit errorOccurred(QString("[QtUDPClient] Failed to send AUTH_REQUEST: %1").arg(udpSocket->errorString()));
+    emit errorOccurred(
+        QString("[QtUDPClient] Failed to send AUTH_REQUEST: %1")
+            .arg(udpSocket->errorString())
+    );
   } else {
-    qDebug() << "[QtUDPClient] Sent AUTH_REQUEST datagram (" << sent << " bytes)"
-             << "to" << serverAddress.toString() << ":" << serverPort;
+    qDebug() << "[QtUDPClient] Sent AUTH_REQUEST datagram ("
+             << sent << " bytes)"
+             << "to" << serverAddress.toString()
+             << ":" << serverPort;
   }
 }
 
@@ -66,6 +84,7 @@ void QtUDPClient::handleReadyRead() {
     
     // Attempt to parse AuthResponse (51 bytes expected)
     if (datagram.size() == static_cast<int>(AuthResponse::MESSAGE_SIZE + AuthResponse::TOKEN_SIZE + 3)) {
+      qDebug() << "[QtUDPClient] Received datagram from" << sender.toString() << ":" << senderPort;      
       try {
         std::array<uint8_t, 51> buffer{};
         std::memcpy(buffer.data(), datagram.constData(), buffer.size());
@@ -74,8 +93,13 @@ void QtUDPClient::handleReadyRead() {
         AuthResponse response;
         response.setSessionId((buffer[0] << 8) | buffer[1]);
         response.setStatusCode(buffer[2]);
-        response.setMessage(std::string(reinterpret_cast<char*>(buffer.data() + 3), AuthResponse::MESSAGE_SIZE));
-        response.setSessionToken(std::string(reinterpret_cast<char*>(buffer.data() + 3 + AuthResponse::MESSAGE_SIZE), AuthResponse::TOKEN_SIZE));
+        response.setMessage(
+            std::string(
+                reinterpret_cast<char*>(buffer.data() + 3),
+                AuthResponse::MESSAGE_SIZE)
+        );
+        response.setSessionToken(
+            std::string(reinterpret_cast<char*>(buffer.data() + 3 + AuthResponse::MESSAGE_SIZE), AuthResponse::TOKEN_SIZE));
         
         emit authResponseReceived(response);
         
@@ -83,11 +107,15 @@ void QtUDPClient::handleReadyRead() {
                  << sender.toString() << ":" << senderPort
                  << "-> sessionId=" << response.getSessionId()
                  << " status=" << response.getStatusCode()
-                 << " message=" << QString::fromStdString(response.getMessage())
-                 << " token=" << QString::fromStdString(response.getSessionToken());
+                 << " message="
+                 << QString::fromStdString(response.getMessage())
+                 << " token="
+                 << QString::fromStdString(response.getSessionToken());
         
       } catch (const std::exception& ex) {
-        emit errorOccurred(QString("[QtUDPClient] Invalid AuthResponse: %1").arg(ex.what()));
+        emit errorOccurred(
+            QString("[QtUDPClient] Invalid AuthResponse: %1").arg(ex.what())
+        );
       }
     } else {
       qDebug() << "[QtUDPClient] Received datagram of unexpected size:"
