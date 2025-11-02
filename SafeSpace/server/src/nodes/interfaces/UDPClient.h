@@ -35,6 +35,13 @@ class UDPClient {
          * @return false   If there was an error sending the message.
          */
         void sendMessage(uint8_t msgId, uint8_t flags);
+
+        /**
+        * @brief Sends raw binary data to the configured remote endpoint.
+        * @param data Pointer to data buffer.
+        * @param length Number of bytes to send.
+        */
+        void sendRaw(const void* data, size_t length);
         /**
          * @brief Receives a message from the server.
          * 

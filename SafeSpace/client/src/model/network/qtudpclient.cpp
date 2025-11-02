@@ -1,4 +1,4 @@
-#include "QtUDPClient.h"
+#include "qtudpclient.h"
 
 QtUDPClient::QtUDPClient(
     const QString &serverIp, quint16 serverPort, QObject *parent)

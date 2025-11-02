@@ -69,7 +69,7 @@ void AuthUDPServer::onReceive(const sockaddr_in& peer, const uint8_t* data, ssiz
     
     std::cout << " AuthUDPServer: " << len << " bytes de " 
               << ipStr << ":" << peerPort << std::endl;
-
+    
     if (len == sizeof(DiscoverRequest)) {
         handleDiscover(peer, data, len, out_response);
     } else if (len == 50) { // Tamaño de AuthRequest
@@ -82,13 +82,12 @@ void AuthUDPServer::onReceive(const sockaddr_in& peer, const uint8_t* data, ssiz
 void AuthUDPServer::handleDiscover(const sockaddr_in& peer, const uint8_t* data, ssize_t len, 
                                   std::string& out_response) {
     const DiscoverRequest* discover = reinterpret_cast<const DiscoverRequest*>(data);
-    
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &peer.sin_addr, ipStr, sizeof(ipStr));
     
     std::cout << " DISCOVER - msgId: " << static_cast<int>(discover->msgId)
               << " desde " << ipStr << std::endl;
-
+    
     DiscoverResponse response;
     response.msgId = discover->msgId;
     response.sensorId = 1;
@@ -105,7 +104,6 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
     // Crear AuthRequest desde el buffer recibido
     std::array<uint8_t, 50> buffer;
     std::memcpy(buffer.data(), data, 50);
-    
     // Reconstruir AuthRequest manualmente desde el buffer
     uint16_t sessionId = (buffer[0] << 8) | buffer[1];
     

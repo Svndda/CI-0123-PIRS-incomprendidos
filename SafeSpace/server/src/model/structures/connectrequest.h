@@ -13,6 +13,7 @@
  */
 class ConnectRequest {
 public:
+  static constexpr int IDENTIFIER = 0x43;
   ConnectRequest();
   ConnectRequest(std::uint16_t sessionId,
                  std::uint16_t sensorId,

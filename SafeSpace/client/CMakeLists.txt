@@ -9,6 +9,8 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
   Network
 )
 
+find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
+
 qt_standard_project_setup()
 
 qt_add_executable(SafeSpace
@@ -84,6 +86,8 @@ qt_add_executable(SafeSpace
   src/model/network/qtudpclient.h
   src/model/network/qtudpclient.cpp
   src/view/arduinos/subpages/registerspage.h src/view/arduinos/subpages/registerspage.cpp src/view/arduinos/subpages/registerspage.ui
+  ../common/LogManager.h ../common/LogManager.cpp
+
 )
 
 qt_add_translations(
@@ -120,6 +124,7 @@ target_include_directories(SafeSpace
     ${CMAKE_SOURCE_DIR}/src/view/administration/subpages/
     ${CMAKE_SOURCE_DIR}/src/view/account/
     ${CMAKE_SOURCE_DIR}/src/view/account/subpages/
+    ${CMAKE_SOURCE_DIR}/../common
 )
 
 include(GNUInstallDirs)
