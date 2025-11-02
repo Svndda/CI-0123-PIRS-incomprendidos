@@ -1,5 +1,5 @@
 #include "Arduino_Node.h"
-
+#include "../../../common/LogManager.h"
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -98,6 +98,15 @@ ArduinoNode::ArduinoNode(const std::string& masterIP, int masterPort, const std:
     std::string f = format;
     for (auto &c : f) c = std::tolower((unsigned char)c);
     if (f == "binary") format_ = FORMAT_BINARY; else format_ = FORMAT_JSON;
+
+    try{
+        auto& logger = LogManager::instance();
+        logger.configureRemote(masterIP, static_cast<uint16_t>(masterPort), "ArduinoNode");
+        logger.info("ArduinoNode logging system initialized");
+        std::cout << "[ArduinoNode] Logging configured to IntermediaryNode" << std::endl;
+    } catch (const std::exception& ex) {
+        std::cerr << "[ArduinoNode] Failed to configure logging: " << ex.what() << std::endl;
+    }
 }
 
 ArduinoNode::~ArduinoNode() {
@@ -113,8 +122,22 @@ void ArduinoNode::sendJson(const std::string& json, int usock) {
                           reinterpret_cast<sockaddr*>(&dst_), sizeof(dst_));
     if (sent < 0)
         perror("sendto");
+        try {
+            auto& logger = LogManager::instance();
+            logger.warning("ArduinoNode failed to send JSON sensor data to IntermediaryNode");
+        } catch (const std::exception& ex) {
+            std::cerr << "[ArduinoNode] Warning: Could not log JSON send error: " << ex.what() << std::endl;
+        }
     else
         std::cout << "[Arduino_Node] JSON sent: " << json << "\n";
+        try {
+            auto& logger = LogManager::instance();
+            // Truncar JSON si es muy largo para el log
+            std::string logJson = json.length() > 100 ? json.substr(0, 100) + "..." : json;
+            logger.info("ArduinoNode transmitted JSON sensor data: " + logJson);
+        } catch (const std::exception& ex) {
+            std::cerr << "[ArduinoNode] Warning: Could not log JSON send success: " << ex.what() << std::endl;
+        }
 }
 
 void ArduinoNode::sendBinarySensor(double temp, double hum, double distance, double pressure, double altitude, int usock) {
@@ -135,8 +158,26 @@ void ArduinoNode::sendBinarySensor(double temp, double hum, double distance, dou
 
     ssize_t sent = sendto(usock, reinterpret_cast<const char*>(&p), sizeof(p), 0,
                           reinterpret_cast<sockaddr*>(&dst_), sizeof(dst_));
-    if (sent < 0) perror("sendto");
-    else std::cout << "[Arduino_Node] Binary packet sent (msgId=0x42)\n";
+    if (sent < 0) {
+        perror("sendto");
+        try {
+            auto& logger = LogManager::instance();
+            logger.warning("ArduinoNode failed to send binary sensor data to IntermediaryNode");
+        } catch (const std::exception& ex) {
+            std::cerr << "[ArduinoNode] Warning: Could not log binary send error: " << ex.what() << std::endl;
+        }
+    } else {
+        std::cout << "[Arduino_Node] Binary packet sent (msgId=0x42)\n";
+        try {
+            auto& logger = LogManager::instance();
+            std::ostringstream logMsg;
+            logMsg << "ArduinoNode transmitted binary sensor data - temp:" << temp << "°C, hum:" 
+                << hum << "%, dist:" << distance << "cm, press:" << pressure << "Pa, alt:" << altitude << "m";
+            logger.info(logMsg.str());
+        } catch (const std::exception& ex) {
+            std::cerr << "[ArduinoNode] Warning: Could not log binary send success: " << ex.what() << std::endl;
+        }
+    }
 }
 
 // parse a single label/value printed by the Arduino into normalized key and numeric string
@@ -197,23 +238,67 @@ static std::pair<std::string,std::string> parseLabelValue(const std::string& lin
 
 void ArduinoNode::run() {
     std::cout << "[Arduino_Node] Enviando lecturas a " << masterIP_ << ":" << masterPort_ << "\n";
+    
+    try {
+        auto& logger = LogManager::instance();
+        logger.info("ArduinoNode starting sensor data collection and transmission to " + 
+                masterIP_ + ":" + std::to_string(masterPort_));
+    } catch (const std::exception& ex) {
+        std::cerr << "[ArduinoNode] Warning: Could not log startup: " << ex.what() << std::endl;
+    }
 
     bool simulate = (serialPath_ == "simulate");
+
 
     int sfd = -1;
     if (!simulate) {
         sfd = openSerial(serialPath_);
         if (sfd < 0) {
             std::cerr << "Failed to open serial source: " << serialPath_ << "\n";
+            try {
+                auto& logger = LogManager::instance();
+                logger.error("ArduinoNode failed to open serial port: " + serialPath_);
+            } catch (const std::exception& ex) {
+                std::cerr << "[ArduinoNode] Warning: Could not log serial error: " << ex.what() << std::endl;
+            }
             return;
+        } else {
+            try {
+                auto& logger = LogManager::instance();
+                logger.info("ArduinoNode successfully opened serial port: " + serialPath_);
+            } catch (const std::exception& ex) {
+                std::cerr << "[ArduinoNode] Warning: Could not log serial success: " << ex.what() << std::endl;
+            }
+        }
+    } else {
+        try {
+            auto& logger = LogManager::instance();
+            logger.info("ArduinoNode running in simulation mode");
+        } catch (const std::exception& ex) {
+            std::cerr << "[ArduinoNode] Warning: Could not log simulation mode: " << ex.what() << std::endl;
         }
     }
 
     int usock = openUdpSock();
     if (usock < 0) {
         if (sfd >= 0) close(sfd);
+        try {
+            auto& logger = LogManager::instance();
+            logger.error("ArduinoNode failed to open UDP socket");
+        } catch (const std::exception& ex) {
+            std::cerr << "[ArduinoNode] Warning: Could not log UDP error: " << ex.what() << std::endl;
+        }
         return;
+    } else {
+        try {
+            auto& logger = LogManager::instance();
+            logger.info("ArduinoNode successfully established UDP connection to IntermediaryNode");
+        } catch (const std::exception& ex) {
+            std::cerr << "[ArduinoNode] Warning: Could not log UDP success: " << ex.what() << std::endl;
+        }
     }
+
+    
 
     running_.store(true);
 
