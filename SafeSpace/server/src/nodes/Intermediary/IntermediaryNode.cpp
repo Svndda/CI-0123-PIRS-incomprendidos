@@ -1,4 +1,5 @@
 #include "IntermediaryNode.h"
+#include "../../../common/LogManager.h"
 #include <iostream>
 #include <cstring>
 #include <cstdlib>
@@ -15,6 +16,15 @@ IntermediaryNode::IntermediaryNode(int listen_port, const std::string& master_ip
     
     std::cout << "[IntermediaryNode] Configurado - Puerto: " << listen_port 
               << ", Master: " << master_ip << ":" << master_port << std::endl;
+    try {
+        auto& logger = LogManager::instance();
+        logger.configureRemote(master_ip, static_cast<uint16_t>(master_port), "IntermediaryNode");
+        logger.info("IntermediaryNode initialized - listening on port " + std::to_string(listen_port) + 
+                ", forwarding to SafeSpaceServer at " + master_ip + ":" + std::to_string(master_port));
+        std::cout << "[IntermediaryNode] Logging configured to SafeSpaceServer" << std::endl;
+    } catch (const std::exception& ex) {
+        std::cerr << "[IntermediaryNode] Failed to configure logging: " << ex.what() << std::endl;
+    }
 }
 
 IntermediaryNode::~IntermediaryNode() {
@@ -78,6 +88,15 @@ void IntermediaryNode::processSensorPacket(const SensorPacket& packet) {
     double pressure = static_cast<double>(pressure_raw);
     double altitude = static_cast<double>(altitude_raw) / 100.0;
 
+    try {
+        auto& logger = LogManager::instance();
+        std::ostringstream logMsg;
+        logMsg << "IntermediaryNode received sensor data from ArduinoNode";
+        logger.info(logMsg.str());
+    } catch (const std::exception& ex) {
+        std::cerr << "[IntermediaryNode] Warning: Could not log data reception: " << ex.what() << std::endl;
+    }
+
     std::cout << "[IntermediaryNode] Datos recibidos:" << std::endl;
     std::cout << "  - Temperatura: " << temperature << " °C" << std::endl;
     std::cout << "  - Humedad: " << humidity << " %" << std::endl;
@@ -115,9 +134,22 @@ void IntermediaryNode::processSensorPacket(const SensorPacket& packet) {
     if (sent < 0) {
         std::cerr << "[IntermediaryNode] ERROR enviando SensorData al Master: "
                   << std::strerror(errno) << std::endl;
+        try {
+            auto& logger = LogManager::instance();
+            logger.error("IntermediaryNode failed to forward sensor data to SafeSpaceServer: " + std::string(std::strerror(errno)));
+        } catch (const std::exception& ex) {
+            std::cerr << "[IntermediaryNode] Warning: Could not log forward error: " << ex.what() << std::endl;
+        }
     } else {
         std::cout << "[IntermediaryNode] SensorData enviado exitosamente al Master "
                   << master_ip_ << ":" << master_port_ << std::endl;
+        try {
+            auto& logger = LogManager::instance();
+            logger.info("IntermediaryNode successfully forwarded sensor data to SafeSpaceServer at " + 
+                    master_ip_ + ":" + std::to_string(master_port_));
+        } catch (const std::exception& ex) {
+            std::cerr << "[IntermediaryNode] Warning: Could not log forward success: " << ex.what() << std::endl;
+        }
     }
 }
 
@@ -185,9 +217,22 @@ bool IntermediaryNode::start() {
     }
 
     std::cout << "[IntermediaryNode] Iniciando..." << std::endl;
+    
+    try {
+        auto& logger = LogManager::instance();
+        logger.info("IntermediaryNode starting operations - ready to receive from ArduinoNode and forward to SafeSpaceServer");
+    } catch (const std::exception& ex) {
+        std::cerr << "[IntermediaryNode] Warning: Could not log startup: " << ex.what() << std::endl;
+    }
 
     if (!createUdpSocket()) {
         std::cerr << "[IntermediaryNode] Error creando socket UDP" << std::endl;
+        try {
+            auto& logger = LogManager::instance();
+            logger.error("IntermediaryNode failed to create UDP socket on port " + std::to_string(listen_port_));
+        } catch (const std::exception& ex) {
+            std::cerr << "[IntermediaryNode] Warning: Could not log socket error: " << ex.what() << std::endl;
+        }
         return false;
     }
 
@@ -198,6 +243,13 @@ bool IntermediaryNode::start() {
 
     std::cout << "[IntermediaryNode] Listo para recibir datos de Arduino_node..." << std::endl;
     std::cout << "[IntermediaryNode] Esperando paquetes binarios de " << sizeof(SensorPacket) << " bytes" << std::endl;
+    try {
+        auto& logger = LogManager::instance();
+        logger.info("IntermediaryNode successfully started - listening on port " + std::to_string(listen_port_) + 
+               " for ArduinoNode data, forwarding to SafeSpaceServer");
+    } catch (const std::exception& ex) {
+        std::cerr << "[IntermediaryNode] Warning: Could not log startup success: " << ex.what() << std::endl;
+    }
     return true;
 }
 
