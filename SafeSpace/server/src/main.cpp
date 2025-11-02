@@ -43,7 +43,6 @@ int main(const int argc, char* argv[]) {
   sigaction(SIGTERM, &sa, nullptr);
 
   std::string type = argv[1];
-  uint16_t localPort = parsePort(argv[2]);
 
   try {
     if (type == "server") {
@@ -51,6 +50,7 @@ int main(const int argc, char* argv[]) {
         throw std::runtime_error("Server mode requires exactly 2 arguments.");
       }
 
+      uint16_t localPort = parsePort(argv[2]);
       SafeSpaceServer server(localPort);
       std::cout << "[Main] Running SafeSpaceServer on port " << localPort << std::endl;
 
@@ -67,6 +67,7 @@ int main(const int argc, char* argv[]) {
         throw std::runtime_error("Proxy mode requires 4 arguments: proxy <local_port> <server_ip> <server_port>");
       }
 
+      uint16_t localPort = parsePort(argv[2]);
       std::string serverIp = argv[3];
       uint16_t serverPort = parsePort(argv[4]);
 
@@ -88,7 +89,7 @@ int main(const int argc, char* argv[]) {
             const std::string masterIp = "127.0.0.1";
             const uint16_t masterPort = 5000;
             const std::string nodeId = "storage1";
-            const std::string diskPath = "model/data/registers.bin";
+            const std::string diskPath = argv[2]; // Usar el archivo proporcionado
 
             // Crear instancia de StorageNode
             StorageNode storage(storagePort, masterIp, masterPort, nodeId, diskPath);
@@ -109,7 +110,7 @@ int main(const int argc, char* argv[]) {
                 .light = 800,
                 .sensorId = 1
             };
-
+            
             // Convertir a bytes para simular mensaje
             std::vector<uint8_t> message;
             message.push_back(static_cast<uint8_t>(MessageType::STORE_SENSOR_DATA));
