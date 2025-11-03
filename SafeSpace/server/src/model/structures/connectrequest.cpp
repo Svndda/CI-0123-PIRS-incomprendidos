@@ -41,19 +41,21 @@ void ConnectRequest::setFlagBits(std::uint8_t flagBits) noexcept {
 // }
 
 // Método para convertir a buffer de bytes
-std::array<std::uint8_t, 5> ConnectRequest::toBuffer() const noexcept {
-  std::array<std::uint8_t, 5> buffer;
-
-  // sessionId (2 bytes) - little endian
-  buffer[0] = static_cast<std::uint8_t>(this->sessionId_ & 0xFF);
+std::array<std::uint8_t, 6> ConnectRequest::toBuffer() const noexcept {
+  std::array<std::uint8_t, 6> buffer;
+  
+  buffer[0] = static_cast<std::uint8_t>(IDENTIFIER & 0xFF);
+  
+  // Session ID (2 bytes, big-endian / network order)
   buffer[1] = static_cast<std::uint8_t>((this->sessionId_ >> 8) & 0xFF);
-
-  // sensorId (2 bytes) - little endian
-  buffer[2] = static_cast<std::uint8_t>(this->sensorId_ & 0xFF);
+  buffer[2] = static_cast<std::uint8_t>(this->sessionId_ & 0xFF);
+  
+  // Sensor ID (2 bytes, big-endian / network order)
   buffer[3] = static_cast<std::uint8_t>((this->sensorId_ >> 8) & 0xFF);
-
+  buffer[4] = static_cast<std::uint8_t>(this->sensorId_ & 0xFF);
+  
   // flagBits (1 byte)
-  buffer[4] = this->flagBits_;
+  buffer[5] = this->flagBits_;
 
   return buffer;
 }
