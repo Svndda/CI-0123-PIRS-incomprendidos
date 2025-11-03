@@ -5,6 +5,7 @@
 #include "../interfaces/UDPClient.h"
 #include "../../model/filesystem/FileSystem.h"
 #include "../../common/LogManager.h"
+#include "../../model/structures/sensordata.h"
 #include <string>
 #include <map>
 #include <vector>
@@ -33,23 +34,6 @@ enum class MessageType : uint8_t {
     // Registro y descubrimiento
     REGISTER_NODE = 0x30,           // Registrar nodo en master
     HEARTBEAT = 0x31                // Mantener conexión
-};
-
-// Estructura de datos de sensores
-struct SensorData {
-    uint64_t timestamp;
-    uint16_t distance;
-    uint8_t movement;
-    int16_t temperature;
-    uint16_t uv;
-    uint16_t microphone;
-    uint8_t leds;
-    uint8_t buzzer;
-    uint16_t light;
-    uint8_t sensorId;
-
-    std::vector<uint8_t> toBytes() const;
-    static SensorData fromBytes(const uint8_t* data, size_t len);
 };
 
 // Estructura para respuestas
@@ -128,6 +112,11 @@ class StorageNode: public UDPServer {
     bool storeSensorDataToFS(const SensorData& data);
     std::vector<SensorData> querySensorDataByDate(uint64_t startTime, uint64_t endTime);
     std::vector<SensorData> querySensorDataById(uint8_t sensorId, uint64_t startTime, uint64_t endTime);
+
+    std::vector<uint8_t> sensorDataToBytes(const SensorData& data) const;
+    SensorData bytesToSensorData(const uint8_t* data, size_t len) const;
+    std::string sensorDataToString(const SensorData& data) const;
+    SensorData stringToSensorData(const std::string& str) const;
 
  protected:
     /**
