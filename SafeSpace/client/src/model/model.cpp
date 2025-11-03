@@ -10,44 +10,15 @@
 #include "model.h"
 
 Model::Model()
-  : client("127.0.0.1", 8090, this) {
-  // // USUARIOS HARDCODEADOS
-  // User u1("realAdmin", "Administrador del sistema");
-  // u1.setPassword("M2sv8KxpLq");
-  // this->usersManager.saveUser(u1);
+  : client("172.17.0.70", 8003, this) {
   
-  // User u2("dataAdmin", "Administrador de datos");
-  // u2.setPassword("N7vbq2R0");
-  // this->usersManager.saveUser(u2);
-  
-  // User u3("audiTT", "Auditor");
-  // u3.setPassword("gH5pxL9pQ");
-  // this->usersManager.saveUser(u3);
-  
-  // User u4("guestAA", "Invitado 1");
-  // u4.setPassword("aB7nvZt9Ow1");
-  // this->usersManager.saveUser(u4);
-  
-  // User u5("guestBB", "Invitado 2");
-  // u5.setPassword("z9dsRk5Tg");
-  // this->usersManager.saveUser(u5);
-
-  std::time_t now = std::time(nullptr);
-
-  for (int i = 0; i < 20; ++i) {
-      this->sensorsData.emplace_back(
-          i + 1,                // id
-          now + i * 60,         // timestamp (cada uno 1 min después)
-          100 + i * 5,          // distance
-          i % 2,                // movement (0 o 1)
-          20 + i,               // temperature
-          3 + i % 5,            // uv
-          40 + i * 2,           // microphone
-          i % 2,                // led (on/off)
-          (i % 3 == 0) ? 1 : 0, // buzzer (solo algunos activos)
-          200 + i * 10          // ligth
-          );
-  }
+  this->connect(
+      &this->client, &QtUDPClient::sensorDataReceived,
+      this, [this](const SensorData& data) {
+        qInfo() << "[Model] SensorData received:" << data.distance;        
+        this->sensorsData.emplace_back(data);
+        emit this->sensorDataReceived(data);
+      });
 }
 
 Model& Model::getInstance() {
@@ -57,14 +28,15 @@ Model& Model::getInstance() {
 }
 
 bool Model::start(/*const User& user*/) {
+  
   // Returns the model state flag.
-  return this->started;
+  return this->started;  
 }
 
-bool Model::authenticate(
+void Model::authenticate(
     const std::string& username, const std::string& password) {
   // return this->usersManager.authenticate(username, password);
-    std::cout << "Autentiando usuarios" << std::endl ;
+    std::cout << "Autentiando usuarios" << std::endl;
   qDebug() << "Autenticando usuario";
   this->connect(
     &this->client, &QtUDPClient::authResponseReceived,
@@ -77,13 +49,12 @@ bool Model::authenticate(
       
       if (resp.getStatusCode() == 1) {
         this->started = true;
+        this->client.sendConnectRequest(resp.getSessionId());
       }
       emit this->authenticatheResponse(this->started);
 
   });
   this->client.sendAuthRequest(1001, username, User::hashSHA256(password));
-  
-  return true;
 }
 
 bool Model::deleteUser(
