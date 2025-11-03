@@ -60,19 +60,17 @@ private:
     uint8_t msgId;
   };
 
-  struct SubscriberInfo {
-    sockaddr_in addr; ///< Remote address of subscriber
-    uint16_t sessionId; ///< Optional session identifier
-  };
-
   std::atomic<bool> listening;               ///< Flag controlling listener thread state.
   std::thread listenerThread;                ///< Thread handling incoming auth server responses.
 
   std::mutex clientsMutex;                   ///< Synchronization for pending clients map.
   std::unordered_map<uint16_t, ClientInfo> pendingClients; ///< Map of sessionId to client info.
 
+  std::mutex authenticatedMutex;                   ///< Synchronization for authenticated clients map.
+  std::unordered_map<uint16_t, ClientInfo> authenticatedClients; ///< Map of sessionId to client info.
+
   std::mutex subscribersMutex;               ///< Synchronization for subscriber list.
-  std::vector<ClientInfo> subscribers;       ///< Active subscribers for sensor data broadcasting.
+  std::unordered_map<uint16_t, ClientInfo> subscribers; ///< Active subscribers for sensor data broadcasting.
 
   std::mutex failedAttemptsMutex;            ///< Protects failed login attempt map.
   std::unordered_map<std::string, int> failedAttempts; ///< Tracks failed login attempts by IP.
@@ -163,8 +161,6 @@ private:
   void handleUnknownMessage(const sockaddr_in &peer, const uint8_t *data,
                             ssize_t len, std::string &out_response);
 
-  // -------------------- Network Communication --------------------
-
   /**
    * @brief Forwards a datagram to the authentication server.
    * @param data Pointer to data buffer.
@@ -216,8 +212,6 @@ private:
    */
   void handleAuthResponse(const uint8_t *buffer, size_t length);
 
-  // -------------------- State Management --------------------
-
   /**
    * @brief Registers a new broadcast subscriber client.
    * @param addr Client socket address.
@@ -245,14 +239,26 @@ private:
    */
   void broadcastToSubscribers(const uint8_t* data, size_t len);
 
-  // -------------------- Utility --------------------
-
   /**
    * @brief Converts a sockaddr_in structure to a readable string "IP:Port".
    * @param addr Socket address.
    * @return std::string IP:Port formatted string.
    */
   std::string sockaddrToString(const sockaddr_in &addr) const;
+
+  /**
+   * @brief Registers a client as authenticated.
+   * @param addr Client address.
+   * @param sessionId Client session identifier.
+   */
+  void registerAuthenticatedClient(const sockaddr_in &addr, uint16_t sessionId);
+
+  /**
+   * @brief Checks if a client is already authenticated.
+   * @param sessionId Session identifier to check.
+   * @return true if authenticated, false otherwise.
+   */
+  bool isClientAuthenticated(uint16_t sessionId);
 };
 
 #endif // PROXYNODE_H
