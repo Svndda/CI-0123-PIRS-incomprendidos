@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find required packages
 find_package(OpenSSL REQUIRED)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
 include_directories(src)
 include_directories(src/model)
@@ -55,25 +56,18 @@ add_executable(server
         src/nodes/interfaces/UDPClient.h
         src/model/structures/DiscoverRequest.h
         src/model/structures/DiscoverResponse.h
-<<<<<<< HEAD
         src/model/structures/authenticationrequest.h
         src/model/structures/authenticationresponse.h
         src/model/structures/SensorPacket.h
-)
-
-# Link libraries
-target_link_libraries(server OpenSSL::SSL OpenSSL::Crypto)
-=======
-
         src/nodes/Storage/StorageNode.h
         src/nodes/Storage/StorageNode.cpp
         src/nodes/Proxy/ProxyNode.h
         src/nodes/Proxy/ProxyNode.cpp
 )
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
-target_link_libraries(server PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
-
-find_package(OpenSSL REQUIRED)
-target_link_libraries(server PRIVATE OpenSSL::SSL OpenSSL::Crypto)
->>>>>>> StorageNode_Implementation
+# Link libraries
+target_link_libraries(server 
+        OpenSSL::SSL OpenSSL::Crypto
+        Qt6::Core Qt6::Gui Qt6::Widgets
+        OpenSSL::SSL OpenSSL::Crypto
+)

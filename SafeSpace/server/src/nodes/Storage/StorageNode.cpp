@@ -11,6 +11,18 @@
 
 const size_t BUFFER_SIZE = 65535;
 
+// --- función auxiliar para decodificar texto hex a bytes ---
+static std::vector<uint8_t> hexToBytes(const std::string& hex) {
+    std::vector<uint8_t> bytes;
+    bytes.reserve(hex.size() / 2);
+    for (size_t i = 0; i + 1 < hex.size(); i += 2) {
+        std::string byteString = hex.substr(i, 2);
+        uint8_t byte = (uint8_t) strtol(byteString.c_str(), nullptr, 16);
+        bytes.push_back(byte);
+    }
+    return bytes;
+}
+
 std::vector<uint8_t> SensorData::toBytes() const {
     std::vector<uint8_t> bytes;
     bytes.reserve(22); // 22 bytes exactos de datos del sensor
@@ -512,12 +524,15 @@ bool StorageNode::storeSensorDataToFS(const SensorData& data) {
         return false;
     }
     
-    // Serializar datos del sensor
-    auto bytes = data.toBytes();
-    std::string dataStr(bytes.begin(), bytes.end());
+    std::vector<uint8_t> bytes = data.toBytes();
+    std::ostringstream oss;
+    for (uint8_t b : bytes) {
+        oss << std::hex << std::setw(2) << std::setfill('0') << (int)b;
+    }
+    std::string hexString = oss.str();
     
     // Escribir
-    bool success = fs->write(filename, dataStr);
+    bool success = fs->write(filename, hexString);
     
     // Cerrar
     fs->closeFile(filename);
@@ -546,10 +561,14 @@ std::vector<SensorData> StorageNode::querySensorDataByDate(uint64_t startTime, u
         std::string raw = fs->read(filename);
         fs->closeFile(filename);
 
-        if (raw.size() < sizeof(SensorData)) continue;
+        std::vector<uint8_t> bytes = hexToBytes(raw);
+        if (bytes.empty()) {
+            std::cerr << "[StorageNode] Empty or invalid hex data in file: " << filename << "\n";
+            continue;
+        }
 
         try {
-            SensorData sd = SensorData::fromBytes(reinterpret_cast<const uint8_t*>(raw.data()), raw.size());
+            SensorData sd = SensorData::fromBytes(bytes.data(), bytes.size());
             results.push_back(sd);
         } catch (...) {
             std::cerr << "[StorageNode] Corrupt file: " << filename << "\n";
@@ -571,6 +590,7 @@ std::vector<SensorData> StorageNode::querySensorDataById(uint8_t sensorId, uint6
         if (entry.inode_id == 0) continue;
 
         std::string filename(entry.name);
+
         std::smatch match;
         std::regex pattern(R"(sensor_(\d+)_(\d+)\.dat)");
         if (!std::regex_match(filename, match, pattern)) continue;
@@ -578,6 +598,7 @@ std::vector<SensorData> StorageNode::querySensorDataById(uint8_t sensorId, uint6
         uint8_t fileId = static_cast<uint8_t>(std::stoi(match[1].str()));
         uint64_t timestamp = std::stoull(match[2].str());
 
+        // Filtramos por ID y rango de tiempo
         if (fileId != sensorId) continue;
         if (timestamp < startTime || timestamp > endTime) continue;
 
@@ -585,10 +606,15 @@ std::vector<SensorData> StorageNode::querySensorDataById(uint8_t sensorId, uint6
         std::string raw = fs->read(filename);
         fs->closeFile(filename);
 
-        if (raw.size() < sizeof(SensorData)) continue;
+        // --- NUEVO: convertir texto hexadecimal a bytes ---
+        std::vector<uint8_t> bytes = hexToBytes(raw);
+        if (bytes.empty()) {
+            std::cerr << "[StorageNode] Empty or invalid hex data in file: " << filename << "\n";
+            continue;
+        }
 
         try {
-            SensorData sd = SensorData::fromBytes(reinterpret_cast<const uint8_t*>(raw.data()), raw.size());
+            SensorData sd = SensorData::fromBytes(bytes.data(), bytes.size());
             results.push_back(sd);
         } catch (...) {
             std::cerr << "[StorageNode] Corrupt file: " << filename << "\n";
@@ -599,7 +625,9 @@ std::vector<SensorData> StorageNode::querySensorDataById(uint8_t sensorId, uint6
         return a.timestamp < b.timestamp;
     });
 
-    std::cout << "[StorageNode] " << results.size() << " registers found for the sensor " << (int)sensorId << ".\n";
+    std::cout << "[StorageNode] " << results.size()
+              << " registers found for the sensor " << (int)sensorId << ".\n";
+
     return results;
 }
 
@@ -693,3 +721,4 @@ StorageNode::Stats StorageNode::getStats() const {
     stats.errorsCount = errorsCount.load();
     return stats;
 }
+
