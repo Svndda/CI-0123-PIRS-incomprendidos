@@ -91,7 +91,7 @@ public:  ///< Functions.
    */
   void shutdown();
   
-  bool authenticate(
+  void authenticate(
     const std::string& username, const std::string& password);
   
   bool deleteUser(
@@ -112,6 +112,7 @@ public:  ///< Functions.
   
 signals:
   bool authenticatheResponse(bool state);
+  SensorData sensorDataReceived(const SensorData);
 };
 
 #endif // MODEL_H
