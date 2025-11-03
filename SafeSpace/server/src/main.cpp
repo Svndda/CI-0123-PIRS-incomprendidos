@@ -88,16 +88,23 @@ int main(const int argc, char* argv[]) {
 
     } else if (type == "proxy") {
       if (argc != 5) {
-        throw std::runtime_error("Proxy mode requires 4 arguments: proxy <local_port> <server_ip> <server_port>");
+        throw std::runtime_error("Events mode requires 3 arguments:"
+        " events <local_ip> <local_port>" "out.txt"
+        );
       }
 
       uint16_t localPort = parsePort(argv[2]);
       std::string serverIp = argv[3];
       uint16_t serverPort = parsePort(argv[4]);
 
-      ProxyNode proxy(localPort, serverIp, serverPort);
-      std::cout << "[Main] Running ProxyNode on port " << localPort
-                << " → forwarding to " << serverIp << ":" << serverPort << std::endl;
+    } else if (type == "proxy") {
+      if (argc != 8) {
+        throw std::runtime_error("Proxy mode requires 6 arguments:"
+        " proxy <local_ip> <local_port>"
+        " <authNode_ip> <authNode_port>"
+        " <masterNode_Ip> <masterNode_Port>"
+        );
+      }
 
       proxy.start();
 
@@ -176,12 +183,12 @@ int main(const int argc, char* argv[]) {
         checkResponse(response2, "Test Data 2");
         checkResponse(response3, "Test Data 3");
 
-        // Test 2: Consultar por fecha
-        std::cout << "\nTest 2: Querying by date range..." << std::endl;
-        uint64_t now = std::chrono::duration_cast<std::chrono::seconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count();
-        uint64_t start = now - 3600; // última hora
-        uint64_t end = now + 3600;   // próxima hora
+    } else if (type == "inter") {
+      if (argc != 5) {
+        throw std::runtime_error("Proxy mode requires 3 arguments:"
+        " intermediary <masterNode_ip> <masterNode_port> <local_port> "
+        );
+      }
 
         std::vector<uint8_t> queryDateMsg;
         queryDateMsg.push_back(static_cast<uint8_t>(MessageType::QUERY_BY_DATE));

@@ -1,12 +1,12 @@
 #ifndef USER_H
 #define USER_H
 
+#include <QCryptographicHash>
 #include <fstream>
 #include <qdebug.h>
 #include <qlogging.h>
 #include <string>
 #include <vector>
-#include <openssl/sha.h>
 #include <iomanip>
 
 /**
@@ -33,7 +33,7 @@ public:
    * Initializes the User with a given id, name, and an optional set of page access permissions.
    *
    */
-  User(std::string _username, std::string _passwordHash,
+  User(std::string _username = "", std::string _passwordHash = "",
        std::string _group = "Usuario" , uint16_t _permissions = 4,
        uint16_t _failedAttemps = 0, bool _isLocked = false
        );
@@ -45,17 +45,16 @@ public:
 public:
   
   static std::string hashSHA256(const std::string& input) {
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256(reinterpret_cast<const unsigned char*>(
-               input.c_str()), input.size(), hash
-           );
+    // Convert input to QByteArray
+    QByteArray byteArrayInput = QByteArray::fromStdString(input);
     
-    std::stringstream ss;
-    for (unsigned char c : hash) {
-      ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);    
-    }
+    // Perform SHA-256 hashing
+    QByteArray hash = QCryptographicHash::hash(
+      byteArrayInput, QCryptographicHash::Sha256
+    );
     
-    return ss.str();
+    // Convert result to hex string (std::string)
+    return hash.toHex().toStdString();
   }
   
   static User deserialize(const std::string& line) {
@@ -66,7 +65,10 @@ public:
       throw std::runtime_error("Invalid user serialization format");
     
     std::string group = line.substr(0, firstComma);
-    std::string username = line.substr(firstComma + 1, secondComma - firstComma - 1);
+    std::string username = line.substr(
+      firstComma + 1,
+      secondComma - firstComma - 1
+    );
     std::string passwordHash = line.substr(secondComma + 1);
     
     return User(username, passwordHash, group);

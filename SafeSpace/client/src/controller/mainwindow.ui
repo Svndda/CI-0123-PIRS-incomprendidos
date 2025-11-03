@@ -39,6 +39,7 @@
    <property name="styleSheet">
     <string notr="true">QWidget {
 	color: white;
+	background-color: rgb(36, 31, 49)
 }</string>
    </property>
    <layout class="QGridLayout" name="mainLayout">
@@ -178,7 +179,7 @@ QPushButton:checked {
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="sensorsPage_button">
+       <widget class="QPushButton" name="arduinosPage_button">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
           <horstretch>0</horstretch>
@@ -227,7 +228,7 @@ QPushButton:checked {
 }</string>
         </property>
         <property name="text">
-         <string>Sensores</string>
+         <string>Arduinos</string>
         </property>
        </widget>
       </item>

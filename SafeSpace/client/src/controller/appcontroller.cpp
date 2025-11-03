@@ -4,13 +4,13 @@
 
 #include <QMessageBox>
 
-#include "model/model.h"
-#include "model/structures/user.h"
-#include "view/loginpage.h"
-#include "view/administrationpage.h"
-#include "view/accountpage.h"
-#include "view/visualizerspage.h"
-#include "view/sensorspage.h"
+#include "model.h"
+#include "user.h"
+#include "arduinospage.h"
+#include "loginpage.h"
+#include "administrationpage.h"
+#include "accountpage.h"
+#include "visualizerspage.h"
 #include "colors.h"
 #include <iostream>
 
@@ -57,7 +57,7 @@ void AppController::setupConnections() {
 
 void AppController::setButtonsState(bool state) {
   // Enables all the system pages buttons.
-  this->ui->sensorsPage_button->setVisible(state);
+  this->ui->arduinosPage_button->setVisible(state);
   this->ui->visualizersPage_button->setVisible(state);
   this->ui->administrationPage_button->setVisible(state);
   this->ui->accountPage_button->setVisible(state);
@@ -68,14 +68,14 @@ void AppController::prepareSystemPages() {
   
   // // Creates the different program pages.
   VisualizersPage* visualizerPage = new VisualizersPage(this, this->model);
-  SensorsPage* sensorsPage = new SensorsPage(this, this->model);
+  ArduinosPage* arduinosPage = new ArduinosPage(this, this->model);
   AdministrationPage* administrationPage
       = new AdministrationPage(this, this->model);
   AccountPage* accountPage = new AccountPage(this, this->model);
     
   // // Adds the program pages to the stack of pages.
   this->pageStack->addWidget(visualizerPage);
-  this->pageStack->addWidget(sensorsPage);
+  this->pageStack->addWidget(arduinosPage);
   this->pageStack->addWidget(administrationPage);
   this->pageStack->addWidget(accountPage);
   
@@ -96,7 +96,7 @@ void AppController::prepareSystemPages() {
   );
   
   this->connect(
-      this->ui->sensorsPage_button, &QPushButton::clicked,
+      this->ui->arduinosPage_button, &QPushButton::clicked,
       this, [this]() {
         this->switchPages(1);
         std::cout << "selecionando pagina sensores" << std::endl;
@@ -133,7 +133,7 @@ void AppController::pageButtonsRefresh(const size_t pageIndex) {
   // Vector of the application buttons to move through the pages.
   QVector<QPushButton*> buttons = {
     this->ui->visualizersPage_button,
-    this->ui->sensorsPage_button,
+    this->ui->arduinosPage_button,
     this->ui->administrationPage_button,
     this->ui->accountPage_button
   };
