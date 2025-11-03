@@ -116,18 +116,6 @@
      <row/>
      <column>
       <property name="text">
-       <string>ID</string>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>12</pointsize>
-        <italic>false</italic>
-        <bold>true</bold>
-       </font>
-      </property>
-     </column>
-     <column>
-      <property name="text">
        <string>Tiempo</string>
       </property>
       <property name="font">
@@ -152,18 +140,6 @@
      </column>
      <column>
       <property name="text">
-       <string>Mov.</string>
-      </property>
-      <property name="font">
-       <font>
-        <family>Segoe UI Variable</family>
-        <pointsize>12</pointsize>
-        <bold>true</bold>
-       </font>
-      </property>
-     </column>
-     <column>
-      <property name="text">
        <string>Temp.</string>
       </property>
       <property name="font">
@@ -176,7 +152,7 @@
      </column>
      <column>
       <property name="text">
-       <string>UV</string>
+       <string>Presión</string>
       </property>
       <property name="font">
        <font>
@@ -187,7 +163,7 @@
      </column>
      <column>
       <property name="text">
-       <string>Microfono</string>
+       <string>Presion a Nivel del Mar</string>
       </property>
       <property name="font">
        <font>
@@ -198,7 +174,7 @@
      </column>
      <column>
       <property name="text">
-       <string>Led</string>
+       <string>Altura</string>
       </property>
       <property name="font">
        <font>
@@ -210,18 +186,7 @@
      </column>
      <column>
       <property name="text">
-       <string>Buzzer</string>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>12</pointsize>
-        <bold>true</bold>
-       </font>
-      </property>
-     </column>
-     <column>
-      <property name="text">
-       <string>Luz</string>
+       <string>Altitud real</string>
       </property>
       <property name="font">
        <font>
