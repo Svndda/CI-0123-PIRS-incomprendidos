@@ -10,7 +10,8 @@
 // #include "model/managers/UsersManager.h"
 // #include "model/filesystem/FileSystem.h"
 #include "model/structures/user.h"
-#include "model/network/QtUDPClient.h"
+#include "model/network/qtudpclient.h"
+#include "model/structures/sensordata.h"
 
 /**
  * @class Model
@@ -21,6 +22,7 @@
  * for adding, editing, and removing items in the system.
  */
 class Model : public QObject {
+  Q_OBJECT
   // Deleted copy constructor and assignment operator to prevent copying.
   Model(const Model&) = delete;
   Model& operator=(const Model&) = delete;
@@ -30,6 +32,9 @@ private:
       = QApplication::applicationDirPath().toStdString() + "\\unity.bin";
   bool started = false;       ///< Flag indicating if the model has been started.
   QtUDPClient client;
+  User user = User();
+  std::vector<SensorData> sensorsData;
+  
   // FileSystem filesystem;
   // UsersManager usersManager;
 private:
@@ -50,6 +55,8 @@ public:  ///< Getters
    * @return True if the model is started.
    */
   inline bool isStarted() { return this->started; }
+
+  inline std::vector<SensorData>& getSensorsData() {return this->sensorsData;}
   
   // /**
   //  * @brief getPageAccess Checks the user's access to the given page index.
@@ -84,7 +91,7 @@ public:  ///< Functions.
    */
   void shutdown();
   
-  bool authenticate(
+  void authenticate(
     const std::string& username, const std::string& password);
   
   bool deleteUser(
@@ -103,6 +110,9 @@ public:  ///< Functions.
   //   return this->usersManager.findUser(username);
   // };
   
+signals:
+  bool authenticatheResponse(bool state);
+  SensorData sensorDataReceived(const SensorData);
 };
 
 #endif // MODEL_H

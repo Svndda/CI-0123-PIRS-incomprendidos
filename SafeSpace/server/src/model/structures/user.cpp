@@ -1,12 +1,14 @@
 #include "user.h"
-#include <QCryptographicHash>
+
+#include <cstring>
+#include <iostream>
 
 User::User(std::string _username, std::string _passwordHash,
-    std::string _group, uint16_t _permissions,
-    uint16_t _failedAttemps, bool _isLocked)
+           std::string _group, uint16_t _permissions,
+           uint16_t _failedAttemps, bool _isLocked)
     : username(std::move(_username)), passwordHash(std::move(_passwordHash)),
     group(std::move(_group)), permissions(_permissions),
-    failedAttemps(_failedAttemps), isLocked(_isLocked) {
+    failedAttemps(_failedAttemps), locked(_isLocked) {
 }
 
 bool User::operator==(const User& other) const {
@@ -15,7 +17,7 @@ bool User::operator==(const User& other) const {
           this->group == other.group &&
           this->permissions == other.permissions &&
           this->failedAttemps == other.failedAttemps &&
-          this->isLocked == other.isLocked);
+          this->locked == other.locked);
 }
 
 bool User::operator!=(const User& other) const {
@@ -31,7 +33,7 @@ User& User::operator=(const User& other) {
     this->group = other.group;
     this->permissions = other.permissions;
     this->failedAttemps = other.failedAttemps;
-    this->isLocked = other.isLocked;
+    this->locked = other.locked;
   }
   
   // Returns the actual object.
@@ -42,7 +44,7 @@ const std::string& User::getUsername() const {
   return this->username;
 }
 
-void User::setUsername(const std::string name) {
+void User::setUsername(const std::string& name) {
   this->username = name;
 }
 
@@ -50,7 +52,32 @@ void User::setPassword(const std::string& newHash) {
   this->passwordHash = hashSHA256(newHash);
 }
 
-bool User::verifyPassword(const std::string& passwordToCheck) const {
-  std::string hashAttempt = hashSHA256(passwordToCheck);
-  return this->passwordHash == hashAttempt;
+bool User::verifySimplePassword(const std::string& password) {
+  std::string hashAttempt = hashSHA256(password);
+
+  if (hashAttempt.size() == this->passwordHash.size() &&
+      std::memcmp(hashAttempt.data(), this->passwordHash.data(), hashAttempt.size()) == 0) {
+    return true;
+      }
+
+  this->failedAttemps++;
+  if (this->failedAttemps >= 3) {
+    this->locked = true;
+  }
+
+  return false;
+}
+
+bool User::verifyHashPassword(const std::string& hash) {
+  if (hash.size() == this->passwordHash.size()
+    && std::memcmp(hash.data(), this->passwordHash.data(), hash.size()) == 0) {
+    return true;
+  }
+
+  this->failedAttemps++;
+  if (this->failedAttemps >= 3) {
+    this->locked = true;
+  }
+
+  return false;
 }

@@ -1,22 +1,24 @@
 #ifndef AUTH_UDP_SERVER_H
 #define AUTH_UDP_SERVER_H
 
-#include "../interfaces/UDPServer.h"
+#include <map>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+
+#include "user.h"
 #include "../../model/structures/authenticationrequest.h"
 #include "../../model/structures/authenticationresponse.h"
-#include <unordered_map>
-#include <string>
-#include <mutex>
-#include <map>
+#include "../interfaces/UDPServer.h"
 
-struct User {
-    std::string username;
-    std::string password_hash;
-    std::string group;
-    int permissions;
-    int failed_attempts;
-    bool is_locked;
-};
+// struct User {
+//     std::string username;
+//     std::string password_hash;
+//     std::string group;
+//     int permissions;
+//     int failed_attempts;
+//     bool is_locked;
+// };
 
 class AuthUDPServer : public UDPServer {
 private:
@@ -26,7 +28,7 @@ private:
     std::mutex sessions_mutex;
 
 public:
-    AuthUDPServer(uint16_t port);
+    AuthUDPServer(const std::string& ip, uint16_t port);
     ~AuthUDPServer();
 
     bool addUser(const std::string& username, const std::string& password, 

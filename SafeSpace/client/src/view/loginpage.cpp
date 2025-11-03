@@ -14,9 +14,15 @@ LoginPage::LoginPage(QWidget *parent,
   connect(this->ui->sendCredentials_button, &QPushButton::clicked, this, []() {
     qDebug() << "Botón clicado!";
   });
-  // this->renderer = new QSvgRenderer(
-  //   QString(":/images/bg1.svg"), this
-  // );
+  this->connect(&this->model, &Model::authenticatheResponse, this, [this]
+    (bool state) {
+    qDebug() << "State del la autenticacion recibido.";
+    if (state) {
+      emit this->userAuthenticated();
+    } else {
+      this->warningMessageBox("Credenciales de cuenta erróneas.");
+    }
+  });
 }
 
 LoginPage::~LoginPage() {
@@ -28,14 +34,10 @@ void LoginPage::on_sendCredentials_button_clicked() {
   std::string password = this->ui->password_lineEdit->text().toStdString();
   
   if (username.empty() | password.empty()) {
-    this->warningMessageBox("Por favor, rellene todos los campos.");    
+    this->warningMessageBox("Por favor, rellene todos los campos.");
   }
-
-  if (this->model.authenticate(username, password)) {    
-    emit this->userAuthenticated();
-  } else {
-    this->warningMessageBox("Credenciales de cuenta erróneas.");
-  }
+  
+  this->model.authenticate(username, password);
 }
 
 void LoginPage::on_showPassword_checkBox_checkStateChanged(

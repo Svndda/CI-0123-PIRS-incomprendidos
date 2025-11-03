@@ -2,7 +2,7 @@
 #define LOGIN_H
 
 #include <QWidget>
-#include "model/model.h"
+#include "model.h"
 #include "page.h"
 
 namespace Ui {

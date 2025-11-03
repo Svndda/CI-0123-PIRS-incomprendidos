@@ -5,12 +5,60 @@
 #include <cstring>
 #include <iostream>
 
-SafeSpaceServer::SafeSpaceServer(uint16_t port)
-  : UDPServer(port, 2048) {
+#include "sensordata.h"
+#include "../../../common/LogManager.h"
+#include "SensorPacket.h"
+
+enum class LogLevel;
+
+SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
+                                 const std::string& storageIp, const uint16_t storagePort,
+                                 const std::string& eventsIp, const uint16_t eventsPort,
+                                 const std::string& proxyIp, const uint16_t proxyPort)
+  : UDPServer(ip, port, 2048)
+  , storageNode(nullptr, storageIp, storagePort)
+  , eventsNode(nullptr, eventsIp, eventsPort)
+  , proxyNode(nullptr, proxyIp, proxyPort) {
   std::cout << "SafeSpaceServer: initialized on port " << port << std::endl;
+  
+  // Configurar LogManager para enviar logs a CriticalEventsNode
+  auto& logger = LogManager::instance();
+  logger.configureRemote(eventsIp, eventsPort, "SafeSpaceServer");
+  logger.info("SafeSpaceServer logging system initialized");
+  // Start critical events node on a nearby port (port+1) to collect logs from nodes
+  try {
+    // uint16_t critPort = static_cast<uint16_t>(port + 1);
+    // criticalEventsNode_ = new CriticalEventsNode(critPort);
+    // criticalThread_ = std::thread([this]() {
+    //   if (criticalEventsNode_) criticalEventsNode_->serveBlocking();
+    // });
+    if (!storageNode.client) {
+      storageNode.client = new UDPClient(storageNode.ip, storageNode.port);
+      std::cout << "[SafeSpaceServer] Created Storage UDP client to "
+                << storageNode.ip << ":" << storageNode.port << std::endl;
+    }
+
+    if (!proxyNode.client) {
+      proxyNode.client = new UDPClient(proxyNode.ip, proxyNode.port);
+      std::cout << "[SafeSpaceServer] Created Proxy UDP client to "
+                << proxyNode.ip << ":" << proxyNode.port << std::endl;
+    }
+    std::cout << "SafeSpaceServer: started CriticalEventsNode on port " << (port + 1) << std::endl;
+  } catch (const std::exception &ex) {
+    std::cerr << "SafeSpaceServer: failed to start CriticalEventsNode: " << ex.what() << std::endl;
+  }
 }
 
-SafeSpaceServer::~SafeSpaceServer() = default;
+SafeSpaceServer::~SafeSpaceServer() {
+  // stop critical events node if running
+  if (criticalEventsNode_) {
+    criticalEventsNode_->stop();
+    // UDPServer::stop signals serveBlocking to finish; join thread
+    if (criticalThread_.joinable()) criticalThread_.join();
+    delete criticalEventsNode_;
+    criticalEventsNode_ = nullptr;
+  }
+}
 
 sockaddr_in SafeSpaceServer::makeSockaddr(const std::string& ip, uint16_t port) {
   sockaddr_in a{};
@@ -34,10 +82,31 @@ void SafeSpaceServer::clearDiscoverTargets() {
   discoverTargets_.clear();
 }
 
-void SafeSpaceServer::onReceive(const sockaddr_in& peer,
-                                const uint8_t* data,
-                                ssize_t len,
-                                std::string& out_response) {
+void SafeSpaceServer::onReceive(
+  const sockaddr_in& peer, const uint8_t* data,
+  ssize_t len, std::string& out_response) {
+  // Verificar si es un log del LogManager (empieza con "LOG")
+  if (len >= 5 && data[0] == 'L' && data[1] == 'O' && data[2] == 'G') {
+    // Es un log del AuthNode, reenviarlo al master
+    auto& logger = LogManager::instance();
+
+    // Parsear el nivel de log
+    uint8_t level = data[3];
+    uint8_t nodeNameLen = data[4];
+
+    if (len >= 5 + nodeNameLen) {
+      std::string nodeName(reinterpret_cast<const char*>(data + 5), nodeNameLen);
+      std::string message(reinterpret_cast<const char*>(data + 5 + nodeNameLen), len - 5 - nodeNameLen);
+
+      // Reenviar log al master con prefijo [FROM_AUTH]
+      LogLevel logLevel = static_cast<LogLevel>(level);
+      logger.log(logLevel, "[FROM_" + nodeName + "] " + message);
+
+      std::cout << "[SafeSpaceServer] Forwarded log from " << nodeName << " to CriticalEventsNode" << std::endl;
+    }
+    return; // No generar respuesta para logs
+  }
+
   // DISCOVER (2 bytes)
   if (len == 2) {
     std::array<uint8_t, 2> a = { data[0], data[1] };
@@ -118,6 +187,37 @@ void SafeSpaceServer::onReceive(const sockaddr_in& peer,
     out_response.clear();
     return;
   }
+
+  if (len == sizeof(SensorData)) {
+    const auto* pkt = reinterpret_cast<const SensorData*>(data);
+
+    // Obtener IP y puerto del remitente
+    char ipbuf[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
+
+    std::cout << "[SafeSpaceServer] SENSOR_PACKET recibido desde "
+              << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
+    std::cout << "  ▸ Temperatura: " << pkt->temperature << " °C" << std::endl;
+    std::cout << "  ▸ Distancia: " << pkt->distance << " cm" << std::endl;
+    std::cout << "  ▸ Presión: " << pkt->pressure<< " Pa" << std::endl;
+    std::cout << "  ▸ Presión a nivel de mar: " << pkt->sealevelPressure << " cm" << std::endl;
+    std::cout << "  ▸ Altitud: " << pkt->altitude << " m" << std::endl;
+    std::cout << "  ▸ Altitud Real: " << pkt->realAltitude << " cm" << std::endl;
+
+    try {
+      storageNode.client->sendRaw(pkt, sizeof(SensorData));
+      proxyNode.client->sendRaw(pkt, sizeof(SensorData));
+    } catch (const std::exception& ex) {
+      std::cerr << "[SafeSpaceServer] Exception al reenviar SENSOR_PACKET: "
+                << ex.what() << std::endl;
+    }
+
+    // Generar respuesta ACK simple al emisor original (Arduino / Intermediario)
+    std::string ack = "ACK_SENSOR";
+    out_response.assign(ack.begin(), ack.end());
+    return;
+  }
+
 
   // Fallback: let base class behavior handle it (echo)
   UDPServer::onReceive(peer, data, len, out_response);

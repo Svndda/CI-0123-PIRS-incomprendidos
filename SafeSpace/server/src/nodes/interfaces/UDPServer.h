@@ -6,6 +6,7 @@
 #define SERVER_UDPSERVER_H
 
 #include <cstdint>
+#include "../../common/LogManager.h"
 #include <functional>
 #include <string>
 #include <atomic>
@@ -42,18 +43,22 @@ public:
  protected:
   int sockfd_;
   uint16_t port_;
+  std::string ip_;             ///< IP address bound to the server.
   size_t bufsize_;
   Handler handler_;
   std::atomic<bool> running_;
+  LogManager& logger = LogManager::instance();
 
  public:
   /**
-   * @brief Construct and bind a UDP socket to the given port.
-   * @param port host-order port number to bind (e.g. 5000).
-   * @param bufsize receive buffer size (bytes) used internally.
-   * @throws std::runtime_error on socket or bind failure.
+   * @brief Constructs and binds a UDP socket to the given IP and port.
+   *
+   * @param ip IPv4 address as string (e.g. "127.0.0.1" or "0.0.0.0").
+   * @param port Host-order port number (e.g. 5000).
+   * @param bufsize Internal receive buffer size (default 1024 bytes).
+   * @throws std::runtime_error on socket creation, invalid IP, or bind failure.
    */
-  explicit UDPServer(uint16_t port, size_t bufsize = 1024);
+  explicit UDPServer(std::string  ip, uint16_t port, size_t bufsize = 1024);
 
   /**
    * @brief Destructor. Closes socket and releases resources.
@@ -106,6 +111,11 @@ public:
    * @brief Returns bound port (host order).
    */
   uint16_t port() const noexcept { return port_; }
+
+  /**
+   * @brief Returns the bound IP address.
+   */
+  const std::string& ip() const noexcept { return ip_; }
 
  private:
   // Non-copyable
