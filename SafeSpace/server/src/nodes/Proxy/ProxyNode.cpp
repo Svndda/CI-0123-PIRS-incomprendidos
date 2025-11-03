@@ -102,12 +102,31 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
 
 void ProxyNode::handleConnectRequest(const sockaddr_in &peer, const uint8_t *data,
                                      ssize_t len, std::string &out_response) {
-  const auto *pkt = reinterpret_cast<const ConnectRequest *>(data);
-  if (pkt->IDENTIFIER != ConnectRequest::IDENTIFIER) {
+  if (len < 6) {
+    this->logger.warning("CONNECT_REQUEST too short (" + std::to_string(len) + " bytes)");
     return;
   }
 
-  const uint16_t sessionId = pkt->getSessionId();
+  // Validate identifier
+  if (data[0] != ConnectRequest::IDENTIFIER) {
+    this->logger.warning("CONNECT_REQUEST invalid identifier: " + std::to_string(data[0]));
+    return;
+  }
+
+  // Manual deserialization — network order (big endian)
+  uint16_t sessionId = (data[1] << 8) | data[2];
+  uint16_t sensorId  = (data[3] << 8) | data[4];
+  uint8_t flagBits   = data[5];
+
+  this->logger.info("CONNECT_REQUEST received: sessionId=" + std::to_string(sessionId) +
+                    ", sensorId=" + std::to_string(sensorId) +
+                    ", flags=" + std::to_string(flagBits));
+
+  if (!this->isClientAuthenticated(sessionId)) {
+    this->logger.warning("Unauthorized CONNECT_REQUEST (sessionId=" + std::to_string(sessionId) + ")");
+    out_response = "UNAUTHORIZED";
+    return;
+  }
 
   this->registerSubscriber(peer, sessionId);
 
@@ -125,6 +144,17 @@ void ProxyNode::handleAuthRequest(const sockaddr_in &peer, const uint8_t *data,
   req.setPassword(std::string(reinterpret_cast<const char *>(payload.data() + 18), AuthRequest::PASSWORD_SIZE));
 
   const uint16_t sessionId = req.getSessionId();
+  if (this->isClientAuthenticated(sessionId)) {
+    this->logger.info("AUTH_REQUEST ignored: session already authenticated (sessionId=" +
+                  std::to_string(sessionId) + ")");
+
+    // We can optionally send back an OK-style auth response here
+    AuthResponse autoResp(sessionId, 1, "ALREADY_AUTHENTICATED", "LOCAL_TOKEN");
+    auto buffer = autoResp.toBuffer();
+    this->sendTo(peer, buffer.data(), buffer.size());
+    return;
+  }
+
   this->storePendingClient(sessionId, peer);
 
   try {
@@ -169,11 +199,7 @@ void ProxyNode::handleUnknownMessage(const sockaddr_in &peer, const uint8_t *dat
 
 void ProxyNode::registerSubscriber(const sockaddr_in &addr, uint16_t sessionId) {
   std::lock_guard<std::mutex> lock(this->subscribersMutex);
-  for (const auto &s : this->subscribers)
-    if (s.addr.sin_addr.s_addr == addr.sin_addr.s_addr && s.addr.sin_port == addr.sin_port) {
-      return;
-    }
-  this->subscribers.push_back({addr, sessionId});
+  this->subscribers[sessionId]= {addr, 0};
 }
 
 void ProxyNode::storePendingClient(uint16_t sessionId, const sockaddr_in &addr) {
@@ -287,8 +313,8 @@ void ProxyNode::broadcastToSubscribers(const uint8_t* data, size_t len) {
   this->logger.info("Broadcasting SensorData to " + std::to_string(subscribers.size()) + " subscribers.");
   for (const auto& sub : subscribers) {
     try {
-      this->sendTo(sub.addr, data, len);
-      this->logger.info("Data sent to " + sockaddrToString(sub.addr));
+      this->sendTo(sub.second.addr, data, len);
+      this->logger.info("Data sent to " + sockaddrToString(sub.second.addr));
     } catch (const std::exception& e) {
       this->logger.error(std::string("Failed to send to subscriber: ") + e.what());
     }
@@ -320,13 +346,28 @@ void ProxyNode::handleAuthResponse(const uint8_t *buffer, size_t length) {
     auto it = pendingClients.find(sessionId);
     if (it != pendingClients.end()) {
       clientInfo = it->second;
-      pendingClients.erase(it);
       found = true;
     }
   }
 
   if (resp.getStatusCode() == 1) {
     this->logger.info("Authentication successful for sessionId " + std::to_string(sessionId));
+    if (found) {
+      try {
+        this->registerAuthenticatedClient(clientInfo.addr, sessionId);
+        this->logger.info("Client authenticated and registered for CONNECT_REQUEST (sessionId=" +
+                          std::to_string(sessionId) + ")");
+
+        {
+          std::lock_guard<std::mutex> lock(clientsMutex);
+          pendingClients.erase(sessionId);
+        }
+
+      } catch (const std::exception& ex) {
+        this->logger.error(std::string("Failed to register authenticated client (sessionId=") +
+                          std::to_string(sessionId) + "): " + ex.what());
+      }
+    }
   } else {
     this->logger.warning("Authentication failed for sessionId " + std::to_string(sessionId));
   }
@@ -337,6 +378,21 @@ void ProxyNode::handleAuthResponse(const uint8_t *buffer, size_t length) {
   } else {
     this->logger.warning("No pending client for AUTH_RESPONSE sessionId=" + std::to_string(sessionId));
   }
+}
+
+void ProxyNode::registerAuthenticatedClient(const sockaddr_in &addr, uint16_t sessionId) {
+  std::lock_guard<std::mutex> lock(authenticatedMutex);
+  // If it's already there, do nothing
+  if (this->authenticatedClients.find(sessionId) != this->authenticatedClients.end())
+    return;
+
+  this->authenticatedClients[sessionId] = ClientInfo{addr, 0};
+  this->logger.info("Registered authenticated client (sessionId=" + std::to_string(sessionId) + ")");
+}
+
+bool ProxyNode::isClientAuthenticated(uint16_t sessionId) {
+  std::lock_guard<std::mutex> lock(authenticatedMutex);
+  return this->authenticatedClients.find(sessionId) != this->authenticatedClients.end();
 }
 
 std::string ProxyNode::sockaddrToString(const sockaddr_in &addr) const {

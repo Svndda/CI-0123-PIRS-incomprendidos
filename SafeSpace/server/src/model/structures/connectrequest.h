@@ -28,7 +28,7 @@ public:
   void setSensorId(std::uint16_t sensorId) noexcept;
   void setFlagBits(std::uint8_t flagBits) noexcept;
 
-  std::array<std::uint8_t, 5> toBuffer() const noexcept;
+  std::array<std::uint8_t, 6> toBuffer() const noexcept;
 
   bool operator==(const ConnectRequest& other) const noexcept;
   bool operator!=(const ConnectRequest& other) const noexcept;
