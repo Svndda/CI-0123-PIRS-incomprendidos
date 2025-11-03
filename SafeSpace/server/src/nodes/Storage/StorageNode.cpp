@@ -58,7 +58,7 @@ std::vector<uint8_t> StorageNode::sensorDataToBytes(const SensorData& data) cons
 SensorData StorageNode::bytesToSensorData(const uint8_t* data, size_t len) const {
     std::cout << "[StorageNode] bytesToSensorData - len: " << len << std::endl;
     
-    if (len < 24) {
+    if (len != sizeof(SensorData)) {
         std::cerr << "[StorageNode] Invalid sensor data length: " << len 
                   << " (expected 24 bytes)" << std::endl;
         throw std::runtime_error("Invalid sensor data length");
@@ -285,7 +285,7 @@ void StorageNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
                     std::cout << "[StorageNode] Detected QUERY_BY_SENSOR (legacy format)" << std::endl;
                     response = handleQueryBySensor(data, len);
                     
-                } else if (len >= 25 && len <= 100) {  // Guardar datos de sensores (25-100 bytes)
+                } else if (len >= 24 && len <= 100) {  // Guardar datos de sensores (25-100 bytes)
                     std::cout << "[StorageNode] Detected STORE_SENSOR_DATA" << std::endl;
                     response = handleStoreSensorData(data, len);
                     
@@ -425,7 +425,7 @@ Response StorageNode::handleStoreSensorData(const uint8_t* data, ssize_t len) {
     std::cout << "[StorageNode] handleStoreSensorData - len: " << len << std::endl;
     
     // Parsear datos del sensor (mínimo 24 bytes para 6 floats)
-    if (len < 25) {  // 1 byte tipo + 24 bytes datos (6 floats)
+    if (len != sizeof(SensorData)) {  // 1 byte tipo + 24 bytes datos (6 floats)
         resp.status = 1;
         errorsCount++;
         std::cerr << "[StorageNode] Invalid sensor data length: " << len << std::endl;
@@ -434,7 +434,7 @@ Response StorageNode::handleStoreSensorData(const uint8_t* data, ssize_t len) {
     
     try {
         std::cout << "[StorageNode] Converting bytes to SensorData..." << std::endl;
-        SensorData sensorData = bytesToSensorData(data + 1, len - 1);
+        SensorData sensorData = bytesToSensorData(data, len);
 
 
         std::cout << "[StorageNode] Storing SensorData to FS..." << std::endl;
