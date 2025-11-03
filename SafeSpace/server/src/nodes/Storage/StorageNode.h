@@ -4,6 +4,7 @@
 #include "../interfaces/UDPServer.h"
 #include "../interfaces/UDPClient.h"
 #include "../../model/filesystem/FileSystem.h"
+#include "../../common/LogManager.h"
 #include <string>
 #include <map>
 #include <vector>

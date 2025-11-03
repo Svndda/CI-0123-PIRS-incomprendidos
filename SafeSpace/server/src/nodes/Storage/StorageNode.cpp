@@ -113,7 +113,7 @@ std::vector<uint8_t> Response::toBytes() const {
 StorageNode::StorageNode(uint16_t storagePort, const std::string& masterServerIp,
                          uint16_t masterServerPort, const std::string& nodeId,
                          const std::string& diskPath, size_t bufsize)
-    : UDPServer(storagePort, bufsize),
+    : UDPServer("0.0.0.0", storagePort, bufsize),
       masterClient(nullptr),
       masterServerIp(masterServerIp),
       masterServerPort(masterServerPort),
@@ -146,9 +146,23 @@ StorageNode::StorageNode(uint16_t storagePort, const std::string& masterServerIp
         std::cerr << "[StorageNode] Initialization error: " << e.what() << std::endl;
         throw;
     }
+
+    auto& logger = LogManager::instance();
+    try {
+        logger.configureRemote(masterServerIp, masterServerPort, "StorageNode");
+        logger.info("StorageNode configured to forward logs to SafeSpaceServer at " + masterServerIp + ":" + std::to_string(masterServerPort));
+    } catch (const std::exception& ex) {
+        std::cerr << "[StorageNode] Failed to configure SafeSpace log forwarding: " << ex.what() << std::endl;
+    }
 }
 
 StorageNode::~StorageNode() {
+    
+    auto& logger = LogManager::instance();
+    logger.info("StorageNode cerrándose - Estadísticas: Registros=" + 
+            std::to_string(totalSensorRecords.load()) + 
+            ", Consultas=" + std::to_string(totalQueries.load()) + 
+            ", Errores=" + std::to_string(errorsCount.load()));
     std::cout << "[StorageNode] Shutting down..." << std::endl;
     
     // Detener thread de escucha
@@ -475,6 +489,12 @@ bool StorageNode::storeSensorDataToFS(const SensorData& data) {
     if (fs->find(filename) < 0) {
         if (fs->create(filename) < 0) {
             std::cerr << "[StorageNode] Failed to create file: " << filename << std::endl;
+            auto& logger = LogManager::instance();
+            try{
+                logger.error("Failed to create file: " + filename);
+            } catch (const std::exception& ex) {
+                std::cerr << "[StorageNode] Logging error: " << ex.what() << std::endl;
+            }
             return false;
         }
     }
@@ -482,6 +502,13 @@ bool StorageNode::storeSensorDataToFS(const SensorData& data) {
     // Abrir archivo
     if (fs->openFile(filename) != 0) {
         std::cerr << "[StorageNode] Failed to open file: " << filename << std::endl;
+        auto& logger = LogManager::instance();
+            try{
+                logger.error("Failed to open file: " + filename);
+            } catch (const std::exception& ex) {
+                std::cerr << "[StorageNode] Logging error: " << ex.what() << std::endl;
+            }
+        
         return false;
     }
     
@@ -579,12 +606,20 @@ std::vector<SensorData> StorageNode::querySensorDataById(uint8_t sensorId, uint6
 void StorageNode::registerWithMaster() {
     std::cout << "[StorageNode] Registering with master server..." << std::endl;
     
+    auto& logger = LogManager::instance();
+    try {
+        logger.info("Attempting to register StorageNode with master server at " + masterServerIp + ":" + std::to_string(masterServerPort));
+    } catch (const std::exception& ex) {
+        std::cerr << "[StorageNode] Logging error: " << ex.what() << std::endl;
+    }
+
     std::vector<uint8_t> msg;
     msg.push_back(static_cast<uint8_t>(MessageType::REGISTER_NODE));
     msg.push_back(static_cast<uint8_t>(nodeId.length()));
     msg.insert(msg.end(), nodeId.begin(), nodeId.end());
     
     std::cout << "[StorageNode] Registration prepared" << std::endl;
+    logger.info("[StorageNode] Registration with master server prepared successfully");
 }
 
 void StorageNode::sendHeartbeat() {
@@ -592,10 +627,23 @@ void StorageNode::sendHeartbeat() {
     msg.push_back(static_cast<uint8_t>(MessageType::HEARTBEAT));
     msg.push_back(static_cast<uint8_t>(nodeId.length()));
     msg.insert(msg.end(), nodeId.begin(), nodeId.end());
+    auto& logger = LogManager::instance();
+    try {
+        logger.info("Sending heartbeat to master server - node: " + nodeId);
+    } catch (const std::exception& ex) {
+        std::cerr << "[StorageNode] Logging error: " << ex.what() << std::endl;
+    }
 }
 
 void StorageNode::listenMasterServerResponses() {
     std::cout << "[StorageNode] Listener thread running" << std::endl;
+    
+    auto& logger = LogManager::instance();
+    try {
+        logger.info("Listener thread started - monitoring every 30s");
+    } catch (const std::exception& ex) {
+        std::cerr << "[StorageNode] Logging error: " << ex.what() << std::endl;
+    }
     
     while (listening.load()) {
         std::this_thread::sleep_for(std::chrono::seconds(30));
@@ -603,6 +651,11 @@ void StorageNode::listenMasterServerResponses() {
     }
     
     std::cout << "[StorageNode] Listener thread stopped" << std::endl;
+    try {
+        logger.info("Listener thread stopped");
+    } catch (const std::exception& ex) {
+        std::cerr << "[StorageNode] Logging error: " << ex.what() << std::endl;
+    }
 }
 
 std::string StorageNode::generateSensorFilename(uint64_t timestamp, uint8_t sensorId) const {
