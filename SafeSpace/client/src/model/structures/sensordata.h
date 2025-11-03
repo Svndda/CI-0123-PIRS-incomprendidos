@@ -1,25 +1,31 @@
 #ifndef SENSORDATA_H
 #define SENSORDATA_H
 
-#include <ctime>
-
 class SensorData {
 public:
-  const int id;
-  const std::time_t timestamp;
-  const int distance;
-  const int movement;
-  const int temperature;
-  const int uv;
-  const int microphone;
-  const int led;
-  const int buzzer;
-  const int ligth;
-public:
-  SensorData(const int _id = -1, const std::time_t _time = (std::time_t)-1,
-        const int _dist = -1, const int _mov = -1, const int _temp = -1,
-        const int _uv = -1, const int _micro = -1, const int _led = -1,
-        const int _buzzer = -1, const int _ligth = -1);
+  float distance;
+  float temperature;
+  float pressure;
+  float altitude;
+  float sealevelPressure;
+  float realAltitude;
+  
+  // Default constructor
+  SensorData() noexcept
+      : distance(0.0f), temperature(0.0f), pressure(0.0f),
+      altitude(0.0f), sealevelPressure(0.0f), realAltitude(0.0f) {}
+  
+  // Constructor with parameters
+  SensorData(float dist, float temp, float press, float alt,
+             float seaPress, float realAlt) noexcept
+      : distance(dist), temperature(temp), pressure(press),
+      altitude(alt), sealevelPressure(seaPress), realAltitude(realAlt) {}
+  
+  // Explicitly default all copy/move semantics
+  SensorData(const SensorData&) noexcept = default;
+  SensorData& operator=(const SensorData&) noexcept = default;
+  SensorData(SensorData&&) noexcept = default;
+  SensorData& operator=(SensorData&&) noexcept = default;
 };
 
 #endif // SENSORDATA_H
