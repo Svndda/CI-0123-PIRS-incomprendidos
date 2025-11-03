@@ -56,10 +56,10 @@ QVector<QTableWidgetItem*> MachinesPage::arduineDeserialization(
     return item;
   };
   
-  fields.emplace_back(deserializeToItem(sensor.id));
-  fields.emplace_back(deserializeToItem("Arduino " + QString::number(sensor.id)));
-  fields.emplace_back(deserializeToItem("Piso 1"));
-  fields.emplace_back(deserializeToItem("192.168.0.1"));
+  // fields.emplace_back(deserializeToItem(sensor.id));
+  // fields.emplace_back(deserializeToItem("Arduino " + QString::number(sensor.id)));
+  // fields.emplace_back(deserializeToItem("Piso 1"));
+  // fields.emplace_back(deserializeToItem("192.168.0.1"));
   
   return fields;
 }
