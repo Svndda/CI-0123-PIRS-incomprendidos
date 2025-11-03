@@ -22,10 +22,8 @@ public:
   ~SensorsPage();
   
 private:
-  void drawArduinesTable();
-  void drawSensorsTable();
+  void drawSensorsRow(const SensorData& sensor);
   QVector<QTableWidgetItem*> sensorDeserialization(const SensorData& sensor);
-  QVector<QTableWidgetItem*> arduineDeserialization(const SensorData& sensor);
 };
 
 #endif // SENSORSPAGE_H
