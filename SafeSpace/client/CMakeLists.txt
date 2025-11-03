@@ -9,7 +9,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
   Network
 )
 
-find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
+find_package(REQUIRED COMPONENTS SSL Crypto)
 
 qt_standard_project_setup()
 
@@ -25,7 +25,8 @@ qt_add_executable(SafeSpace
   
   # Structures
   src/model/structures/user.cpp src/model/structures/user.h
-  src/model/structures/sensordata.h src/model/structures/sensordata.cpp
+  src/model/structures/sensordata.h
+  src/model/structures/sensordata.cpp
 
   # Filesystem  
   src/model/filesystem/iNode.h
@@ -82,11 +83,15 @@ qt_add_executable(SafeSpace
   src/model/data/unity.bin
   src/model/network/authenticationrequest.h
   src/model/network/authenticationresponse.h
+  src/model/network/connectrequest.cpp
+  src/model/network/connectrequest.h
   
   src/model/network/qtudpclient.h
   src/model/network/qtudpclient.cpp
-  src/view/arduinos/subpages/registerspage.h src/view/arduinos/subpages/registerspage.cpp src/view/arduinos/subpages/registerspage.ui
-  ../common/LogManager.h ../common/LogManager.cpp
+  src/view/arduinos/subpages/registerspage.h
+  src/view/arduinos/subpages/registerspage.cpp
+  src/view/arduinos/subpages/registerspage.ui
+  # ../common/LogManager.h ../common/LogManager.cpp
 
 )
 
