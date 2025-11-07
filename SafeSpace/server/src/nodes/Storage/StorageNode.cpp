@@ -69,10 +69,9 @@ SensorData StorageNode::bytesToSensorData(const uint8_t* data, size_t len) const
         float values[6];
         
         for (int i = 0; i < 6; i++) {
-            uint32_t net_value;
-            std::memcpy(&net_value, data + (i * 4), 4);
-            uint32_t host_value = ntohl(net_value);
-            std::memcpy(&values[i], &host_value, 4);
+            float f;
+            std::memcpy(&f, data + (i * 4), 4);
+            values[i] = f; 
         }
         
         std::cout << "[StorageNode] Parsed values - "
