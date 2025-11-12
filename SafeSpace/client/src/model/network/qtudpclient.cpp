@@ -65,9 +65,7 @@ void QtUDPClient::sendAuthRequest(std::uint16_t sessionId,
 }
 
 void QtUDPClient::sendConnectRequest(std::uint16_t sessionId) {
-  ConnectRequest request(1001, 0, 0);
-  qInfo() << "Tamano de dato request a enviar" << sizeof(request);
-  qInfo() << "Tamano de dato request" << sizeof(ConnectRequest);
+  ConnectRequest request(sessionId, 0, 0);
   
   auto buffer = request.toBuffer();
   

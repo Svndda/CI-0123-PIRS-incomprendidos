@@ -39,6 +39,7 @@
    <property name="styleSheet">
     <string notr="true">QWidget {
 	color: white;
+	background-color: rgb(36, 31, 49)
 }</string>
    </property>
    <layout class="QGridLayout" name="mainLayout">

@@ -3,6 +3,7 @@
 
 #include "page.h"
 #include <QWidget>
+#include <QTableWidgetItem>
 
 namespace Ui {
 class RegistersPage;
@@ -19,6 +20,10 @@ public:
 
 private:
   Ui::RegistersPage *ui;
+
+    void drawSensorsRow(const SensorData& sensor);
+
+    QVector<QTableWidgetItem*> sensorDeserialization(const SensorData& sensor);
 };
 
 #endif // REGISTERSPAGE_H

@@ -10,7 +10,7 @@
 #include "model.h"
 
 Model::Model()
-  : client("172.17.0.70", 8003, this) {
+  : client("10.1.35.23", 8081, this) {
   
   this->connect(
       &this->client, &QtUDPClient::sensorDataReceived,
@@ -52,7 +52,6 @@ void Model::authenticate(
         this->client.sendConnectRequest(resp.getSessionId());
       }
       emit this->authenticatheResponse(this->started);
-
   });
   this->client.sendAuthRequest(1001, username, User::hashSHA256(password));
 }

@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find required packages
 find_package(OpenSSL REQUIRED)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
 include_directories(src)
 include_directories(src/model)
@@ -58,7 +59,15 @@ add_executable(server
         src/model/structures/authenticationrequest.h
         src/model/structures/authenticationresponse.h
         src/model/structures/SensorPacket.h
+        src/nodes/Storage/StorageNode.h
+        src/nodes/Storage/StorageNode.cpp
+        src/nodes/Proxy/ProxyNode.h
+        src/nodes/Proxy/ProxyNode.cpp
 )
 
 # Link libraries
-target_link_libraries(server OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(server 
+        OpenSSL::SSL OpenSSL::Crypto
+        Qt6::Core Qt6::Gui Qt6::Widgets
+        OpenSSL::SSL OpenSSL::Crypto
+)

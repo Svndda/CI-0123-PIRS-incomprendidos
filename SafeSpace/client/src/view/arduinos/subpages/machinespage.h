@@ -23,7 +23,7 @@ public:
   
 private:
   void drawArduinesTable();
-  QVector<QTableWidgetItem*> arduineDeserialization(const SensorData& sensor);
+  QVector<QTableWidgetItem*> arduineDeserialization();
 };
 
 #endif // MACHINESPAGE_H
