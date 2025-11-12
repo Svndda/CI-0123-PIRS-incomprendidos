@@ -52,6 +52,7 @@ public:
     int  find(const std::string& name) const; // retorna el id del i-nodo
     int openFile(const std::string& name);
     int closeFile(const std::string& name);
+    const std::vector<DirEntry>& getDirectory() const;
     // Debug
     void listFiles() const;
 

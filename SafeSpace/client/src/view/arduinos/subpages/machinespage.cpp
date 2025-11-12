@@ -17,14 +17,12 @@ void MachinesPage::drawArduinesTable() {
   QTableWidget* table = this->ui->arduinos_table;
   table->setRowCount(0);
   
-  for(const auto& sensor : this->model.getSensorsData()) {
-    const int row = table->rowCount();
-    table->insertRow(row);
-    
-    QVector<QTableWidgetItem*> rowFields = this->arduineDeserialization(sensor);
-    for (size_t i = 0; i < rowFields.size(); ++i) {
+  const int row = table->rowCount();
+  table->insertRow(row);
+
+  QVector<QTableWidgetItem*> rowFields = this->arduineDeserialization();
+  for (size_t i = 0; i < rowFields.size(); ++i) {
       table->setItem(row, i, rowFields[i]);
-    }
   }
   // Resize columns to fit their content first
   table->resizeColumnsToContents();
@@ -39,8 +37,7 @@ void MachinesPage::drawArduinesTable() {
   table->setWordWrap(false);
 }
 
-QVector<QTableWidgetItem*> MachinesPage::arduineDeserialization(
-    const SensorData& sensor) {
+QVector<QTableWidgetItem*> MachinesPage::arduineDeserialization() {
   QVector<QTableWidgetItem*> fields;
   
   auto deserializeToItem = [](auto value) {
@@ -56,10 +53,10 @@ QVector<QTableWidgetItem*> MachinesPage::arduineDeserialization(
     return item;
   };
   
-  // fields.emplace_back(deserializeToItem(sensor.id));
-  // fields.emplace_back(deserializeToItem("Arduino " + QString::number(sensor.id)));
-  // fields.emplace_back(deserializeToItem("Piso 1"));
-  // fields.emplace_back(deserializeToItem("192.168.0.1"));
+  fields.emplace_back(deserializeToItem("0001"));
+  fields.emplace_back(deserializeToItem("Arduino " + QString::number(0001)));
+  fields.emplace_back(deserializeToItem("Piso 3"));
+  fields.emplace_back(deserializeToItem("10.1.35.24"));
   
   return fields;
 }

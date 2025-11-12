@@ -6,6 +6,7 @@
 #include "Arduino/Arduino_Node.h"
 #include "Auth/auth_udp_server.h"
 #include "Intermediary/IntermediaryNode.h"
+#include "Storage/StorageNode.h"
 
 static volatile std::sig_atomic_t stopFlag = 0;
 extern "C" void sigHandler(int) { stopFlag = 1; }
@@ -123,6 +124,24 @@ int main(const int argc, char* argv[]) {
       if (stopFlag) proxy.stop();
       std::cout << "[Main] ProxyNode stopped cleanly." << std::endl;
 
+    } else if (type == "storage") {
+
+      if (argc != 7) {
+        throw std::runtime_error("Proxy mode requires 5 arguments:"
+        " storage <local_ip> <local_port>"
+        " <masterNode_ip> <masterNode_port>"
+        " <diskPath>"
+        );
+      }
+
+      const std::string masterIp = argv[4];
+      const uint16_t masterPort = parsePort(argv[5]);
+      const std::string nodeId = "storage1";
+      const std::string diskPath = argv[6]; // Usar el archivo proporcionado
+          
+      // Crear instancia de StorageNode
+      StorageNode storage(localPort, masterIp, masterPort, nodeId, diskPath);
+      storage.start();
     } else if (type ==  "auth") {
       AuthUDPServer server(localIp, localPort);
       std::cout << " Iniciando AuthUDPServer en puerto: " << localPort << std::endl;
