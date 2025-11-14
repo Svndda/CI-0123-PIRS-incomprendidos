@@ -6,6 +6,10 @@ AccountPage::AccountPage(QWidget *parent, Model& model) :
     Page(parent, model)
     , ui(new Ui::AccountPage) {
   ui->setupUi(this);
+  this->connect(this->ui->logout_button, &QPushButton::clicked,
+      this, [this]() {
+    // this->model.
+  });
 }
 
 AccountPage::~AccountPage() {
