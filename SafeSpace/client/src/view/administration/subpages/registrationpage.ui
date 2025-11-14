@@ -26,7 +26,7 @@
    <string>Registrar Usuario</string>
   </property>
   <property name="styleSheet">
-   <string notr="true">color:white;</string>
+   <string notr="true"/>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -49,6 +49,20 @@
        <pointsize>12</pointsize>
        <bold>true</bold>
       </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+  border: 2px solid grey;      /* Color del borde */
+  border-radius: 6px;             /* Esquinas redondeadas */
+  padding: 4px;                   /* Espacio interno */
+  selection-background-color: rgb(206, 206, 206);
+}
+
+/* Cuando el QLineEdit tiene el foco */
+QLineEdit:focus {
+  border: 2px solid grey;      /* Color cuando está seleccionado */
+}
+</string>
      </property>
      <property name="placeholderText">
       <string>Usuario</string>
@@ -74,6 +88,20 @@
        <pointsize>12</pointsize>
        <bold>true</bold>
       </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+  border: 2px solid grey;      /* Color del borde */
+  border-radius: 6px;             /* Esquinas redondeadas */
+  padding: 4px;                   /* Espacio interno */
+  selection-background-color: rgb(206, 206, 206);
+}
+
+/* Cuando el QLineEdit tiene el foco */
+QLineEdit:focus {
+  border: 2px solid grey;      /* Color cuando está seleccionado */
+}
+</string>
      </property>
      <property name="echoMode">
       <enum>QLineEdit::EchoMode::Password</enum>
@@ -102,6 +130,23 @@
        <pointsize>12</pointsize>
        <bold>true</bold>
       </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QComboBox {
+  border: 2px solid grey;      /* Color del borde */
+  border-radius: 6px;             /* Esquinas redondeadas */
+  padding: 4px;                   /* Espacio interno */
+  selection-background-color: rgb(206, 206, 206);
+}
+
+/* Cuando el QLineEdit tiene el foco */
+QComboBox:focus {
+  border: 2px solid grey;      /* Color cuando está seleccionado */
+}
+</string>
+     </property>
+     <property name="maxVisibleItems">
+      <number>5</number>
      </property>
     </widget>
    </item>
