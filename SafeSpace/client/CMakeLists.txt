@@ -53,10 +53,9 @@ qt_add_executable(SafeSpace
   src/view/account/accountpage.h
   src/view/account/accountpage.cpp
   src/view/account/accountpage.ui
-  
-  src/view/visualizerspage.h
-  src/view/visualizerspage.cpp
-  src/view/visualizerspage.ui
+  src/view/account/subpages/settings.h
+  src/view/account/subpages/settings.cpp
+  src/view/account/subpages/settings.ui
   
   src/view/arduinos/arduinospage.h
   src/view/arduinos/arduinospage.cpp
@@ -85,12 +84,21 @@ qt_add_executable(SafeSpace
   src/model/network/authenticationresponse.h
   src/model/network/connectrequest.cpp
   src/model/network/connectrequest.h
+  src/model/network/disconnectrequest.cpp
+  src/model/network/disconnectrequest.h
   
   src/model/network/qtudpclient.h
   src/model/network/qtudpclient.cpp
   src/view/arduinos/subpages/registerspage.h
   src/view/arduinos/subpages/registerspage.cpp
   src/view/arduinos/subpages/registerspage.ui
+  
+  src/view/nodes/nodespage.h
+  src/view/nodes/nodespage.cpp
+  src/view/nodes/nodespage.ui
+  src/model/network/ConnectResponse.h
+  src/model/network/disconnectresponse.h
+  src/model/network/connectresponse.h
   # ../common/LogManager.h ../common/LogManager.cpp
 
 )
