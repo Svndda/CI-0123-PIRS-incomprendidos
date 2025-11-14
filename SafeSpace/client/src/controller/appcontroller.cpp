@@ -1,5 +1,6 @@
 // Copyright [2025] Aaron Carmona Sanchez <aaron.carmona@ucr.ac.cr>
 #include "controller/appcontroller.h"
+#include "nodes/nodespage.h"
 #include "ui_mainwindow.h"
 
 #include <QMessageBox>
@@ -10,7 +11,6 @@
 #include "loginpage.h"
 #include "administrationpage.h"
 #include "accountpage.h"
-#include "visualizerspage.h"
 #include "colors.h"
 #include <iostream>
 
@@ -20,7 +20,7 @@ AppController::AppController(QWidget *parent)
   , pageStack(new QStackedWidget(this))
   , model(Model::getInstance()) {
   // Define the controller ui as the mainWindow.
-  ui->setupUi(this);  
+  ui->setupUi(this);
   // Connects all the ui elements to their slot functions.
   this->setupConnections();
   // For the app to be in full window.
@@ -49,16 +49,16 @@ void AppController::setupConnections() {
   this->connect(
     loginPage, &LoginPage::userAuthenticated,
     this, &AppController::userAuthenticated
-  );
-  
+  );  
   // Hides/Disables the pages buttons.
   this->setButtonsState(false);
+  this->userAuthenticated();  
 }
 
 void AppController::setButtonsState(bool state) {
   // Enables all the system pages buttons.
   this->ui->arduinosPage_button->setVisible(state);
-  this->ui->visualizersPage_button->setVisible(state);
+  this->ui->nodesPage_button->setVisible(state);
   this->ui->administrationPage_button->setVisible(state);
   this->ui->accountPage_button->setVisible(state);
 }
@@ -67,14 +67,14 @@ void AppController::prepareSystemPages() {
   delete this->pageStack->currentWidget();
   
   // // Creates the different program pages.
-  VisualizersPage* visualizerPage = new VisualizersPage(this, this->model);
+  NodesPage* nodesPage = new NodesPage(this, this->model);
   ArduinosPage* arduinosPage = new ArduinosPage(this, this->model);
   AdministrationPage* administrationPage
       = new AdministrationPage(this, this->model);
   AccountPage* accountPage = new AccountPage(this, this->model);
     
   // // Adds the program pages to the stack of pages.
-  this->pageStack->addWidget(visualizerPage);
+  this->pageStack->addWidget(nodesPage);
   this->pageStack->addWidget(arduinosPage);
   this->pageStack->addWidget(administrationPage);
   this->pageStack->addWidget(accountPage);
@@ -104,7 +104,7 @@ void AppController::prepareSystemPages() {
   );
   
   this->connect(
-      this->ui->visualizersPage_button, &QPushButton::clicked,
+      this->ui->nodesPage_button, &QPushButton::clicked,
       this, [this]() {
         this->switchPages(0);
         std::cout << "selecionando pagina visualizadores" << std::endl;
@@ -132,7 +132,7 @@ void AppController::pageButtonsRefresh(const size_t pageIndex) {
   
   // Vector of the application buttons to move through the pages.
   QVector<QPushButton*> buttons = {
-    this->ui->visualizersPage_button,
+    this->ui->nodesPage_button,
     this->ui->arduinosPage_button,
     this->ui->administrationPage_button,
     this->ui->accountPage_button
