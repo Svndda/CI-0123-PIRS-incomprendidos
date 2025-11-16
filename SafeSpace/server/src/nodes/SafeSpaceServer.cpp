@@ -25,6 +25,7 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
   auto& logger = LogManager::instance();
   logger.configureRemote(eventsIp, eventsPort, "SafeSpaceServer");
   logger.info("SafeSpaceServer logging system initialized");
+  logger.ipAddress(ip + std::string(":") + std::to_string(port));
   // Start critical events node on a nearby port (port+1) to collect logs from nodes
   try {
     // uint16_t critPort = static_cast<uint16_t>(port + 1);

@@ -52,18 +52,19 @@ void CriticalEventsNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
 
     std::string body;
     if (len <= 0) return;
-
+    std::cout << "AAAAAAAA" << body << std::endl;
     // If the first byte is a known severity, interpret it; otherwise treat whole datagram as text
     std::string severity = "INFO";
     size_t offset = 0;
     if (len >= 1) {
         uint8_t first = data[0];
-        if (first <= 2 && len >= 2) {
-            // format: [severity(0=INFO,1=WARN,2=ERROR)] payload...
+        if (first <= 3 && len >= 2) {
+            // format: [severity(0=INFO,1=WARN,2=ERROR,3=IP_ADDRESS)] payload...
             switch (first) {
                 case 0: severity = "INFO"; break;
                 case 1: severity = "WARN"; break;
                 case 2: severity = "ERROR"; break;
+                case 3: severity = "IP_ADDRESS"; break;
                 default: severity = "INFO"; break;
             }
             offset = 1;

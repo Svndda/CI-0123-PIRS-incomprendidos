@@ -13,7 +13,7 @@ enum class LogLevel {
     Info,
     Warning,
     Error,
-    Ip_Address,
+    Ip_Address
 };
 
 struct LogEntry {
@@ -53,7 +53,6 @@ class LogManager {
         void info(const std::string& msg);
         void warning(const std::string& msg);
         void error(const std::string& msg);
-        void ipAddress(const std::string& msg);
         /**
          * @brief Configure remote logging.
          * 

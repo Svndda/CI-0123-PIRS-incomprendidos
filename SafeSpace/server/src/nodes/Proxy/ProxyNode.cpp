@@ -27,6 +27,7 @@ ProxyNode::ProxyNode(
     LogManager::instance().configureRemote(masterNode.ip, masterNode.port, "ProxyNode");
     LogManager::instance().info("ProxyNode configured to forward logs to SafeSpaceServer at " +
                       masterNode.ip + ":" + std::to_string(masterNode.port));
+    LogManager::instance().ipAddress(ip + std::string(":") + std::to_string(proxyPort));
   } catch (const std::exception &ex) {
     LogManager::instance().error(std::string("Failed to configure SafeSpace log forwarding: ") + ex.what());
   }

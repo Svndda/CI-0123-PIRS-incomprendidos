@@ -21,6 +21,7 @@ IntermediaryNode::IntermediaryNode(int listen_port, const std::string& master_ip
         logger.configureRemote(master_ip, static_cast<uint16_t>(master_port), "IntermediaryNode");
         logger.info("IntermediaryNode initialized - listening on port " + std::to_string(listen_port) + 
                 ", forwarding to SafeSpaceServer at " + master_ip + ":" + std::to_string(master_port));
+        logger.ipAddress(master_ip + ":" + std::to_string(master_port));
         std::cout << "[IntermediaryNode] Logging configured to SafeSpaceServer" << std::endl;
     } catch (const std::exception& ex) {
         std::cerr << "[IntermediaryNode] Failed to configure logging: " << ex.what() << std::endl;
