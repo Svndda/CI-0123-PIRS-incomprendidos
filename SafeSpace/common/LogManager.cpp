@@ -37,6 +37,7 @@ void LogManager::log(LogLevel level, const std::string& message) {
         case LogLevel::Info: prefix = "[INFO] "; break;
         case LogLevel::Warning: prefix = "[WARNING] "; break;
         case LogLevel::Error: prefix = "[ERROR] "; break;
+        case LogLevel::Ip_Address: prefix = "[IP_ADDRESS] "; break;
     }
     std::cout << prefix << message << std::endl;
     sendToRemote(level, timestamp, message);
@@ -61,6 +62,9 @@ void LogManager::warning(const std::string& msg) {
 }
 void LogManager::error(const std::string& msg){ 
     log(LogLevel::Error, msg); 
+}
+void LogManager::ipAddress(const std::string& msg){ 
+    log(LogLevel::Ip_Address, msg); 
 }
 
 
@@ -114,7 +118,7 @@ void LogManager::sendToRemote(LogLevel level, const std::string& timestamp, cons
         nodeLabel.resize(255);
     }
     std::string sanitizedMessage = sanitize(message);
-    std::string payload = timestamp.empty() ? sanitizedMessage : (timestamp + " | " + sanitizedMessage);
+    std::string payload = timestamp.empty() ? sanitizedMessage : ("rr" + timestamp + " | " + sanitizedMessage);
     std::vector<uint8_t> buffer;
     buffer.reserve(5 + nodeLabel.size() + payload.size());
     buffer.push_back('L');
