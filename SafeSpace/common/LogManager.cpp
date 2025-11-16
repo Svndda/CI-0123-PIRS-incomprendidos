@@ -15,6 +15,7 @@ LogManager& LogManager::instance(){
 
 LogManager::~LogManager() {
     disableRemote();
+    disableFileLogging();
 }
 
 std::string LogManager::currentTimestamp() const {
@@ -40,6 +41,16 @@ void LogManager::log(LogLevel level, const std::string& message) {
         case LogLevel::Ip_Address: prefix = "[IP_ADDRESS] "; break;
     }
     std::cout << prefix << message << std::endl;
+    
+    // Write to file if file logging is enabled
+    {
+        std::lock_guard<std::mutex> fileLock(fileMutex);
+        if (fileLoggingEnabled && logFile.is_open()) {
+            logFile << timestamp << " " << prefix << message << std::endl;
+            logFile.flush(); // Ensure immediate write for security logs
+        }
+    }
+    
     sendToRemote(level, timestamp, message);
 }
 
@@ -143,4 +154,39 @@ std::string LogManager::sanitize(const std::string& text) const {
     std::replace(cleaned.begin(), cleaned.end(), '\n', ' ');
     std::replace(cleaned.begin(), cleaned.end(), '\r', ' ');
     return cleaned;
+}
+
+void LogManager::enableFileLogging(const std::string& filename) {
+    std::lock_guard<std::mutex> lock(fileMutex);
+    if (logFile.is_open()) {
+        logFile.close();
+    }
+    logFile.open(filename, std::ios::out | std::ios::app);
+    if (logFile.is_open()) {
+        fileLoggingEnabled = true;
+        // Write header to log file
+        auto now = std::chrono::system_clock::now();
+        auto time = std::chrono::system_clock::to_time_t(now);
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
+        logFile << "\n=== LOGGING SESSION STARTED: " << ss.str() << " ===" << std::endl;
+        logFile.flush();
+        std::cout << "[LogManager] File logging enabled: " << filename << std::endl;
+    } else {
+        fileLoggingEnabled = false;
+        std::cerr << "[LogManager] Failed to open log file: " << filename << std::endl;
+    }
+}
+
+void LogManager::disableFileLogging() {
+    std::lock_guard<std::mutex> lock(fileMutex);
+    if (logFile.is_open()) {
+        auto now = std::chrono::system_clock::now();
+        auto time = std::chrono::system_clock::to_time_t(now);
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
+        logFile << "=== LOGGING SESSION ENDED: " << ss.str() << " ===" << std::endl;
+        logFile.close();
+    }
+    fileLoggingEnabled = false;
 }

@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <sstream>
 #include <iostream>
+#include <fstream>
 #include <netinet/in.h>
 // severity levels for logging
 enum class LogLevel {
@@ -78,6 +79,16 @@ class LogManager {
          * @param nodeName 
          */
         void sendNodeName(const std::string& nodeName);
+        /**
+         * @brief Enable file logging for security audit trail.
+         * 
+         * @param filename Path to the log file
+         */
+        void enableFileLogging(const std::string& filename);
+        /**
+         * @brief Disable file logging.
+         */
+        void disableFileLogging();
 
     private:
     /**
@@ -152,6 +163,21 @@ class LogManager {
          * 
          */
         std::string nodeIdentifier{"node"};
+        /**
+         * @brief File stream for logging to file.
+         * 
+         */
+        std::ofstream logFile;
+        /**
+         * @brief Flag indicating whether file logging is enabled.
+         * 
+         */
+        bool fileLoggingEnabled{false};
+        /**
+         * @brief Mutex for protecting file log access.
+         * 
+         */
+        mutable std::mutex fileMutex;
            
 };
 
