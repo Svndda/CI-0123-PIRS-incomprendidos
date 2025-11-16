@@ -52,30 +52,32 @@ void CriticalEventsNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
 
     std::string body;
     if (len <= 0) return;
-    std::cout << "AAAAAAAA" << body << std::endl;
-    // If the first byte is a known severity, interpret it; otherwise treat whole datagram as text
+    
+    // LogManager protocol: ['L']['O']['G'][level][nodeNameSize][nodeName...][payload...]
+    if (len < 5) return; // Minimum size for LogManager protocol
+    
     std::string severity = "INFO";
-    size_t offset = 0;
-    if (len >= 1) {
-        uint8_t first = data[0];
-        if (first <= 3 && len >= 2) {
-            // format: [severity(0=INFO,1=WARN,2=ERROR,3=IP_ADDRESS)] payload...
-            switch (first) {
-                case 0: severity = "INFO"; break;
-                case 1: severity = "WARN"; break;
-                case 2: severity = "ERROR"; break;
-                case 3: severity = "IP_ADDRESS"; break;
-                default: severity = "INFO"; break;
-            }
-            offset = 1;
-        }
+    
+    uint8_t levelByte = data[3];
+    uint8_t nodeNameSize = data[4];
+    
+    
+    switch (levelByte) {
+        case 0: severity = "INFO"; break;
+        case 1: severity = "WARN"; break;
+        case 2: severity = "ERROR"; break;
+        case 3: severity = "IP_ADDRESS"; break;
+        default: severity = "UNKNOWN"; break;
     }
+    
+    // Skip: 'L'(1) + 'O'(1) + 'G'(1) + level(1) + nodeNameSize(1) + nodeName(nodeNameSize)
+    size_t offset = 5 + nodeNameSize;
 
     // copy rest as UTF-8 text
     body.assign(reinterpret_cast<const char*>(data + offset), static_cast<size_t>(len - offset));
 
     std::ostringstream line;
-    line << makeTimestamp() << " | " << ipStr << ":" << peerPort << " | " << severity << " | " << body;
+    line << makeTimestamp() << "First byte value: " << static_cast<int>(data[1])<< " | " << ipStr << ":" << peerPort << " | " << severity << " | " << body;
 
     appendLine(line.str());
 
