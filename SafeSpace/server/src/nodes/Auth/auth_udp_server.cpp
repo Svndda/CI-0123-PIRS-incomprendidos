@@ -7,7 +7,7 @@
 #include <cstring>
 #include <openssl/sha.h>
 #include <arpa/inet.h>
-
+#include "../../../common/LogManager.h"
 // Estructuras para mensajes DISCOVER 
 #pragma pack(push, 1)
 struct DiscoverRequest {
@@ -27,9 +27,21 @@ AuthUDPServer::AuthUDPServer(const std::string& ip, uint16_t port)
     : UDPServer(ip, port, 1024) {
     loadDefaultUsers();
     std::cout << " AuthUDPServer iniciado en puerto UDP " << port << std::endl;
+    auto& logger = LogManager::instance();
+    
+    // Enable file logging for security audit trail
+    logger.enableFileLogging("auth_security_audit.log");
+    
+    logger.ipAddress(ip + std::string(":") + std::to_string(port));
+    logger.info("AuthUDPServer initialized - LOCAL LOGGING ONLY (External Ring Security)");
+    logger.info("Authentication server ready on " + ip + ":" + std::to_string(port) + 
+                " - " + std::to_string(users.size()) + " users loaded");
 }
 
 AuthUDPServer::~AuthUDPServer() {
+    auto& logger = LogManager::instance();
+    logger.info("AuthUDPServer shutting down - Security logging ended");
+    logger.disableFileLogging();
     stop();
 }
 
@@ -85,6 +97,10 @@ void AuthUDPServer::handleDiscover(const sockaddr_in& peer, const uint8_t* data,
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &peer.sin_addr, ipStr, sizeof(ipStr));
     
+    auto& logger = LogManager::instance();
+    logger.info("DISCOVER request received - msgId: " + std::to_string(discover->msgId) + 
+                " from " + std::string(ipStr) + ":" + std::to_string(ntohs(peer.sin_port)));
+    
     std::cout << " DISCOVER - msgId: " << static_cast<int>(discover->msgId)
               << " desde " << ipStr << std::endl;
     
@@ -96,6 +112,7 @@ void AuthUDPServer::handleDiscover(const sockaddr_in& peer, const uint8_t* data,
 
     out_response.assign(reinterpret_cast<const char*>(&response), sizeof(response));
     
+    logger.info("DISCOVER response sent to " + std::string(ipStr) + " - sensorId: 1");
     std::cout << " DISCOVER_RESP enviado" << std::endl;
 }
 
@@ -117,6 +134,12 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
     
     char ipStr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &peer.sin_addr, ipStr, sizeof(ipStr));
+    
+    auto& logger = LogManager::instance();
+    std::string clientInfo = std::string(ipStr) + ":" + std::to_string(ntohs(peer.sin_port));
+    
+    logger.info("AUTH_REQUEST received - sessionId: " + std::to_string(sessionId) + 
+                ", user: '" + username + "' from " + clientInfo);
     
     std::cout << " AUTH_REQUEST - sessionId: " << sessionId
               << ", usuario: '" << username << "'" << std::endl;
@@ -143,6 +166,12 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
             active_sessions[sessionToken] = username;
         }
         
+        // Log de seguridad - autenticación exitosa
+        logger.info("AUTHENTICATION SUCCESS - User: '" + username + 
+                   "', Group: '" + it->second.getGroup() + 
+                   "', Client: " + clientInfo + 
+                   ", SessionToken: " + sessionToken.substr(0, 8) + "...");
+        
         std::cout << " Autenticación EXITOSA: " << username << std::endl;
         std::cout << "   Token de sesión: " << sessionToken << std::endl;
     } else {
@@ -153,8 +182,16 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
         // Incrementar intentos fallidos si el usuario existe
         if (it != users.end()) {
             if (it->second.isLocked()) {
+                logger.error("AUTHENTICATION BLOCKED - User: '" + username + 
+                            "', Reason: Account locked, Client: " + clientInfo);
                 std::cout << " Cuenta BLOQUEADA: " << username << std::endl;
+            } else {
+                logger.warning("AUTHENTICATION FAILED - User: '" + username + 
+                              "', Reason: Invalid password, Client: " + clientInfo);
             }
+        } else {
+            logger.warning("AUTHENTICATION FAILED - User: '" + username + 
+                          "', Reason: User not found, Client: " + clientInfo);
         }
         
         std::cout << " Autenticación FALLIDA: " << username << std::endl;
@@ -165,6 +202,9 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
     out_response.assign(response_buffer.begin(), response_buffer.end());
     sendTo(peer, reinterpret_cast<const uint8_t*>(response_buffer.data()), response_buffer.size());
 
+    logger.info("AUTH_RESPONSE sent to " + clientInfo + 
+                " - status: " + std::to_string(response.getStatusCode()) + 
+                " (" + (response.getStatusCode() == 1 ? "SUCCESS" : "FAILED") + ")");
     
     std::cout << " AUTH_RESPONSE enviado - status: " 
               << static_cast<int>(response.getStatusCode()) << std::endl;
