@@ -23,6 +23,7 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
   
   // Configurar LogManager para enviar logs a CriticalEventsNode
   auto& logger = LogManager::instance();
+  logger.enableFileLogging("server_security_audit.log");
   logger.configureRemote(eventsIp, eventsPort, "SafeSpaceServer");
   logger.info("SafeSpaceServer logging system initialized");
   logger.ipAddress(ip + std::string(":") + std::to_string(port));
@@ -52,6 +53,9 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
 
 SafeSpaceServer::~SafeSpaceServer() {
   // stop critical events node if running
+  auto& logger = LogManager::instance();
+    logger.info("Server shutting down - Security logging ended");
+    logger.disableFileLogging();
   if (criticalEventsNode_) {
     criticalEventsNode_->stop();
     // UDPServer::stop signals serveBlocking to finish; join thread
