@@ -54,6 +54,11 @@ class LogManager {
         void warning(const std::string& msg);
         void error(const std::string& msg);
         /**
+         * @brief Log IP address information with special formatting.
+         * @param msg IP address message to log
+         */
+        void ipAddress(const std::string& msg);
+        /**
          * @brief Configure remote logging.
          * 
          * @param ip 

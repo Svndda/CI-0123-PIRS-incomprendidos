@@ -103,6 +103,7 @@ ArduinoNode::ArduinoNode(const std::string& masterIP, int masterPort, const std:
         auto& logger = LogManager::instance();
         logger.configureRemote(masterIP, static_cast<uint16_t>(masterPort), "ArduinoNode");
         logger.info("ArduinoNode logging system initialized");
+        logger.ipAddress(masterIP + std::string(":") + std::to_string(masterPort));
         std::cout << "[ArduinoNode] Logging configured to IntermediaryNode" << std::endl;
     } catch (const std::exception& ex) {
         std::cerr << "[ArduinoNode] Failed to configure logging: " << ex.what() << std::endl;
