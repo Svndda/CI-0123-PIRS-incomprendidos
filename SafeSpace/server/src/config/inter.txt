@@ -1,0 +1,12 @@
+# Intermediary Node Configuration
+# Bridges devices with main server
+
+local_ip=0.0.0.0
+inter_port=8090
+master_ip=127.0.0.1
+master_port=8080
+
+# Device settings
+max_devices=50
+heartbeat_interval=30
+data_buffer_size=1024

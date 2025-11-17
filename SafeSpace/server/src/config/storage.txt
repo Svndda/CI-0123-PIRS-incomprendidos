@@ -1,0 +1,14 @@
+# Storage Node Configuration
+# Handles data persistence
+
+local_ip=0.0.0.0
+local_port=8081
+master_ip=127.0.0.1
+master_port=8080
+node_id=storage1
+disk_path=./storage_data
+
+# Storage settings
+max_file_size=10485760  # 10MB
+backup_interval=3600    # 1 hour
+compression_enabled=true

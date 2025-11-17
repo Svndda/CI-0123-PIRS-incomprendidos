@@ -1,0 +1,15 @@
+# Critical Events Node Configuration
+# Collects and stores system logs
+
+local_ip=0.0.0.0
+local_port=8082
+output_file=events.log
+
+# Logging settings
+max_log_size=5242880    # 5MB
+log_retention_days=7
+log_level=DEBUG
+
+# Alert thresholds
+critical_temperature=80.0
+critical_distance=5.0

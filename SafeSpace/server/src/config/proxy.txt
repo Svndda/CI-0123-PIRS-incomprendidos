@@ -1,0 +1,13 @@
+# Proxy Node Configuration
+# Routes traffic between components
+
+local_ip=0.0.0.0
+local_port=9000
+auth_ip=127.0.0.1
+auth_port=9001
+master_ip=127.0.0.1
+master_port=8080
+
+# Connection timeout (milliseconds)
+timeout=5000
+max_connections=100

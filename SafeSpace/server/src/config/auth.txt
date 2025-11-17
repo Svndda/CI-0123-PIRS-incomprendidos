@@ -1,0 +1,13 @@
+# Authentication Node Configuration
+# Handles client authentication
+
+local_ip=0.0.0.0
+local_port=9001
+
+# Authentication settings
+session_timeout=3600  # 1 hour in seconds
+max_login_attempts=3
+require_encryption=true
+
+# User database (for testing)
+# test_user=test_password

@@ -1,0 +1,14 @@
+# Bootstrap Server Configuration
+# Initial service discovery and coordination
+
+local_ip=0.0.0.0
+local_port=8080
+
+# Service registry
+service_timeout=30
+max_services=100
+
+# Discovery settings
+broadcast_enabled=true
+multicast_group=239.255.255.250
+multicast_port=1900
