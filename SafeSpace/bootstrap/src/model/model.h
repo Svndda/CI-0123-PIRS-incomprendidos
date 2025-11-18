@@ -20,6 +20,14 @@ struct NetworkEvent {
   int nodeId;  
 };
 
+struct NodeInfo {
+  int id;
+  QString name;
+  QString ip;
+  int port;
+  QString status;
+};
+
 /**
  * @class Model
  * @brief Core singleton class managing the POS system.
@@ -40,7 +48,8 @@ private:
   bool started = false;       ///< Flag indicating if the model has been started.
   QtUDPClient client;
   User user = User("SafeAdmin", User::hashSHA256("qwerTY2134"));
-  std::vector<NetworkEvent> networkLog;  
+  std::vector<NetworkEvent> networkLog;
+  QVector<NodeInfo> nodes;  
   // FileSystem filesystem;
   // UsersManager usersManager;
 private:
@@ -49,6 +58,7 @@ private:
    */
   Model();
   void addNetworkEvent(const NetworkEvent& evt);
+  bool loadNodesFromFile(const QString& filename = "nodes_config.txt");
   
 public:  ///< Getters
   /**
@@ -56,6 +66,10 @@ public:  ///< Getters
    * @return Reference to the single instance of Model.
    */
   static Model& getInstance();
+  
+  const QVector<NodeInfo>& getNodes() const { return nodes; }
+  NodeInfo getNodeById(int nodeId) const;
+  bool updateNodeStatus(int nodeId, const QString& status);
   
   /**
    * @brief Checks if the App model has been started.

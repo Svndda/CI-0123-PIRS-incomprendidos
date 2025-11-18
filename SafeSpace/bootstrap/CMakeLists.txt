@@ -65,6 +65,7 @@ qt_add_executable(SafeSpace
   src/view/nodes/nodespage.h
   src/view/nodes/nodespage.cpp
   src/view/nodes/nodespage.ui
+  src/model/data/nodes_config.text
   # ../common/LogManager.h ../common/LogManager.cpp
 
 )
