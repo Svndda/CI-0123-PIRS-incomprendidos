@@ -84,6 +84,10 @@ signals:
   // Emitted when a StopNodeResponse is received and parsed correctly
   void stopNodeResponseReceived(const StopNodeResponse& response);
   
+  void requestSent(QString type, QString detail, QByteArray raw);
+  
+  void responseReceived(QString type, QString detail, QByteArray raw);
+  
   /**
    * @brief Emitted on any socket or protocol error.
   */

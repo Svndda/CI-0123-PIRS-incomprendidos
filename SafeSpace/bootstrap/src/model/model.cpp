@@ -3,11 +3,37 @@
 #include <limits>
 
 #include <QDebug>
+#include <QDateTime>
 #include "FileSystem.h"
 #include "model.h"
 
 Model::Model()
   : client("172.17.0.70", 8080, this) {
+  
+  connect(&client, &QtUDPClient::requestSent,
+          this, [this](QString type, QString detail, QByteArray raw){
+            NetworkEvent evt;
+            evt.direction = "REQUEST";
+            evt.type = type;
+            evt.detail = detail;
+            evt.rawBytes = raw;
+            evt.timestamp = QDateTime::currentDateTime().toString(Qt::ISODate);
+            
+            addNetworkEvent(evt);
+          });
+  
+  // Registrar RESPONSES
+  connect(&client, &QtUDPClient::responseReceived,
+          this, [this](QString type, QString detail, QByteArray raw){
+            NetworkEvent evt;
+            evt.direction = "RESPONSE";
+            evt.type = type;
+            evt.detail = detail;
+            evt.rawBytes = raw;
+            evt.timestamp = QDateTime::currentDateTime().toString(Qt::ISODate);
+            
+            addNetworkEvent(evt);
+          });
   
   this->connect(&this->client, &QtUDPClient::runNodeResponseReceived,
       this, [this](const RunNodeResponse& resp) {
@@ -54,6 +80,11 @@ void Model::runNode(uint8_t nodeId) {
 
 void Model::stopNode(uint8_t nodeId) {
   this->client.sendStopNodeRequest(nodeId);
+}
+
+void Model::addNetworkEvent(const NetworkEvent& evt) {
+  this->networkLog.push_back(evt);
+  emit this->networkEventLogged(evt);
 }
 
 

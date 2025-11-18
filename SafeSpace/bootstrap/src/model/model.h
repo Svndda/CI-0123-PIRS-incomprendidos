@@ -11,6 +11,15 @@
 #include "model/structures/user.h"
 #include "model/network/qtudpclient.h"
 
+struct NetworkEvent {
+  QString direction;
+  QString type;
+  QString detail;
+  QByteArray rawBytes;
+  QString timestamp;
+  int nodeId;  
+};
+
 /**
  * @class Model
  * @brief Core singleton class managing the POS system.
@@ -31,6 +40,7 @@ private:
   bool started = false;       ///< Flag indicating if the model has been started.
   QtUDPClient client;
   User user = User("SafeAdmin", User::hashSHA256("qwerTY2134"));
+  std::vector<NetworkEvent> networkLog;  
   // FileSystem filesystem;
   // UsersManager usersManager;
 private:
@@ -38,6 +48,7 @@ private:
    * @brief Private constructor for Model.
    */
   Model();
+  void addNetworkEvent(const NetworkEvent& evt);
   
 public:  ///< Getters
   /**
@@ -51,6 +62,9 @@ public:  ///< Getters
    * @return True if the model is started.
    */
   inline bool isStarted() { return this->started; }
+  const std::vector<NetworkEvent>& getNetworkLog() const {
+    return this->networkLog;
+  };
   
   // /**
   //  * @brief getPageAccess Checks the user's access to the given page index.
@@ -75,16 +89,17 @@ public:  ///< Functions.
    */
   void shutdown() {this->started = false;};
   
+  
   bool authenticate(
     const std::string& username, const std::string& password);
   
   void runNode(uint8_t nodeId);
   void stopNode(uint8_t nodeId);
-  
 signals:
   bool authenticatheResponse(bool state);
   void runNodeResult(uint8_t nodeId, uint8_t status);
   void stopNodeResult(uint8_t nodeId, uint8_t status);
+  void networkEventLogged(const NetworkEvent& evt);  
 };
 
 #endif // MODEL_H

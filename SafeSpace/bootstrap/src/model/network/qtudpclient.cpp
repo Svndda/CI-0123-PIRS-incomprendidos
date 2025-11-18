@@ -46,11 +46,23 @@ void QtUDPClient::sendRunNodeRequest(uint8_t nodeId) {
   qint64 sent = udpSocket->writeDatagram(
       datagram, serverAddress, serverPort
       );
-  
+
   if (sent < 0) {
     emit errorOccurred("[QtUDPClient] Failed to send RunNodeRequest: " 
                        + udpSocket->errorString());
+    
+    emit requestSent(
+        "RunNodeRequest",
+        QString("RunNodeRequest → Node %1 (%2 bytes) : FALLIDA").arg(nodeId).arg(datagram.size()),
+        datagram
+        );
   } else {
+    
+    emit requestSent(
+        "RunNodeRequest",
+        QString("RunNodeRequest → Node %1 (%2 bytes) : EXITOSA").arg(nodeId).arg(datagram.size()),
+        datagram
+        );
     qDebug() << "[QtUDPClient] Sent RunNodeRequest for node" << nodeId;
   }
 }
@@ -70,7 +82,17 @@ void QtUDPClient::sendStopNodeRequest(uint8_t nodeId) {
   if (sent < 0) {
     emit errorOccurred("[QtUDPClient] Failed to send StopNodeRequest: " 
                        + udpSocket->errorString());
+    emit requestSent(
+        "StopNodeRequest",
+        QString("StopNodeRequest → Node %1 (%2 bytes) : FALLIDA").arg(nodeId).arg(datagram.size()),
+        datagram
+        );
   } else {
+    emit requestSent(
+        "StopNodeRequest",
+        QString("StopNodeRequest → Node %1 (%2 bytes) : EXITOSA").arg(nodeId).arg(datagram.size()),
+        datagram
+        );
     qDebug() << "[QtUDPClient] Sent StopNodeRequest for node" << nodeId;
   }
 }
@@ -112,6 +134,13 @@ void QtUDPClient::handleReadyRead() {
     if (size == 3 && raw[0] == 0x7c) {
       try {
         RunNodeResponse resp = RunNodeResponse::fromBytes(raw, size);
+        emit responseReceived(
+          "RunNodeResponse",
+          QString("RunNodeResponse ← Node %1 Status %2")
+              .arg(resp.nodeId())
+              .arg(resp.status()),
+          datagram
+        );
         emit runNodeResponseReceived(resp);
         continue;
       } catch (...) {
@@ -123,6 +152,13 @@ void QtUDPClient::handleReadyRead() {
     if (size == 3 && raw[0] == 0x7e) {
       try {
         StopNodeResponse resp = StopNodeResponse::fromBytes(raw, size);
+        emit responseReceived(
+          "StopNodeResponse",
+          QString("StopNodeResponse ← Node %1 Status %2")
+              .arg(resp.nodeId())
+              .arg(resp.status()),
+          datagram
+        );
         emit stopNodeResponseReceived(resp);
         continue;
       } catch (...) {

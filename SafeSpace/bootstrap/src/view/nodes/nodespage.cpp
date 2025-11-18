@@ -19,23 +19,27 @@ NodesPage::NodesPage(QWidget *parent, Model& model) :
     }
   });
   
+  auto makeCenteredItem = [](const QString& text) {
+    QTableWidgetItem* item = new QTableWidgetItem(text);
+    item->setTextAlignment(Qt::AlignCenter);
+    return item;
+  };
+  
   auto table = ui->nodes_table;
   table->setRowCount(0);
-  table->setColumnCount(5);
-  table->setHorizontalHeaderLabels({"ID","Node","IP:Port","Status","Actions"});
   
   for (int row = 0; row < nodes.size(); ++row) {
     table->insertRow(row);
     
-    table->setItem(row, 0, new QTableWidgetItem(QString::number(nodes[row].id)));
-    table->setItem(row, 1, new QTableWidgetItem(nodes[row].name));
-    table->setItem(row, 2, new QTableWidgetItem(nodes[row].ip + ":" + QString::number(nodes[row].port)));
-    table->setItem(row, 3, new QTableWidgetItem(nodes[row].status));
+    table->setItem(row, 0, makeCenteredItem(QString::number(nodes[row].id)));
+    table->setItem(row, 1, makeCenteredItem(nodes[row].name));
+    table->setItem(row, 2, makeCenteredItem(nodes[row].ip + ":" + QString::number(nodes[row].port)));
+    table->setItem(row, 3, makeCenteredItem(nodes[row].status));
     
     QWidget* actionWidget = new QWidget(table);
     QHBoxLayout* layout = new QHBoxLayout(actionWidget);
-    layout->setContentsMargins(5,5,5,5);
-    layout->setSpacing(10);
+    layout->setContentsMargins(15,5,5,15);
+    layout->setSpacing(30);
     
     // --- Start button (greenish colors) ---
     Button* startBtn = new Button(
@@ -80,9 +84,36 @@ NodesPage::NodesPage(QWidget *parent, Model& model) :
       onShutdownNodeClicked(row);
     });
   }
-  auto t = ui->nodes_table;
-  t->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-  t->verticalHeader()->setDefaultSectionSize(40);  // increases row height
+  
+  // Sin numeración y sin grilla
+  table->verticalHeader()->setVisible(false);
+  
+  // Ajuste fino por columna
+  table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch); // ID
+  table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);          // Name
+  table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch); // IP:Port
+  table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch); // Status
+  table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+  
+  // Estilo limpio para tabla
+  table->setStyleSheet(
+      "QTableWidget::item { padding: 6px; }"
+      );
+  
+  // Ajustar contenido
+  table->resizeColumnsToContents();
+  table->resizeRowsToContents();
+  
+  auto listview = this->ui->logbook_list;
+  // --- Inicializar ListView de logs ---
+  logModel = new QStandardItemModel(this);
+  ui->logbook_list->setModel(logModel);
+  ui->logbook_list->setSelectionMode(QAbstractItemView::NoSelection);
+  ui->logbook_list->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  
+  // Conectar eventos del modelo
+  connect(&this->model, &Model::networkEventLogged,
+          this, &NodesPage::onNetworkEventLogged);
 }
 
 NodesPage::~NodesPage() {
@@ -99,8 +130,32 @@ void NodesPage::onShutdownNodeClicked(int row) {
   
   // TODO: implement model.shutdownNode(...)
   this->model.stopNode(nodes[row].id);
+  this->updateNodeState(row, "Apagando...");
+}
+
+void NodesPage::updateNodeState(int row, QString state) {
+  QTableWidgetItem* item = new QTableWidgetItem(state);
+  item->setTextAlignment(Qt::AlignCenter);
   
-  ui->nodes_table->setItem(row, 3, new QTableWidgetItem("Stopped"));
+  if (state == "Online") {
+    item->setBackground(QColor("#2ecc71")); // verde
+  } else if (state == "Offline") {
+    item->setBackground(QColor("#e67e22")); // naranja
+  } else if (state == "Error") {
+    item->setBackground(QColor("#e74c3c")); // rojo
+  } else {
+    item->setBackground(Qt::white);
+  }
+  
+  this->ui->nodes_table->setItem(row, 3, item);
+}
+
+int NodesPage::findRowByNodeId(int nodeId) {
+  for (int i = 0; i < nodes.size(); ++i) {
+    if (nodes[i].id == nodeId)
+      return i;
+  }
+  return -1;
 }
 
 /**
@@ -112,6 +167,62 @@ void NodesPage::onStartNodeClicked(int row) {
   
   // TODO: implement model.startNode(...)
   this->model.runNode(nodes[row].id);
+  this->updateNodeState(row, "Encendiendo...");
+}
+
+void NodesPage::onNetworkEventLogged(const NetworkEvent& evt) {
+  addLogToListView(evt);
   
-  ui->nodes_table->setItem(row, 3, new QTableWidgetItem("Running"));
+  int row = findRowByNodeId(evt.nodeId);
+  if (row < 0) return;
+  
+  QString detailLower = evt.detail.toLower();
+  
+  if (detailLower.contains("inició") ||
+      detailLower.contains("encendido") ||
+      detailLower.contains("online")) {
+    
+    updateNodeState(row, "Online");
+    
+  } else if (detailLower.contains("apagado") ||
+             detailLower.contains("offline") ||
+             detailLower.contains("detenido")) {
+    
+    updateNodeState(row, "Offline");
+    
+  } else if (detailLower.contains("fallida") ||
+             detailLower.contains("error")) {
+    
+    updateNodeState(row, "Error");
+  }
+}
+
+void NodesPage::addLogToListView(const NetworkEvent& evt) {
+  QString line = QString("[%1] %2 → %3")
+                     .arg(evt.timestamp)
+                     .arg(evt.type)
+                     .arg(evt.detail);
+  
+  QStandardItem* item = new QStandardItem(line);
+  
+  QString lower = evt.detail.toLower();
+  
+  // ---- Colorear filas según EXITOSA/FALLIDA ----
+  if (lower.contains("exitosa")) {
+    item->setBackground(QColor("#2ecc71"));  // verde
+    item->setForeground(Qt::black);
+        
+  } else if (lower.contains("fallida")) {
+    item->setBackground(QColor("#e74c3c"));  // rojo
+    item->setForeground(Qt::black);
+    
+  } else {
+    item->setBackground(Qt::white);          // normal
+    item->setForeground(Qt::black);
+  }
+  
+  logModel->appendRow(item);
+  
+  // Auto-scroll al final
+  ui->logbook_list->scrollToBottom();
 }
