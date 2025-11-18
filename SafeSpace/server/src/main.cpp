@@ -197,7 +197,7 @@ int main(const int argc, char* argv[]) {
 
       // ID 2: StorageNode (puerto 9001), master en 127.0.0.1:6000
       {
-        auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "/tmp/storage1");
+        auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "../src/model/data/registers.bin");
         server.registerNode(2, p.first, p.second);
       }
 
@@ -221,8 +221,19 @@ int main(const int argc, char* argv[]) {
 
       // ID 6: CriticalEventsNode (escucha 7001) -> guarda en data/events.log
       {
-        auto p = makeEventsAdapter("0.0.0.0", 6001, "data/events.log");
+        auto p = makeEventsAdapter("0.0.0.0", 6001, "logs.txt");
         server.registerNode(6, p.first, p.second);
+      }
+
+      // ID 0: SafeSpaceServer (master) — permite levantar el servidor maestro
+      // por defecto enlazará en 127.0.0.1:6000 y asumirá que Storage, Events
+      // y Proxy usan los puertos por convención usados arriba.
+      {
+        auto p = makeMasterAdapter("127.0.0.1", 6000,
+                                   "0.0.0.0", 9001,
+                                   "0.0.0.0", 6001,
+                                   "0.0.0.0", 9000);
+        server.registerNode(0, p.first, p.second);
       }
 
       // Run bootstrap in background so we can control nodes interactively
