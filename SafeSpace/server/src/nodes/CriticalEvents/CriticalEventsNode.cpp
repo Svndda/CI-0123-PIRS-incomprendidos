@@ -21,6 +21,9 @@ CriticalEventsNode::CriticalEventsNode(const std::string& ip, uint16_t port, std
 
 CriticalEventsNode::~CriticalEventsNode() {
     stop();
+    auto& logger = LogManager::instance();
+    logger.info("CriticalEventsNode shutting down - Security logging ended");
+    logger.disableFileLogging();
 }
 
 std::string CriticalEventsNode::makeTimestamp() {
@@ -70,11 +73,7 @@ void CriticalEventsNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
         case 0: severity = "INFO"; break;
         case 1: severity = "WARN"; break;
         case 2: severity = "ERROR"; break;
-        case 3: {
-            severity = "IP_ADDRESS";
-            
-            
-        }
+        case 3: severity = "IP_ADDRESS"; break;      
         default: severity = "UNKNOWN"; break;
     }
     

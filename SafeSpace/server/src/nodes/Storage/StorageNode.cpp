@@ -181,9 +181,10 @@ StorageNode::StorageNode(uint16_t storagePort, const std::string& masterServerIp
 
     auto& logger = LogManager::instance();
     try {
+        logger.enableFileLogging("./build/storage_node_logs.log");
         logger.configureRemote(masterServerIp, masterServerPort, "StorageNode");
         logger.info("StorageNode configured to forward logs to SafeSpaceServer at " + masterServerIp + ":" + std::to_string(masterServerPort));
-        logger.ipAddress(std::to_string(storagePort));
+        logger.ipAddress("STORAGE:" + std::to_string(storagePort));
     } catch (const std::exception& ex) {
         std::cerr << "[StorageNode] Failed to configure SafeSpace log forwarding: " << ex.what() << std::endl;
     }
@@ -196,6 +197,8 @@ StorageNode::~StorageNode() {
             std::to_string(totalSensorRecords.load()) + 
             ", Consultas=" + std::to_string(totalQueries.load()) + 
             ", Errores=" + std::to_string(errorsCount.load()));
+    logger.info("StorageNode shutting down - Storage logging ended");
+    logger.disableFileLogging();
     std::cout << "[StorageNode] Shutting down..." << std::endl;
     
     // Detener thread de escucha
@@ -214,6 +217,8 @@ StorageNode::~StorageNode() {
     }
     
     std::cout << "[StorageNode] Shutdown complete" << std::endl;
+    logger.info("StorageNode shutdown complete - Log forwarding ended");
+    logger.disableFileLogging();
 }
 
 void StorageNode::start() {

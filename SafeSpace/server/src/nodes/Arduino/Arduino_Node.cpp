@@ -101,9 +101,10 @@ ArduinoNode::ArduinoNode(const std::string& masterIP, int masterPort, const std:
 
     try{
         auto& logger = LogManager::instance();
+        logger.enableFileLogging("./build/arduino_node_logs.log");
         logger.configureRemote(masterIP, static_cast<uint16_t>(masterPort), "ArduinoNode");
         logger.info("ArduinoNode logging system initialized");
-        logger.ipAddress(masterIP + std::string(":") + std::to_string(masterPort));
+        logger.ipAddress("ARDUINO:" + masterIP + ":" + std::to_string(masterPort));
         std::cout << "[ArduinoNode] Logging configured to IntermediaryNode" << std::endl;
     } catch (const std::exception& ex) {
         std::cerr << "[ArduinoNode] Failed to configure logging: " << ex.what() << std::endl;
@@ -111,6 +112,9 @@ ArduinoNode::ArduinoNode(const std::string& masterIP, int masterPort, const std:
 }
 
 ArduinoNode::~ArduinoNode() {
+    auto& logger = LogManager::instance();
+    logger.info("ArduinoNode shutting down - Security logging ended");
+    logger.disableFileLogging();
 }
 
 void ArduinoNode::stop() {

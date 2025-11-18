@@ -18,10 +18,11 @@ IntermediaryNode::IntermediaryNode(int listen_port, const std::string& master_ip
               << ", Master: " << master_ip << ":" << master_port << std::endl;
     try {
         auto& logger = LogManager::instance();
+        logger.enableFileLogging("./build/intermediary_node_logs.log");
         logger.configureRemote(master_ip, static_cast<uint16_t>(master_port), "IntermediaryNode");
         logger.info("IntermediaryNode initialized - listening on port " + std::to_string(listen_port) + 
                 ", forwarding to SafeSpaceServer at " + master_ip + ":" + std::to_string(master_port));
-        logger.ipAddress(master_ip + ":" + std::to_string(master_port));
+        logger.ipAddress("INTER:" + std::to_string(listen_port));
         std::cout << "[IntermediaryNode] Logging configured to SafeSpaceServer" << std::endl;
     } catch (const std::exception& ex) {
         std::cerr << "[IntermediaryNode] Failed to configure logging: " << ex.what() << std::endl;
@@ -30,6 +31,9 @@ IntermediaryNode::IntermediaryNode(int listen_port, const std::string& master_ip
 
 IntermediaryNode::~IntermediaryNode() {
     stop();
+    auto& logger = LogManager::instance();
+    logger.info("IntermediaryNode shutting down - Security logging ended");
+    logger.disableFileLogging();
 }
 
 bool IntermediaryNode::createUdpSocket() {

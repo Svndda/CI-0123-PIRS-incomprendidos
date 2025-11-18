@@ -30,9 +30,9 @@ AuthUDPServer::AuthUDPServer(const std::string& ip, uint16_t port)
     auto& logger = LogManager::instance();
     
     // Enable file logging for security audit trail
-    logger.enableFileLogging("auth_security_audit.log");
+    logger.enableFileLogging("./build/auth_security_audit.log");
     
-    logger.ipAddress(ip + std::string(":") + std::to_string(port));
+    logger.ipAddress("AUTH:" + ip + ":" + std::to_string(port));
     logger.info("AuthUDPServer initialized - LOCAL LOGGING ONLY (External Ring Security)");
     logger.info("Authentication server ready on " + ip + ":" + std::to_string(port) + 
                 " - " + std::to_string(users.size()) + " users loaded");
