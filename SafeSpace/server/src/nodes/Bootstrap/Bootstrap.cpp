@@ -70,15 +70,13 @@ void Bootstrap::onReceive(const sockaddr_in& peer,
 /**
  * @brief Handles a RUN_NODE_REQUEST and produces a response.
  */
-RunNodeResponse Bootstrap::handleRunNodeRequest(const uint8_t* data,
-                                               ssize_t len)
+RunNodeResponse Bootstrap::handleRunNodeRequest(const uint8_t* data, ssize_t len)
 {
   if (len != 2) {
     throw std::invalid_argument("Invalid RUN_NODE_REQUEST length");
   }
 
   RunNodeRequest req = RunNodeRequest::fromBytes(data, len);
-
   uint8_t nodeId = req.nodeId();
   uint8_t status = 0; // default: failure
 
@@ -90,13 +88,13 @@ RunNodeResponse Bootstrap::handleRunNodeRequest(const uint8_t* data,
     if (it == registry_.end()) {
       std::cout << "[Bootstrap] RUN request → node " << int(nodeId)
                 << " not registered" << std::endl;
-      return RunNodeResponse(0x7c, nodeId, status);
+      return RunNodeResponse(nodeId, status);
     }
     // if already running, respond OK (idempotent)
     if (it->second.running) {
       std::cout << "[Bootstrap] RUN request → node " << int(nodeId)
                 << " already running" << std::endl;
-      return RunNodeResponse(0x7c, nodeId, 1);
+      return RunNodeResponse(nodeId, 1);
     }
     handlerCopy = it->second;
   }
@@ -124,21 +122,19 @@ RunNodeResponse Bootstrap::handleRunNodeRequest(const uint8_t* data,
   std::cout << "[Bootstrap] RUN request → node " << int(nodeId)
             << " status " << int(status) << std::endl;
 
-  return RunNodeResponse(0x7c, nodeId, status);
+  return RunNodeResponse(nodeId, status);
 }
 
 /**
  * @brief Handles a STOP_NODE_REQUEST and produces a response.
  */
-StopNodeResponse Bootstrap::handleStopNodeRequest(const uint8_t* data,
-                                                 ssize_t len)
+StopNodeResponse Bootstrap::handleStopNodeRequest(const uint8_t* data, ssize_t len)
 {
   if (len != 2) {
     throw std::invalid_argument("Invalid STOP_NODE_REQUEST length");
   }
 
   StopNodeRequest req = StopNodeRequest::fromBytes(data, len);
-
   uint8_t nodeId = req.nodeId();
   uint8_t status = 0;
 

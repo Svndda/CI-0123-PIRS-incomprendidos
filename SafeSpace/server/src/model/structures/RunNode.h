@@ -11,17 +11,16 @@
 
 class RunNodeRequest {
 private:
-  uint8_t msg_id;  ///< Message identifier (1 byte)
+  static constexpr uint8_t msg_id = 0x7b;     ///< Message identifier (1 byte)
   uint8_t node_id;   ///< Node identifier  (1 byte)
 
 public:
   /**
    * @brief Default / value constructor.
-   * @param msg_id message identifier
    * @param node_id  Node identifier
    */
-  explicit RunNodeRequest(const uint8_t msg_id = 0, uint8_t nodeId = 0)
-    : msg_id(msg_id), node_id(nodeId) {
+  explicit RunNodeRequest(uint8_t nodeId = 0)
+    : node_id(nodeId) {
   }
 
   /** @brief Copy constructor (defaulted). */
@@ -40,7 +39,7 @@ public:
     if (len != 2) {
       throw std::invalid_argument("RunNodeRequest::fromBytes: invalid length");
     }
-    return RunNodeRequest{ data[0], data[1] };
+    return RunNodeRequest{ data[1] };
   }
 
   /**
@@ -55,7 +54,7 @@ public:
    * @throws std::invalid_argument if length is not 2 (not applicable here).
    */
   static RunNodeRequest fromBytes(const std::array<uint8_t, 2>& a) {
-    return RunNodeRequest{ a[0], a[1] };
+    return RunNodeRequest{ a[1] };
   }
 
   /**
@@ -64,7 +63,6 @@ public:
  */
   RunNodeRequest& operator=(const RunNodeRequest& other) {
     if (this != &other) {
-      this->msg_id = other.msg_id;
       this->node_id = other.node_id;
     }
     return *this;
@@ -72,7 +70,7 @@ public:
 
   /** @brief Equality operator. */
   bool operator==(const RunNodeRequest& other) const noexcept {
-    return this->msg_id == other.msg_id && this->node_id == other.node_id;
+    return this->node_id == other.node_id;
   }
 
   /** @brief Inequality operator. */
@@ -82,10 +80,8 @@ public:
 
 public:
   /** @brief Accessors */
-  uint8_t msgId() const noexcept { return this->msg_id; }
   uint8_t nodeId() const noexcept { return this->node_id; }
 
-  void setMsgId(uint8_t v) noexcept { this->msg_id = v; }
   void setNodeId(uint8_t v) noexcept { this->node_id = v; }
 
   /**

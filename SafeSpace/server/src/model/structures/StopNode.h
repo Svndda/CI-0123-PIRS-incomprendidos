@@ -12,17 +12,16 @@
 
 class StopNodeRequest {
 private:
-  uint8_t msg_id;  ///< Message identifier (1 byte)
+  static constexpr uint8_t msg_id = 0x7d;     ///< Message identifier (1 byte)
   uint8_t node_id;   ///< Node identifier  (1 byte)
 
 public:
   /**
    * @brief Default / value constructor.
-   * @param msg_id message identifier
    * @param flags  flags byte
    */
-  explicit StopNodeRequest(const uint8_t msg_id = 0, uint8_t nodeId = 0)
-    : msg_id(msg_id), node_id(nodeId) {
+  explicit StopNodeRequest(uint8_t nodeId = 0)
+    : node_id(nodeId) {
   }
 
   /** @brief Copy constructor (defaulted). */
@@ -41,7 +40,7 @@ public:
     if (len != 2) {
       throw std::invalid_argument("StopNodeRequest::fromBytes: invalid length");
     }
-    return StopNodeRequest{ data[0], data[1] };
+    return StopNodeRequest{ data[1] };
   }
 
   /**
@@ -56,7 +55,7 @@ public:
    * @throws std::invalid_argument if length is not 2 (not applicable here).
    */
   static StopNodeRequest fromBytes(const std::array<uint8_t, 2>& a) {
-    return StopNodeRequest{ a[0], a[1] };
+    return StopNodeRequest{ a[1] };
   }
 
   /**
@@ -65,7 +64,6 @@ public:
  */
   StopNodeRequest& operator=(const StopNodeRequest& other) {
     if (this != &other) {
-      msg_id = other.msg_id;
       this->node_id = other.node_id;
     }
     return *this;
@@ -73,7 +71,7 @@ public:
 
   /** @brief Equality operator. */
   bool operator==(const StopNodeRequest& other) const noexcept {
-    return msg_id == other.msg_id && this->node_id == other.node_id;
+    return this->node_id == other.node_id;
   }
 
   /** @brief Inequality operator. */
@@ -83,10 +81,8 @@ public:
 
 public:
   /** @brief Accessors */
-  uint8_t msgId() const noexcept { return msg_id; }
   uint8_t nodeId() const noexcept { return node_id; }
 
-  void setMsgId(uint8_t v) noexcept { msg_id = v; }
   void setr_flags(uint8_t v) noexcept { node_id = v; }
 
   /**
