@@ -197,7 +197,7 @@ int main(const int argc, char* argv[]) {
 
       // ID 2: StorageNode (puerto 9001), master en 127.0.0.1:6000
       {
-        auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "/model/data/unity.bin");
+        auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "/tmp/storage1");
         server.registerNode(2, p.first, p.second);
       }
 
