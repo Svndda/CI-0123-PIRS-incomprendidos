@@ -14,7 +14,10 @@
    <string>Form</string>
   </property>
   <property name="styleSheet">
-   <string notr="true">color:white;</string>
+   <string notr="true">QWidget{
+	color: black;
+	background-color: white;
+}</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
@@ -32,9 +35,7 @@
       </size>
      </property>
      <property name="styleSheet">
-      <string notr="true">QWidget {
-	color: white;
-}</string>
+      <string notr="true"/>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout">
       <property name="spacing">
@@ -94,9 +95,7 @@
          </font>
         </property>
         <property name="styleSheet">
-         <string notr="true">QLabel {
-	background-color: transparent;
-}</string>
+         <string notr="true"/>
         </property>
         <property name="text">
          <string>Usuario</string>

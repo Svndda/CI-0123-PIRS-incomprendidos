@@ -5,6 +5,7 @@
 
 #include "Arduino/Arduino_Node.h"
 #include "Auth/auth_udp_server.h"
+#include "Bootstrap/Bootstrap.h"
 #include "Intermediary/IntermediaryNode.h"
 #include "Storage/StorageNode.h"
 
@@ -178,6 +179,10 @@ int main(const int argc, char* argv[]) {
 
      ArduinoNode node(masterIP, masterPort, serialPath, mode);
      node.run();
+    } else if (type == "bootstrap") {
+
+      Bootstrap server("0.0.0.0", 8080);
+      server.serveBlocking();
     } else {
       throw std::runtime_error("Invalid component type: " + type +
                                " (must be 'server', 'storage' , 'proxy', 'auth', 'events', 'inter' , 'arduino')");

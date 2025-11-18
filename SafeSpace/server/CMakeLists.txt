@@ -63,6 +63,8 @@ add_executable(server
         src/nodes/Storage/StorageNode.cpp
         src/nodes/Proxy/ProxyNode.h
         src/nodes/Proxy/ProxyNode.cpp
+        src/nodes/Bootstrap/Bootstrap.cpp
+        src/nodes/Bootstrap/Bootstrap.h
 )
 
 # Link libraries

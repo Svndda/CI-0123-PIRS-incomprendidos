@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1427</width>
-    <height>816</height>
+    <width>740</width>
+    <height>585</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -20,8 +20,7 @@
    <string>Form</string>
   </property>
   <property name="styleSheet">
-   <string notr="true">color: white;
-</string>
+   <string notr="true"/>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <property name="horizontalSpacing">
@@ -29,6 +28,18 @@
    </property>
    <item row="0" column="0">
     <widget class="QLabel" name="sensors_label">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>50</height>
+      </size>
+     </property>
      <property name="font">
       <font>
        <family>Impact</family>
@@ -37,8 +48,18 @@
        <underline>false</underline>
       </font>
      </property>
+     <property name="styleSheet">
+      <string notr="true">color: black;
+background-color: rgb(207, 207, 207);</string>
+     </property>
      <property name="frameShape">
-      <enum>QFrame::Shape::Panel</enum>
+      <enum>QFrame::Shape::WinPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Shadow::Raised</enum>
+     </property>
+     <property name="lineWidth">
+      <number>1</number>
      </property>
      <property name="text">
       <string>Sensores</string>
