@@ -184,3 +184,77 @@ StopNodeResponse Bootstrap::handleStopNodeRequest(const uint8_t* data,
 
   return StopNodeResponse(nodeId, status);
 }
+
+bool Bootstrap::startNode(uint8_t nodeId) {
+  NodeHandler handler;
+  {
+    std::lock_guard<std::mutex> lg(registryMutex_);
+    auto it = registry_.find(nodeId);
+    if (it == registry_.end()) return false;
+    if (it->second.running) return true;
+    handler = it->second;
+  }
+
+  bool started = false;
+  if (handler.start) {
+    try {
+      started = handler.start();
+    } catch (...) {
+      started = false;
+    }
+  }
+
+  {
+    std::lock_guard<std::mutex> lg(registryMutex_);
+    auto it = registry_.find(nodeId);
+    if (it != registry_.end()) it->second.running = started;
+  }
+  return started;
+}
+
+bool Bootstrap::stopNode(uint8_t nodeId) {
+  NodeHandler handler;
+  {
+    std::lock_guard<std::mutex> lg(registryMutex_);
+    auto it = registry_.find(nodeId);
+    if (it == registry_.end()) return false;
+    if (!it->second.running) return true;
+    handler = it->second;
+  }
+
+  bool stopped = false;
+  if (handler.stop) {
+    try {
+      stopped = handler.stop();
+    } catch (...) {
+      stopped = false;
+    }
+  }
+
+  {
+    std::lock_guard<std::mutex> lg(registryMutex_);
+    auto it = registry_.find(nodeId);
+    if (it != registry_.end() && stopped) it->second.running = false;
+  }
+  return stopped;
+}
+
+std::vector<std::pair<uint8_t, bool>> Bootstrap::listNodes() const {
+  std::vector<std::pair<uint8_t, bool>> out;
+  std::lock_guard<std::mutex> lg(registryMutex_);
+  for (const auto& kv : registry_) {
+    out.emplace_back(kv.first, kv.second.running);
+  }
+  return out;
+}
+
+void Bootstrap::stopAllNodes() {
+  std::vector<uint8_t> ids;
+  {
+    std::lock_guard<std::mutex> lg(registryMutex_);
+    for (const auto& kv : registry_) ids.push_back(kv.first);
+  }
+  for (auto id : ids) {
+    try { stopNode(id); } catch (...) { }
+  }
+}

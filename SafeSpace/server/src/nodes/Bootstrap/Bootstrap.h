@@ -66,6 +66,26 @@ public:
    */
   void unregisterNode(uint8_t nodeId);
 
+  /**
+   * @brief Start a registered node by id. Returns true on success.
+   */
+  bool startNode(uint8_t nodeId);
+
+  /**
+   * @brief Stop a registered node by id. Returns true on success.
+   */
+  bool stopNode(uint8_t nodeId);
+
+  /**
+   * @brief Return list of registered node ids and running state.
+   */
+  std::vector<std::pair<uint8_t, bool>> listNodes() const;
+
+  /**
+   * @brief Stop all registered nodes (best-effort).
+   */
+  void stopAllNodes();
+
 protected:
   /**
    * @brief Overridden handler from UDPServer.
@@ -114,7 +134,7 @@ private:
   };
 
   std::unordered_map<uint8_t, NodeHandler> registry_{};
-  std::mutex registryMutex_{};
+  mutable std::mutex registryMutex_{};
 
 };
 

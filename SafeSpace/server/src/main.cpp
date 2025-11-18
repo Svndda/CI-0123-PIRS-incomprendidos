@@ -71,9 +71,7 @@ int main(const int argc, char* argv[]) {
       SafeSpaceServer server(localIp, localPort, storageIp, storagePort, eventsIp, eventsPort, proxyIp, proxyPort);
       std::cout << "[Main] Running SafeSpaceServer on port " << localPort << std::endl;
 
-      // // Ejemplo: registrar un destino de descubrimiento local (opcional)
-      // server.addDiscoverTarget("127.0.0.1", 6000);
-
+      // Run server in blocking mode for master/server component
       server.serveBlocking();
 
       if (stopFlag) server.stop();
@@ -211,7 +209,48 @@ int main(const int argc, char* argv[]) {
         server.registerNode(5, p.first, p.second);
       }
 
-      server.serveBlocking();
+      // Run bootstrap in background so we can control nodes interactively
+      std::thread serverThread([&server]() {
+        server.serveBlocking();
+      });
+
+      std::cout << "Bootstrap interactive menu started. Commands: list | start <id> | stop <id> | quit" << std::endl;
+      std::string line;
+      while (true) {
+        std::cout << "> ";
+        if (!std::getline(std::cin, line)) break;
+        if (line.empty()) continue;
+        if (line == "list") {
+          auto nodes = server.listNodes();
+          std::cout << "Registered nodes:\n";
+          for (auto &p : nodes) {
+            std::cout << "  id=" << int(p.first) << " running=" << (p.second ? "yes" : "no") << std::endl;
+          }
+          continue;
+        }
+        if (line.rfind("start ", 0) == 0) {
+          int id = std::stoi(line.substr(6));
+          bool ok = server.startNode(static_cast<uint8_t>(id));
+          std::cout << (ok ? "started" : "failed or unknown id") << std::endl;
+          continue;
+        }
+        if (line.rfind("stop ", 0) == 0) {
+          int id = std::stoi(line.substr(5));
+          bool ok = server.stopNode(static_cast<uint8_t>(id));
+          std::cout << (ok ? "stopped" : "failed or unknown id") << std::endl;
+          continue;
+        }
+        if (line == "quit" || line == "exit") {
+          std::cout << "Shutting down..." << std::endl;
+          break;
+        }
+        std::cout << "Unknown command" << std::endl;
+      }
+
+      // Stop all nodes and the server
+      server.stopAllNodes();
+      server.stop();
+      if (serverThread.joinable()) serverThread.join();
     } else {
       throw std::runtime_error("Invalid component type: " + type +
                                " (must be 'server', 'storage' , 'proxy', 'auth', 'events', 'inter' , 'arduino')");
