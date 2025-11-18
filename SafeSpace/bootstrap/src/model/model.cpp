@@ -16,13 +16,13 @@ Model::Model()
     
     // fallback
     nodes = {
-        {0, "SafeSpaceServer",   "172.17.0.10", 8000, "Apagado"},
-        {1, "Proxy",   "172.17.0.20", 9000, "Apagado"},
-        {2, "Almacenamiento",       "172.17.0.70", 8003, "Apagado"},      
-        {3, "Intermediario",   "172.17.0.90", 8554, "Apagado"},
-        {4, "Autenticacion",    "172.17.0.35", 7999, "Apagado"},
-        {5, "Arduino",       "172.17.0.120", 7600, "Apagado"},
-        {6, "Eventos Criticos",     "172.17.0.110", 8080, "Apagado"}
+        {0, "SafeSpaceServer",   "127.0.0.1", 6000, "Apagado"},      // ID 0: Servidor maestro
+        {1, "Proxy",             "0.0.0.0",   9000, "Apagado"},      // ID 1: ProxyNode
+        {2, "Almacenamiento",    "0.0.0.0",   9001, "Apagado"},      // ID 2: StorageNode  
+        {3, "Intermediario",     "0.0.0.0",   9002, "Apagado"},      // ID 3: IntermediaryNode
+        {4, "Autenticacion",     "0.0.0.0",   7000, "Apagado"},      // ID 4: AuthUDPServer
+        {5, "Arduino",           "127.0.0.1", 9002, "Apagado"},      // ID 5: ArduinoNode (envía a intermediario)
+        {6, "Eventos Criticos",  "0.0.0.0",   6001, "Apagado"}       // ID 6: CriticalEventsNode
     };
   }
   
