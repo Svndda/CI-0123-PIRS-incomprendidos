@@ -6,6 +6,9 @@
 #include "StopNode.h"
 #include "StopNodeResponse.h"
 #include "interfaces/UDPServer.h"
+#include <functional>
+#include <unordered_map>
+#include <mutex>
 
 /**
  * @class Bootstrap
@@ -28,6 +31,10 @@
 class Bootstrap : public UDPServer {
 public:
 
+  using StartCallback = std::function<bool()>; ///< return true on success
+  using StopCallback = std::function<bool()>;  ///< return true on success
+
+
   /**
    * @brief Constructs and binds a Bootstrap to given IPv4 and port.
    *
@@ -45,9 +52,21 @@ public:
    * @brief Virtual destructor.
    */
   ~Bootstrap() override = default;
+  /**
+   * @brief Register a node handler for a given node id.
+   *
+   * The Bootstrap will call `startCb` when a RUN_NODE_REQUEST for `nodeId`
+   * arrives, and `stopCb` when a STOP_NODE_REQUEST arrives. Both callbacks
+   * should be safe to call multiple times (Bootstrap will track running state).
+   */
+  void registerNode(uint8_t nodeId, StartCallback startCb, StopCallback stopCb);
+
+  /**
+   * @brief Unregister a previously registered node.
+   */
+  void unregisterNode(uint8_t nodeId);
 
 protected:
-
   /**
    * @brief Overridden handler from UDPServer.
    *
@@ -64,6 +83,7 @@ protected:
                  const uint8_t* data,
                  ssize_t len,
                  std::string& out_response) override;
+
 
 private:
 
@@ -84,6 +104,17 @@ private:
    * @return A StopNodeResponse object to be sent back
    */
   StopNodeResponse handleStopNodeRequest(const uint8_t* data, ssize_t len);
+
+private:
+
+  struct NodeHandler {
+    StartCallback start;
+    StopCallback stop;
+    bool running{false};
+  };
+
+  std::unordered_map<uint8_t, NodeHandler> registry_{};
+  std::mutex registryMutex_{};
 
 };
 

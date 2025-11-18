@@ -6,6 +6,7 @@
 #include "Arduino/Arduino_Node.h"
 #include "Auth/auth_udp_server.h"
 #include "Bootstrap/Bootstrap.h"
+#include "Bootstrap/BootstrapAdapters.h"
 #include "Intermediary/IntermediaryNode.h"
 #include "Storage/StorageNode.h"
 
@@ -16,10 +17,10 @@ extern "C" void sigHandler(int) { stopFlag = 1; }
  * @brief Validates and parses command-line arguments.
  */
 void validateArgs(int argc, char* argv[]) {
-  if (argc < 3) {
+  if (argc < 2) {
     std::cerr << "Usage:\n"
-              << "  " << argv[0] << " server <local_port>\n"
-              << "  " << argv[0] << " proxy <local_port> <server_ip> <server_port>\n"
+              << "  " << argv[0] << " <component> [args...]\n"
+              << "Components: server, proxy, storage, auth, events, inter, arduino, bootstrap\n"
               << std::endl;
     std::exit(EXIT_FAILURE);
   }
@@ -48,19 +49,18 @@ int main(const int argc, char* argv[]) {
 
   try {
     std::string type = argv[1];
-    std::string localIp = argv[2];
-    uint16_t localPort = parsePort(argv[3]);
 
     if (type == "server") {
       if (argc != 10) {
-        throw std::runtime_error("Master mode requires 8 arguments:"
+        throw std::runtime_error("Master mode requires 9 arguments:"
         " server <local_ip> <local_port>"
         " <storageNode_ip> <storageNode_Port>"
         " <eventsNode_ip> <eventsNode_Port>"
-        " <ProxyNode_ip> <ProxyNode_Port>"
-        );
+        " <ProxyNode_ip> <ProxyNode_Port>");
       }
 
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
       std::string storageIp = argv[4];
       uint16_t storagePort = parsePort(argv[5]);
       std::string eventsIp = argv[6];
@@ -81,33 +81,29 @@ int main(const int argc, char* argv[]) {
 
     } else if (type == "events") {
       if (argc != 5) {
-        throw std::runtime_error("Events mode requires 3 arguments:"
-        " events <local_ip> <local_port>" "out.txt"
-        );
+        throw std::runtime_error("Events mode requires 4 arguments: events <local_ip> <local_port> <out.txt>");
       }
 
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
       std::string outPath = argv[4];
       CriticalEventsNode node(localIp, localPort, outPath);
       node.serveBlocking();
 
     } else if (type == "proxy") {
       if (argc != 8) {
-        throw std::runtime_error("Proxy mode requires 6 arguments:"
-        " proxy <local_ip> <local_port>"
-        " <authNode_ip> <authNode_port>"
-        " <masterNode_Ip> <masterNode_Port>"
-        );
+        throw std::runtime_error("Proxy mode requires 7 arguments: proxy <local_ip> <local_port> <authNode_ip> <authNode_port> <masterNode_Ip> <masterNode_Port>");
       }
 
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
       std::string authNodeIp = argv[4];
       uint16_t authNodePort = parsePort(argv[5]);
       std::string masterNodeIp = argv[6];
       uint16_t masterNodePort = parsePort(argv[7]);
 
-
-      std::cout << "Datos de AuthNode" << authNodeIp << ": " << authNodePort << std::endl;
-      std::cout << "Dtos de MasterNode" << masterNodeIp << ": " << masterNodePort << std::endl;
-
+      std::cout << "Datos de AuthNode " << authNodeIp << ": " << authNodePort << std::endl;
+      std::cout << "Datos de MasterNode " << masterNodeIp << ": " << masterNodePort << std::endl;
 
       ProxyNode proxy(
         localIp, localPort,
@@ -128,33 +124,34 @@ int main(const int argc, char* argv[]) {
     } else if (type == "storage") {
 
       if (argc != 7) {
-        throw std::runtime_error("Proxy mode requires 5 arguments:"
-        " storage <local_ip> <local_port>"
-        " <masterNode_ip> <masterNode_port>"
-        " <diskPath>"
-        );
+        throw std::runtime_error("Storage mode requires 6 arguments: storage <local_ip> <local_port> <masterNode_ip> <masterNode_port> <diskPath>");
       }
 
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
       const std::string masterIp = argv[4];
       const uint16_t masterPort = parsePort(argv[5]);
       const std::string nodeId = "storage1";
       const std::string diskPath = argv[6]; // Usar el archivo proporcionado
-          
+
       // Crear instancia de StorageNode
       StorageNode storage(localPort, masterIp, masterPort, nodeId, diskPath);
       storage.start();
     } else if (type ==  "auth") {
+      if (argc != 4) throw std::runtime_error("Auth mode requires 3 arguments: auth <local_ip> <local_port>");
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
       AuthUDPServer server(localIp, localPort);
       std::cout << " Iniciando AuthUDPServer en puerto: " << localPort << std::endl;
       server.serveBlocking();
 
     } else if (type == "inter") {
       if (argc != 5) {
-        throw std::runtime_error("Proxy mode requires 3 arguments:"
-        " intermediary <masterNode_ip> <masterNode_port> <local_port> "
-        );
+        throw std::runtime_error("Intermediary mode requires 4 arguments: intermediary <local_ip> <local_port> <master_port>");
       }
 
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
       uint16_t interPort = parsePort(argv[4]);
       IntermediaryNode node(interPort, localIp, localPort);
       node.start();
@@ -166,7 +163,7 @@ int main(const int argc, char* argv[]) {
 
     } else if (type == "arduino") {
       if (argc < 4) {
-          std::cerr << "Uso: ./Arduino_Node <IP_NODO_MAESTRO> <PUERTO> [SERIAL_PATH|stdin|simulate] format=json|binary|both]\n";
+          std::cerr << "Uso: ./Arduino_Node <IP_NODO_MAESTRO> <PUERTO> [SERIAL_PATH|stdin|simulate] [format=json|binary|both]\n";
           return 1;
       }
 
@@ -180,8 +177,40 @@ int main(const int argc, char* argv[]) {
      ArduinoNode node(masterIP, masterPort, serialPath, mode);
      node.run();
     } else if (type == "bootstrap") {
-
+      // Bootstrap puede iniciarse sin argumentos adicionales
       Bootstrap server("0.0.0.0", 8080);
+
+      // Registrar adaptadores para nodos comunes (IDs por convención)
+      // ID 1: ProxyNode (escucha 9000), reenvía a Auth=7000 y Master=6000
+      {
+        auto p = makeProxyAdapter("0.0.0.0", 9000, "127.0.0.1", 7000, "127.0.0.1", 6000);
+        server.registerNode(1, p.first, p.second);
+      }
+
+      // ID 2: StorageNode (puerto 9001), master en 127.0.0.1:6000
+      {
+        auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "/tmp/storage1");
+        server.registerNode(2, p.first, p.second);
+      }
+
+      // ID 3: IntermediaryNode (escucha 9002), master 127.0.0.1:6000
+      {
+        auto p = makeIntermediaryAdapter(9002, "127.0.0.1", 6000);
+        server.registerNode(3, p.first, p.second);
+      }
+
+      // ID 4: AuthUDPServer (escucha 7000)
+      {
+        auto p = makeAuthAdapter("0.0.0.0", 7000);
+        server.registerNode(4, p.first, p.second);
+      }
+
+      // ID 5: ArduinoNode (simulado) enviando a master 127.0.0.1:6000
+      {
+        auto p = makeArduinoAdapter("127.0.0.1", 6000, "simulate", "binary");
+        server.registerNode(5, p.first, p.second);
+      }
+
       server.serveBlocking();
     } else {
       throw std::runtime_error("Invalid component type: " + type +

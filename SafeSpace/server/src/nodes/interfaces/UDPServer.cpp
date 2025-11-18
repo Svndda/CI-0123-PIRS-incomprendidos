@@ -112,6 +112,16 @@ void UDPServer::serveBlocking() {
       onReceive(peer, buffer.data(), received, response);
     } catch (const std::exception& ex) {
       std::cerr << "Exception in onReceive(): " << ex.what() << std::endl;
+      // Dump a small hex-preview of the received buffer to help debugging
+      std::cerr << "  Received " << received << " bytes; preview: ";
+      size_t preview = std::min<size_t>(static_cast<size_t>(received), 64);
+      for (size_t i = 0; i < preview; ++i) {
+        char b = static_cast<char>(buffer[i]);
+        unsigned int ub = static_cast<unsigned char>(b);
+        std::cerr << std::hex << ((ub >> 4) & 0xF) << (ub & 0xF);
+        if (i + 1 < preview) std::cerr << " ";
+      }
+      std::cerr << std::dec << std::endl;
       continue;
     }
 
