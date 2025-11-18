@@ -10,6 +10,7 @@
 #include "Intermediary/IntermediaryNode.h"
 #include "Auth/auth_udp_server.h"
 #include "Arduino/Arduino_Node.h"
+#include "SafeSpaceServer.h"
 
 using StartCb = std::function<bool()>;
 using StopCb = std::function<bool()>;
@@ -27,7 +28,11 @@ std::pair<StartCb, StopCb> makeProxyAdapter(
     if (st->node) return true;
     st->node = new ProxyNode(listenIp, listenPort, authIp, authPort, masterIp, masterPort);
     st->t = std::thread([st]() {
-      try { st->node->start(); } catch (...) { }
+      try { st->node->start(); } catch (const std::exception &e) {
+        std::cerr << "[StorageAdapter] Exception in storage start thread: " << e.what() << std::endl;
+      } catch (...) {
+        std::cerr << "[StorageAdapter] Unknown exception in storage start thread" << std::endl;
+      }
       std::lock_guard<std::mutex> lg(st->m);
       delete st->node; st->node = nullptr;
     });
@@ -42,6 +47,51 @@ std::pair<StartCb, StopCb> makeProxyAdapter(
     }
     if (!n) return true;
     try { n->stop(); } catch (...) { }
+    if (st->t.joinable()) st->t.join();
+    return true;
+  };
+
+  return {start, stop};
+}
+
+// Master (SafeSpaceServer) adapter
+std::pair<StartCb, StopCb> makeMasterAdapter(
+  const std::string& bindIp, uint16_t bindPort,
+  const std::string& storageIp, uint16_t storagePort,
+  const std::string& eventsIp, uint16_t eventsPort,
+  const std::string& proxyIp, uint16_t proxyPort) {
+  struct State { SafeSpaceServer* server = nullptr; std::thread t; std::mutex m; };
+  auto st = std::make_shared<State>();
+
+  StartCb start = [st, bindIp, bindPort, storageIp, storagePort, eventsIp, eventsPort, proxyIp, proxyPort]() -> bool {
+    std::lock_guard<std::mutex> lg(st->m);
+    if (st->server) return true;
+    try {
+      st->server = new SafeSpaceServer(bindIp, bindPort, storageIp, storagePort, eventsIp, eventsPort, proxyIp, proxyPort);
+    } catch (const std::exception &e) {
+      std::cerr << "[MasterAdapter] Failed to construct SafeSpaceServer: " << e.what() << std::endl;
+      return false;
+    }
+    st->t = std::thread([st]() {
+      try { st->server->serveBlocking(); } catch (const std::exception &e) {
+        std::cerr << "[MasterAdapter] serveBlocking exception: " << e.what() << std::endl;
+      } catch (...) {
+        std::cerr << "[MasterAdapter] serveBlocking unknown exception" << std::endl;
+      }
+      std::lock_guard<std::mutex> lg(st->m);
+      delete st->server; st->server = nullptr;
+    });
+    return true;
+  };
+
+  StopCb stop = [st]() -> bool {
+    SafeSpaceServer* s = nullptr;
+    {
+      std::lock_guard<std::mutex> lg(st->m);
+      s = st->server;
+    }
+    if (!s) return true;
+    try { s->stop(); } catch (...) { }
     if (st->t.joinable()) st->t.join();
     return true;
   };
@@ -75,7 +125,7 @@ std::pair<StartCb, StopCb> makeStorageAdapter(
       n = st->node;
     }
     if (!n) return true;
-    try { n->~StorageNode(); } catch (...) { }
+      try { n->stop(); } catch (...) { }
     if (st->t.joinable()) st->t.join();
     return true;
   };
@@ -86,18 +136,28 @@ std::pair<StartCb, StopCb> makeStorageAdapter(
 // Intermediary adapter
 std::pair<StartCb, StopCb> makeIntermediaryAdapter(
   int listenPort, const std::string& masterIp, int masterPort) {
-  struct State { IntermediaryNode* node = nullptr; std::thread t; std::mutex m; };
+  struct State { IntermediaryNode* node = nullptr; std::mutex m; };
   auto st = std::make_shared<State>();
 
+  // For IntermediaryNode::start() the node creates its own worker thread and
+  // returns immediately. Therefore the adapter must NOT spawn a separate
+  // thread that would delete the node after start() returns. Instead we
+  // allocate the node and call start() synchronously; stop() will request
+  // shutdown and we delete the node in the stop callback.
   StartCb start = [st, listenPort, masterIp, masterPort]() -> bool {
     std::lock_guard<std::mutex> lg(st->m);
     if (st->node) return true;
     st->node = new IntermediaryNode(listenPort, masterIp, masterPort);
-    st->t = std::thread([st]() {
-      try { st->node->start(); } catch (...) { }
-      std::lock_guard<std::mutex> lg(st->m);
+    try {
+      bool ok = st->node->start();
+      if (!ok) {
+        delete st->node; st->node = nullptr;
+        return false;
+      }
+    } catch (...) {
       delete st->node; st->node = nullptr;
-    });
+      return false;
+    }
     return true;
   };
 
@@ -106,10 +166,11 @@ std::pair<StartCb, StopCb> makeIntermediaryAdapter(
     {
       std::lock_guard<std::mutex> lg(st->m);
       n = st->node;
+      st->node = nullptr; // mark as gone for other callers
     }
     if (!n) return true;
     try { n->stop(); } catch (...) { }
-    if (st->t.joinable()) st->t.join();
+    delete n;
     return true;
   };
 

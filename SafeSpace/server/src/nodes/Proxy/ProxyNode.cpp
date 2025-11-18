@@ -74,7 +74,15 @@ void ProxyNode::start() {
 
   // Logs that the proxy has been initialized.
   this->logger.info("ProxyNode authentication listener started");
-  this->serveBlocking();
+  try {
+    this->serveBlocking();
+  } catch (const std::exception &e) {
+    this->logger.error(std::string("ProxyNode serveBlocking exception: ") + e.what());
+    std::cerr << "[ProxyNode] serveBlocking exception: " << e.what() << std::endl;
+  } catch (...) {
+    this->logger.error("ProxyNode serveBlocking unknown exception");
+    std::cerr << "[ProxyNode] serveBlocking unknown exception" << std::endl;
+  }
 
   listening.store(false);
 }

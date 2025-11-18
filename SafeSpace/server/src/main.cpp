@@ -10,6 +10,7 @@
 #include "Intermediary/IntermediaryNode.h"
 #include "Storage/StorageNode.h"
 
+#include <vector>
 static volatile std::sig_atomic_t stopFlag = 0;
 extern "C" void sigHandler(int) { stopFlag = 1; }
 
@@ -21,6 +22,8 @@ void validateArgs(int argc, char* argv[]) {
     std::cerr << "Usage:\n"
               << "  " << argv[0] << " <component> [args...]\n"
               << "Components: server, proxy, storage, auth, events, inter, arduino, bootstrap\n"
+              << "  For bootstrap you can optionally pass IP and PORT:\n"
+              << "    " << argv[0] << " bootstrap <ip> <port>\n"
               << std::endl;
     std::exit(EXIT_FAILURE);
   }
@@ -175,19 +178,26 @@ int main(const int argc, char* argv[]) {
      ArduinoNode node(masterIP, masterPort, serialPath, mode);
      node.run();
     } else if (type == "bootstrap") {
-      // Bootstrap puede iniciarse sin argumentos adicionales
-      Bootstrap server("0.0.0.0", 8080);
+      // Bootstrap puede iniciarse con IP/PORT opcionales: `bootstrap <ip> <port>`
+      std::string bindIp = "0.0.0.0";
+      uint16_t bindPort = 8080;
+      if (argc >= 4) {
+        bindIp = argv[2];
+        bindPort = parsePort(argv[3]);
+      }
+
+      Bootstrap server(bindIp, bindPort);
 
       // Registrar adaptadores para nodos comunes (IDs por convención)
       // ID 1: ProxyNode (escucha 9000), reenvía a Auth=7000 y Master=6000
       {
-        auto p = makeProxyAdapter("0.0.0.0", 9000, "127.0.0.1", 7000, "127.0.0.1", 6000);
+        auto p = makeProxyAdapter("0.0.0.0", 9000, "0.0.0.0", 7000, "127.0.0.1", 6000);
         server.registerNode(1, p.first, p.second);
       }
 
       // ID 2: StorageNode (puerto 9001), master en 127.0.0.1:6000
       {
-        auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "/tmp/storage1");
+        auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "/model/data/unity.bin");
         server.registerNode(2, p.first, p.second);
       }
 
@@ -205,7 +215,7 @@ int main(const int argc, char* argv[]) {
 
       // ID 5: ArduinoNode (simulado) enviando a master 127.0.0.1:6000
       {
-        auto p = makeArduinoAdapter("127.0.0.1", 6000, "simulate", "binary");
+        auto p = makeArduinoAdapter("127.0.0.1", 9002, "simulate", "binary");
         server.registerNode(5, p.first, p.second);
       }
 

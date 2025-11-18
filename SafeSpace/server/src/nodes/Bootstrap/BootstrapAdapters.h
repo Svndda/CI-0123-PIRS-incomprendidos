@@ -22,3 +22,9 @@ std::pair<std::function<bool()>, std::function<bool()>> makeAuthAdapter(
 
 std::pair<std::function<bool()>, std::function<bool()>> makeArduinoAdapter(
   const std::string& masterIp, int masterPort, const std::string& serialPath, const std::string& format);
+
+std::pair<std::function<bool()>, std::function<bool()>> makeMasterAdapter(
+  const std::string& bindIp, uint16_t bindPort,
+  const std::string& storageIp, uint16_t storagePort,
+  const std::string& eventsIp, uint16_t eventsPort,
+  const std::string& proxyIp, uint16_t proxyPort);
