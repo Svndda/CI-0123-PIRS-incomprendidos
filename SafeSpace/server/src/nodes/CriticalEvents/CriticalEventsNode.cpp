@@ -13,6 +13,10 @@ CriticalEventsNode::CriticalEventsNode(const std::string& ip, uint16_t port, std
     // ensure output directory exists (best-effort)
     // do not fail on missing dir; appendLine will create file if needed
     std::cout << "[CriticalEventsNode] listening on UDP port " << port << " -> " << outPath_ << std::endl;
+    auto& logger = LogManager::instance();
+    logger.enableFileLogging("critical_events_ip_addresses.log");
+    logger.ipAddress(ip + std::string(":") + std::to_string(port));
+    
 }
 
 CriticalEventsNode::~CriticalEventsNode() {
@@ -66,7 +70,11 @@ void CriticalEventsNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
         case 0: severity = "INFO"; break;
         case 1: severity = "WARN"; break;
         case 2: severity = "ERROR"; break;
-        case 3: severity = "IP_ADDRESS"; break;
+        case 3: {
+            severity = "IP_ADDRESS";
+            
+            
+        }
         default: severity = "UNKNOWN"; break;
     }
     
