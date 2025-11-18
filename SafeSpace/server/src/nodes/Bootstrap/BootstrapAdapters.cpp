@@ -11,6 +11,12 @@
 #include "Auth/auth_udp_server.h"
 #include "Arduino/Arduino_Node.h"
 #include "SafeSpaceServer.h"
+#include "CriticalEvents/CriticalEventsNode.h"
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <cstring>
+#include <cerrno>
 
 using StartCb = std::function<bool()>;
 using StopCb = std::function<bool()>;
@@ -92,6 +98,63 @@ std::pair<StartCb, StopCb> makeMasterAdapter(
     }
     if (!s) return true;
     try { s->stop(); } catch (...) { }
+    if (st->t.joinable()) st->t.join();
+    return true;
+  };
+
+  return {start, stop};
+}
+
+// Events (CriticalEventsNode) adapter
+std::pair<StartCb, StopCb> makeEventsAdapter(
+  const std::string& listenIp, uint16_t listenPort, const std::string& outPath) {
+  struct State { CriticalEventsNode* node = nullptr; std::thread t; std::mutex m; };
+  auto st = std::make_shared<State>();
+
+  StartCb start = [st, listenIp, listenPort, outPath]() -> bool {
+    std::lock_guard<std::mutex> lg(st->m);
+    if (st->node) return true;
+    try {
+      st->node = new CriticalEventsNode(listenIp, listenPort, outPath);
+    } catch (const std::exception &e) {
+      std::cerr << "[EventsAdapter] Failed to construct CriticalEventsNode: " << e.what() << std::endl;
+      return false;
+    }
+    st->t = std::thread([st]() {
+      try { st->node->serveBlocking(); } catch (const std::exception &e) {
+        std::cerr << "[EventsAdapter] serveBlocking exception: " << e.what() << std::endl;
+      } catch (...) {
+        std::cerr << "[EventsAdapter] serveBlocking unknown exception" << std::endl;
+      }
+      std::lock_guard<std::mutex> lg(st->m);
+      delete st->node; st->node = nullptr;
+    });
+    return true;
+  };
+
+  StopCb stop = [st, listenIp, listenPort]() -> bool {
+    CriticalEventsNode* n = nullptr;
+    {
+      std::lock_guard<std::mutex> lg(st->m);
+      n = st->node;
+    }
+    if (!n) return true;
+    try { n->stop(); } catch (...) { }
+    // Send a wake packet to unblock recvfrom() in serveBlocking()
+    try {
+      int s = ::socket(AF_INET, SOCK_DGRAM, 0);
+      if (s >= 0) {
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(listenPort);
+        if (::inet_aton(listenIp.c_str(), &addr.sin_addr) != 0) {
+          const char wake = '#';
+          ssize_t sent = ::sendto(s, &wake, 1, 0, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+          (void)sent;
+        }
+        ::close(s);
+      }
+    } catch (...) { /* ignore */ }
     if (st->t.joinable()) st->t.join();
     return true;
   };

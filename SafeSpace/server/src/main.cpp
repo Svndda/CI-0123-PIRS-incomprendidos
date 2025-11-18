@@ -219,6 +219,12 @@ int main(const int argc, char* argv[]) {
         server.registerNode(5, p.first, p.second);
       }
 
+      // ID 6: CriticalEventsNode (escucha 7001) -> guarda en data/events.log
+      {
+        auto p = makeEventsAdapter("0.0.0.0", 6001, "data/events.log");
+        server.registerNode(6, p.first, p.second);
+      }
+
       // Run bootstrap in background so we can control nodes interactively
       std::thread serverThread([&server]() {
         server.serveBlocking();
