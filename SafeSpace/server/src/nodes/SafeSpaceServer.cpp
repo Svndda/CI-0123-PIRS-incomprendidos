@@ -98,11 +98,17 @@ void SafeSpaceServer::onReceive(
       std::string nodeName(reinterpret_cast<const char*>(data + 5), nodeNameLen);
       std::string message(reinterpret_cast<const char*>(data + 5 + nodeNameLen), len - 5 - nodeNameLen);
 
-      // Reenviar log al master con prefijo [FROM_AUTH]
+      // Reenviar log al master con prefijo [FROM_<nodeName>]
       LogLevel logLevel = static_cast<LogLevel>(level);
-      logger.log(logLevel, "[FROM_" + nodeName + "] " + message);
-
-      std::cout << "[SafeSpaceServer] Forwarded log from " << nodeName << " to CriticalEventsNode" << std::endl;
+      // Evitar reenvío recursivo si el mensaje ya contiene el prefijo
+      std::string marker = "[FROM_" + nodeName + "]";
+      if (message.find(marker) == std::string::npos) {
+        logger.log(logLevel, "[FROM_" + nodeName + "] " + message);
+        std::cout << "[SafeSpaceServer] Forwarded log from " << nodeName << " to CriticalEventsNode" << std::endl;
+      } else {
+        // Mensaje ya fue reenviado anteriormente; descartarlo para evitar bucle
+        std::cout << "[SafeSpaceServer] Dropping recursive forwarded log from " << nodeName << std::endl;
+      }
     }
     return; // No generar respuesta para logs
   }

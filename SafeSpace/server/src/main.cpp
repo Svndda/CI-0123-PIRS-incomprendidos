@@ -203,7 +203,7 @@ int main(const int argc, char* argv[]) {
 
       // ID 3: IntermediaryNode (escucha 9002), master 127.0.0.1:6000
       {
-        auto p = makeIntermediaryAdapter(9002, "127.0.0.1", 6000);
+        auto p = makeIntermediaryAdapter("0.0.0.0", 9002, 6000);
         server.registerNode(3, p.first, p.second);
       }
 
@@ -215,7 +215,7 @@ int main(const int argc, char* argv[]) {
 
       // ID 5: ArduinoNode (simulado) enviando a master 127.0.0.1:6000
       {
-        auto p = makeArduinoAdapter("127.0.0.1", 9002, "simulate", "binary");
+        auto p = makeArduinoAdapter("0.0.0.0", 9002, "/dev/ttyACM0", "binary");
         server.registerNode(5, p.first, p.second);
       }
 
