@@ -4,7 +4,11 @@
 
 #include <QString>
 #include <QApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <vector>
+#include <memory>
+#include <unordered_map>
 
 // #include "model/managers/UsersManager.h"
 // #include "model/filesystem/FileSystem.h"
@@ -17,7 +21,7 @@ struct NetworkEvent {
   QString detail;
   QByteArray rawBytes;
   QString timestamp;
-  int nodeId;  
+  int nodeId;
 };
 
 struct NodeInfo {
@@ -26,6 +30,24 @@ struct NodeInfo {
   QString ip;
   int port;
   QString status;
+};
+
+struct Bootstrap {
+  int id;
+  QString name;
+  std::unique_ptr<QtUDPClient> client;
+  QString status;
+  
+  std::vector<NodeInfo> nodes;
+  
+  Bootstrap& operator=(Bootstrap&& other) noexcept = default;
+  
+  // También es buena práctica definir (o forzar el default) el constructor de movimiento.
+  Bootstrap(Bootstrap&& other) noexcept = default; 
+  
+  // Opcional, pero bueno para dejar claro:
+  Bootstrap(const Bootstrap&) = delete;
+  Bootstrap& operator=(const Bootstrap&) = delete;
 };
 
 /**
@@ -46,10 +68,10 @@ private:
   const std::string UNITY_PATH
       = QApplication::applicationDirPath().toStdString() + "\\unity.bin";
   bool started = false;       ///< Flag indicating if the model has been started.
-  QtUDPClient client;
   User user = User("SafeAdmin", User::hashSHA256("qwerTY2134"));
   std::vector<NetworkEvent> networkLog;
-  QVector<NodeInfo> nodes;  
+  std::vector<Bootstrap> bootstraps;
+  std::vector<NodeInfo> nodes;
   // FileSystem filesystem;
   // UsersManager usersManager;
 private:
@@ -58,7 +80,9 @@ private:
    */
   Model();
   void addNetworkEvent(const NetworkEvent& evt);
-  bool loadNodesFromFile(const QString& filename = "nodes_config.txt");
+  bool loadFromFile(const QString& filename = "config.txt");
+  void connectClientSignals(QtUDPClient* client, int nodeId);
+  bool generateDefaultConfigFile(const QString& absoluteFilePath);
   
 public:  ///< Getters
   /**
@@ -67,7 +91,7 @@ public:  ///< Getters
    */
   static Model& getInstance();
   
-  const QVector<NodeInfo>& getNodes() const { return nodes; }
+  const std::vector<NodeInfo>& getNodes() const { return nodes; }
   NodeInfo getNodeById(int nodeId) const;
   bool updateNodeStatus(int nodeId, const QString& status);
   
