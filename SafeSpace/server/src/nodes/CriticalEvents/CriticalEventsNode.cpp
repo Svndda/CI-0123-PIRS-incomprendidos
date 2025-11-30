@@ -16,14 +16,18 @@ CriticalEventsNode::CriticalEventsNode(const std::string& ip, uint16_t port, std
     auto& logger = LogManager::instance();
     logger.enableFileLogging("critical_events_ip_addresses.log");
     logger.ipAddress(ip + std::string(":") + std::to_string(port));
+
+    startBatchForwarder();
     
 }
 
 CriticalEventsNode::~CriticalEventsNode() {
+    stopBatchForwarder();
     stop();
     auto& logger = LogManager::instance();
     logger.info("CriticalEventsNode shutting down - Security logging ended");
     logger.disableFileLogging();
+    batchRunning_.store(false);
 }
 
 std::string CriticalEventsNode::makeTimestamp() {
@@ -85,9 +89,27 @@ void CriticalEventsNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
 
     std::ostringstream line;
     line << makeTimestamp() << "First byte value: " << static_cast<int>(data[1])<< " | " << ipStr << ":" << peerPort << " | " << severity << " | " << body;
-
+    
+    std::lock_guard<std::mutex> lk(batchMutex_);
+    batchBuffer_.push_back(line.str());
+    
     appendLine(line.str());
 
     // Also print to stdout for convenience
     std::cout << "[CriticalEventsNode] " << line.str() << std::endl;
+}
+
+void CriticalEventsNode::startBatchForwarder(std::string ip, uint16_t port){
+    batchRunning_.store(true);
+    masterPort = port;
+    masterIp = ip;
+
+    batchThread_ = std::thread(&CriticalEventsNode::batchWorkerLoop, this);
+}
+
+void CriticalEventsNode::stopBatchForwarder(){
+    batchRunning_.store(false);
+    if (batchThread_.joinable()) {
+        batchThread_.join();
+    }
 }
