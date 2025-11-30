@@ -12,7 +12,7 @@
 
 class StopNodeResponse {
 private:
-  uint8_t msg_id;  ///< Message identifier (1 byte)
+  static constexpr uint8_t msg_id = 0x7e;     ///< Message identifier (1 byte)
   uint8_t node_id;   ///< Node identifier  (1 byte)
   uint8_t rstatus;     ///< Stop Response status (1 byte)
 
@@ -23,8 +23,8 @@ public:
    * @param node_id Node identifier
    * @param rstatus  flags byte
    */
-  explicit StopNodeResponse(const uint8_t msg_id = 0, uint8_t nodeId = 0, uint8_t status = 0)
-    : msg_id(msg_id), node_id(nodeId), rstatus(status) {
+  explicit StopNodeResponse(uint8_t nodeId = 0, uint8_t status = 0)
+    : node_id(nodeId), rstatus(status) {
   }
 
   /** @brief Copy constructor (defaulted). */
@@ -43,7 +43,7 @@ public:
     if (len != 3) {
       throw std::invalid_argument("StopNodeResponse::fromBytes: invalid length");
     }
-    return StopNodeResponse{ data[0], data[1], data[2]};
+    return StopNodeResponse{ data[1], data[2] };
   }
 
   /**
@@ -58,7 +58,7 @@ public:
    * @throws std::invalid_argument if length is not 2 (not applicable here).
    */
   static StopNodeResponse fromBytes(const std::array<uint8_t, 3>& a) {
-    return StopNodeResponse{ a[0], a[1], a[2]};
+    return StopNodeResponse{ a[1], a[2]};
   }
 
   /**
@@ -67,7 +67,6 @@ public:
  */
   StopNodeResponse& operator=(const StopNodeResponse& other) {
     if (this != &other) {
-      msg_id = other.msg_id;
       this->node_id = other.node_id;
       this->rstatus = other.rstatus;
     }
@@ -76,7 +75,7 @@ public:
 
   /** @brief Equality operator. */
   bool operator==(const StopNodeResponse& other) const noexcept {
-    return msg_id == other.msg_id && this->node_id == other.node_id && this->rstatus == other.rstatus;
+    return this->node_id == other.node_id && this->rstatus == other.rstatus;
   }
 
   /** @brief Inequality operator. */
@@ -86,11 +85,9 @@ public:
 
 public:
   /** @brief Accessors */
-  uint8_t msgId() const noexcept { return this->msg_id; }
   uint8_t nodeId() const noexcept { return this->node_id; }
   uint8_t status() const noexcept { return this->rstatus; }
 
-  void setMsgId(uint8_t v) noexcept { this->msg_id = v; }
   void setNodeId(uint8_t v) noexcept { this->node_id = v; }
   void setStatus(uint8_t v) noexcept { this->rstatus = v; }
   

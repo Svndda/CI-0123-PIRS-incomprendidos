@@ -52,15 +52,15 @@ void QtUDPClient::sendRunNodeRequest(uint8_t nodeId) {
                        + udpSocket->errorString());
     
     emit requestSent(
-        "RunNodeRequest",
-        QString("RunNodeRequest → Node %1 (%2 bytes) : FALLIDA").arg(nodeId).arg(datagram.size()),
+        "Activar Nodo",
+        QString(" ENVÍO FALLIDO: Activar Nodo %1").arg(nodeId),
         datagram
         );
   } else {
     
     emit requestSent(
-        "RunNodeRequest",
-        QString("RunNodeRequest → Node %1 (%2 bytes) : EXITOSA").arg(nodeId).arg(datagram.size()),
+        "Activar Nodo", 
+        QString(" ENVÍO EXITOSO: Activar Nodo %1").arg(nodeId),
         datagram
         );
     qDebug() << "[QtUDPClient] Sent RunNodeRequest for node" << nodeId;
@@ -83,14 +83,14 @@ void QtUDPClient::sendStopNodeRequest(uint8_t nodeId) {
     emit errorOccurred("[QtUDPClient] Failed to send StopNodeRequest: " 
                        + udpSocket->errorString());
     emit requestSent(
-        "StopNodeRequest",
-        QString("StopNodeRequest → Node %1 (%2 bytes) : FALLIDA").arg(nodeId).arg(datagram.size()),
+        "Detener Nodo",
+        QString(" ENVÍO FALLIDO: Detener Nodo %1").arg(nodeId),
         datagram
         );
   } else {
     emit requestSent(
-        "StopNodeRequest",
-        QString("StopNodeRequest → Node %1 (%2 bytes) : EXITOSA").arg(nodeId).arg(datagram.size()),
+        "Detener Nodo",
+        QString(" ENVÍO EXITOSO: Detener Nodo %1").arg(nodeId),
         datagram
         );
     qDebug() << "[QtUDPClient] Sent StopNodeRequest for node" << nodeId;
@@ -134,13 +134,17 @@ void QtUDPClient::handleReadyRead() {
     if (size == 3 && raw[0] == 0x7c) {
       try {
         RunNodeResponse resp = RunNodeResponse::fromBytes(raw, size);
+        QString nodeIdText = QString::number(resp.nodeId());
+        QString statusText = (resp.status() == 1) ? "EXITOSA" : "FALLIDA";
+        QString actionResult = (resp.status() == 1)
+          ? QString("Nodo %1 ACTIVADO correctamente").arg(nodeIdText)
+          : QString("Nodo %1 NO pudo detenerse").arg(nodeIdText);
+        
         emit responseReceived(
-          "RunNodeResponse",
-          QString("RunNodeResponse ← Node %1 Status %2")
-              .arg(resp.nodeId())
-              .arg(resp.status()),
-          datagram
-        );
+            "Respuesta Activación",
+            QString(" RESPUESTA: %1 - %2").arg(statusText).arg(actionResult),
+            datagram
+            );
         emit runNodeResponseReceived(resp);
         continue;
       } catch (...) {
@@ -152,13 +156,18 @@ void QtUDPClient::handleReadyRead() {
     if (size == 3 && raw[0] == 0x7e) {
       try {
         StopNodeResponse resp = StopNodeResponse::fromBytes(raw, size);
+        QString nodeIdText = QString::number(resp.nodeId());
+        QString statusText = (resp.status() == 1) ? "EXITOSA" : "FALLIDA";
+        QString actionResult = (resp.status() == 1)
+           ? QString("Nodo %1 DETENIDO correctamente").arg(nodeIdText)
+           : QString("Nodo %1 NO pudo activarse").arg(nodeIdText);
+        
         emit responseReceived(
-          "StopNodeResponse",
-          QString("StopNodeResponse ← Node %1 Status %2")
-              .arg(resp.nodeId())
-              .arg(resp.status()),
-          datagram
-        );
+            "Respuesta Detención",
+            QString(" RESPUESTA: %1 - %2").arg(statusText).arg(actionResult),
+            datagram
+            );
+        
         emit stopNodeResponseReceived(resp);
         continue;
       } catch (...) {

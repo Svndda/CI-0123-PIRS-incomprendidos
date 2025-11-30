@@ -97,14 +97,8 @@ void UDPServer::serveBlocking() {
     uint16_t peerPort = ntohs(peer.sin_port);
     std::cout << "UDPServer: received " << received << " bytes from " << ipstr << ":" << peerPort << std::endl;
 
-    // shutdown payload check
-    if (received > 0 && buffer[0] == static_cast<uint8_t>('#')) {
-      std::cout << "UDPServer: shutdown payload received from " << ipstr << ":" << peerPort << std::endl;
-      // optional ack
-      const char ack[] = "Server shutting down";
-      ::sendto(sockfd_, ack, sizeof(ack) - 1, 0, reinterpret_cast<sockaddr*>(&peer), peerlen);
-      break;
-    }
+    // No special-case payloads here. Unblock for shutdown is handled by
+    // `stop()` which sends a harmless wake packet to the bound address.
 
     std::string response;
     // call virtual hook
@@ -112,6 +106,16 @@ void UDPServer::serveBlocking() {
       onReceive(peer, buffer.data(), received, response);
     } catch (const std::exception& ex) {
       std::cerr << "Exception in onReceive(): " << ex.what() << std::endl;
+      // Dump a small hex-preview of the received buffer to help debugging
+      std::cerr << "  Received " << received << " bytes; preview: ";
+      size_t preview = std::min<size_t>(static_cast<size_t>(received), 64);
+      for (size_t i = 0; i < preview; ++i) {
+        char b = static_cast<char>(buffer[i]);
+        unsigned int ub = static_cast<unsigned char>(b);
+        std::cerr << std::hex << ((ub >> 4) & 0xF) << (ub & 0xF);
+        if (i + 1 < preview) std::cerr << " ";
+      }
+      std::cerr << std::dec << std::endl;
       continue;
     }
 
@@ -135,6 +139,25 @@ void UDPServer::serveBlocking() {
 
 void UDPServer::stop() noexcept {
   running_.store(false);
+  // Send a single-byte wake packet to our own bound address so a blocking
+  // recvfrom() will return and notice `running_ == false`.
+  if (sockfd_ >= 0) {
+    try {
+      int s = ::socket(AF_INET, SOCK_DGRAM, 0);
+      if (s >= 0) {
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(port_);
+        if (::inet_pton(AF_INET, ip_.c_str(), &addr.sin_addr) > 0) {
+          const uint8_t wake = 0x00;
+          ::sendto(s, &wake, 1, 0, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+        }
+        ::close(s);
+      }
+    } catch (...) {
+      // best-effort; never throw from stop()
+    }
+  }
 }
 
 void UDPServer::sendTo(const sockaddr_in& peer, const uint8_t* data, size_t len) const {

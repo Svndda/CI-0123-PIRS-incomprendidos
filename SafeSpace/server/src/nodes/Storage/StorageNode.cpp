@@ -239,7 +239,15 @@ void StorageNode::start() {
     std::cout << "[StorageNode] Ready to receive sensor data" << std::endl;
     
     // Iniciar servidor UDP (bloqueante)
-    serveBlocking();
+    try {
+        serveBlocking();
+    } catch (const std::exception &e) {
+        std::cerr << "[StorageNode] Exception in serveBlocking(): " << e.what() << std::endl;
+        try { auto& logger = LogManager::instance(); logger.error(std::string("StorageNode serveBlocking exception: ") + e.what()); } catch(...){}
+    } catch (...) {
+        std::cerr << "[StorageNode] Unknown exception in serveBlocking()" << std::endl;
+        try { auto& logger = LogManager::instance(); logger.error("StorageNode serveBlocking unknown exception"); } catch(...){}
+    }
 }
 
 void StorageNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
