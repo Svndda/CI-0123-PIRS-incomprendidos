@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <utility>
 #include <arpa/inet.h>
+#include <unistd.h>
 
 CriticalEventsNode::CriticalEventsNode(const std::string& ip, uint16_t port, std::string  outPath)
     : UDPServer(ip, port, 2048), outPath_(std::move(outPath)) {
@@ -17,7 +18,7 @@ CriticalEventsNode::CriticalEventsNode(const std::string& ip, uint16_t port, std
     logger.enableFileLogging("critical_events_ip_addresses.log");
     logger.ipAddress(ip + std::string(":") + std::to_string(port));
 
-    startBatchForwarder();
+    startBatchForwarder(ip, port);
     
 }
 
@@ -90,8 +91,8 @@ void CriticalEventsNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
     std::ostringstream line;
     line << makeTimestamp() << "First byte value: " << static_cast<int>(data[1])<< " | " << ipStr << ":" << peerPort << " | " << severity << " | " << body;
     
-    std::lock_guard<std::mutex> lk(batchMutex_);
-    batchBuffer_.push_back(line.str());
+    std::lock_guard<std::mutex> lk(batchMutex);
+    batchBuffer.push_back(line.str());
     
     appendLine(line.str());
 
@@ -104,12 +105,57 @@ void CriticalEventsNode::startBatchForwarder(std::string ip, uint16_t port){
     masterPort = port;
     masterIp = ip;
 
-    batchThread_ = std::thread(&CriticalEventsNode::batchWorkerLoop, this);
+    batchThread = std::thread(&CriticalEventsNode::batchWorkerLoop, this);
 }
 
 void CriticalEventsNode::stopBatchForwarder(){
     batchRunning_.store(false);
-    if (batchThread_.joinable()) {
-        batchThread_.join();
+    if (batchThread.joinable()) {
+        batchThread.join();
     }
+}
+
+void CriticalEventsNode::batchWorkerLoop(){
+    using namespace std::chrono_literals;
+    int sock = ::socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        std::cerr << "[CriticalEventsNode] ERROR: cannot create UDP socket for batch forwarding" << std::endl;
+        auto& logger = LogManager::instance();
+        logger.error("CriticalEventsNode] ERROR: cannot create UDP socket for batch forwarding");
+        return;
+    }
+
+    sockaddr_in dest{};
+    dest.sin_family = AF_INET;
+    dest.sin_port = htons(masterPort);
+    ::inet_aton(masterIp.c_str(), &dest.sin_addr);
+
+    while (this->batchRunning_.load()) {
+        std::this_thread::sleep_for(std::chrono::minutes(1));
+
+        std::vector<std::string> snapshot;
+        {
+            std::lock_guard<std::mutex> lk(batchMutex);
+            if (batchBuffer.empty()) {
+                continue; // nothing to send
+            }
+            snapshot.swap(batchBuffer);
+        }
+        std::ostringstream batchData;
+        batchData << "LOG_BATCH\n";
+        for (const auto& line : snapshot) {
+            batchData << line << "\n";
+        }
+        std::string batchStr = batchData.str();
+        ssize_t sent = ::sendto(sock, batchStr.data(), batchStr.size(), 0,
+                                reinterpret_cast<sockaddr*>(&dest), sizeof(dest));
+
+        if (sent < 0) {
+            std::cerr << "[CriticalEventsNode] ERROR: failed to send batch UDP packet: ";
+            auto& logger = LogManager::instance();
+            logger.error("CriticalEventsNode] ERROR: failed to send batch UDP packet: ");
+        }
+        
+    }   
+    ::close(sock);
 }

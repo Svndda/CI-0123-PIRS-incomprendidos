@@ -6,7 +6,7 @@
 #include <vector>
 #include <thread>
 #include <atomic>
-
+#include "../../../common/LogManager.h"
 class CriticalEventsNode : public UDPServer {
 public:
     // Listen on given UDP port and append received events to a host file
