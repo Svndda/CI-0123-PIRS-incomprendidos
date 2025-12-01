@@ -29,11 +29,14 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
   logger.ipAddress("MASTER:" + ip + ":" + std::to_string(port));
   // Start critical events node on a nearby port (port+1) to collect logs from nodes
   try {
-    // uint16_t critPort = static_cast<uint16_t>(port + 1);
-    // criticalEventsNode_ = new CriticalEventsNode(critPort);
-    // criticalThread_ = std::thread([this]() {
-    //   if (criticalEventsNode_) criticalEventsNode_->serveBlocking();
-    // });
+    criticalEventsNode_ = new CriticalEventsNode(eventsIp, eventsPort);
+    criticalEventsNode_->configureMasterForwarding(ip, port);  // ip/port del master (este SafeSpaceServer)
+    criticalEventsNode_->startBatchForwarder();
+    criticalThread_ = std::thread([this]() {
+        if (criticalEventsNode_) {
+            criticalEventsNode_->serveBlocking();
+        }
+    });
     if (!storageNode.client) {
       storageNode.client = new UDPClient(storageNode.ip, storageNode.port);
       std::cout << "[SafeSpaceServer] Created Storage UDP client to "
