@@ -4,10 +4,12 @@
 #include <arpa/inet.h>
 #include <cstring>
 #include <iostream>
+#include <algorithm>
 
 #include "sensordata.h"
 #include "../../../common/LogManager.h"
 #include "SensorPacket.h"
+#include "Storage/StorageNode.h"
 
 enum class LogLevel;
 
@@ -93,6 +95,37 @@ void SafeSpaceServer::clearDiscoverTargets() {
 void SafeSpaceServer::onReceive(
   const sockaddr_in& peer, const uint8_t* data,
   ssize_t len, std::string& out_response) {
+  // Procesamiento especial para lotes de logs enviados por CriticalEventsNode
+  if (len >= 9 && std::memcmp(data, "LOG_BATCH", 9) == 0) {
+    const std::string batch(reinterpret_cast<const char*>(data), static_cast<size_t>(len));
+    const std::size_t newlinePos = batch.find('\n');
+    const std::string logs = (newlinePos == std::string::npos) ? std::string{} : batch.substr(newlinePos + 1);
+
+    if (logs.empty()) {
+      LogManager::instance().warning("SafeSpaceServer received empty LOG_BATCH payload");
+      return;
+    }
+
+    if (!storageNode.client) {
+      LogManager::instance().error("SafeSpaceServer has no StorageNode client for LOG_BATCH forwarding");
+      return;
+    }
+
+    std::string payload;
+    payload.reserve(1 + logs.size());
+    payload.push_back(static_cast<char>(MessageType::STORE_BITACORA));
+    payload.append(logs);
+
+    try {
+      storageNode.client->sendRaw(payload.data(), payload.size());
+      std::cout << "[SafeSpaceServer] Forwarded LOG_BATCH to StorageNode with "
+                << std::count(logs.begin(), logs.end(), '\n') << " entries" << std::endl;
+    } catch (const std::exception& ex) {
+      LogManager::instance().error(std::string("SafeSpaceServer failed to forward LOG_BATCH: ") + ex.what());
+    }
+    return;
+  }
+
   // Verificar si es un log del LogManager (empieza con "LOG")
   if (len >= 5 && data[0] == 'L' && data[1] == 'O' && data[2] == 'G') {
     // Es un log del AuthNode, reenviarlo al master
