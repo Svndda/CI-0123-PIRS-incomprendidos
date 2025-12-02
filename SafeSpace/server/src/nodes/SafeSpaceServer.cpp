@@ -25,20 +25,12 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
   
   // Configurar LogManager para enviar logs a CriticalEventsNode
   auto& logger = LogManager::instance();
-  logger.enableFileLogging("./LOGS/server_security_audit.log");
+  logger.enableFileLogging("./build/server_security_audit.log");
   logger.configureRemote(eventsIp, eventsPort, "SafeSpaceServer");
   logger.info("SafeSpaceServer logging system initialized");
   logger.ipAddress("MASTER:" + ip + ":" + std::to_string(port));
-  // Start critical events node on a nearby port (port+1) to collect logs from nodes
+
   try {
-    criticalEventsNode_ = new CriticalEventsNode(eventsIp, eventsPort);
-    criticalEventsNode_->configureMasterForwarding(ip, port);  // ip/port del master (este SafeSpaceServer)
-    criticalEventsNode_->startBatchForwarder();
-    criticalThread_ = std::thread([this]() {
-        if (criticalEventsNode_) {
-            criticalEventsNode_->serveBlocking();
-        }
-    });
     if (!storageNode.client) {
       storageNode.client = new UDPClient(storageNode.ip, storageNode.port);
       std::cout << "[SafeSpaceServer] Created Storage UDP client to "
@@ -50,24 +42,16 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
       std::cout << "[SafeSpaceServer] Created Proxy UDP client to "
                 << proxyNode.ip << ":" << proxyNode.port << std::endl;
     }
-    std::cout << "SafeSpaceServer: started CriticalEventsNode on port " << (port + 1) << std::endl;
   } catch (const std::exception &ex) {
-    std::cerr << "SafeSpaceServer: failed to start CriticalEventsNode: " << ex.what() << std::endl;
+    std::cerr << "SafeSpaceServer: failed to initialize UDP clients: " << ex.what() << std::endl;
   }
 }
 
 SafeSpaceServer::~SafeSpaceServer() {
-  // stop critical events node if running
+  // Gracefully stop master-side logging
   auto& logger = LogManager::instance();
-    logger.info("Server shutting down - Security logging ended");
-    logger.disableFileLogging();
-  if (criticalEventsNode_) {
-    criticalEventsNode_->stop();
-    // UDPServer::stop signals serveBlocking to finish; join thread
-    if (criticalThread_.joinable()) criticalThread_.join();
-    delete criticalEventsNode_;
-    criticalEventsNode_ = nullptr;
-  }
+  logger.info("Server shutting down - Security logging ended");
+  logger.disableFileLogging();
 }
 
 sockaddr_in SafeSpaceServer::makeSockaddr(const std::string& ip, uint16_t port) {

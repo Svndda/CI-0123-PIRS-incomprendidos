@@ -9,6 +9,7 @@
 #include "Bootstrap/BootstrapAdapters.h"
 #include "Intermediary/IntermediaryNode.h"
 #include "Storage/StorageNode.h"
+#include "CriticalEvents/CriticalEventsNode.h"
 
 #include <vector>
 static volatile std::sig_atomic_t stopFlag = 0;
@@ -81,14 +82,18 @@ int main(const int argc, char* argv[]) {
       std::cout << "[Main] Server stopped cleanly." << std::endl;
 
     } else if (type == "events") {
-      if (argc != 5) {
-        throw std::runtime_error("Events mode requires 4 arguments: events <local_ip> <local_port> <out.txt>");
+      if (argc != 7) {
+        throw std::runtime_error("Events mode requires 6 arguments: events <local_ip> <local_port> <out.txt> <master_ip> <master_port>");
       }
 
       std::string localIp = argv[2];
       uint16_t localPort = parsePort(argv[3]);
       std::string outPath = argv[4];
+      std::string masterIp = argv[5];
+      uint16_t masterPort = parsePort(argv[6]);
+
       CriticalEventsNode node(localIp, localPort, outPath);
+      node.configureMasterForwarding(masterIp, masterPort);
       node.serveBlocking();
 
     } else if (type == "proxy") {
@@ -221,7 +226,7 @@ int main(const int argc, char* argv[]) {
 
       // ID 6: CriticalEventsNode (escucha 7001) -> guarda en data/events.log
       {
-        auto p = makeEventsAdapter("0.0.0.0", 6001, "logs.txt");
+        auto p = makeEventsAdapter("0.0.0.0", 6001, "logs.txt", "127.0.0.1", 6000);
         server.registerNode(6, p.first, p.second);
       }
 

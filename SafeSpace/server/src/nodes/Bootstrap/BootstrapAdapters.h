@@ -30,4 +30,5 @@ std::pair<std::function<bool()>, std::function<bool()>> makeMasterAdapter(
   const std::string& proxyIp, uint16_t proxyPort);
 
 std::pair<std::function<bool()>, std::function<bool()>> makeEventsAdapter(
-  const std::string& listenIp, uint16_t listenPort, const std::string& outPath);
+  const std::string& listenIp, uint16_t listenPort, const std::string& outPath,
+  const std::string& masterIp, uint16_t masterPort);
