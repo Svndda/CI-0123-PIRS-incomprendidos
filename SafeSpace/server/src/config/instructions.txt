@@ -1,0 +1,26 @@
+Para levantar los nodos con los archivos ya habiendo compilado el proyecto 
+y estando desde la carpeta del build se usaria 
+
+# Servidor Principal
+./server server ../src/config/server.txt
+
+# Nodo de Autenticación
+./server auth ../src/config/auth.txt
+
+# Nodo de Eventos Críticos
+./server events ../src/config/events.txt
+
+# Nodo de Almacenamiento
+./server storage ../src/config/storage.txt
+
+# Nodo Proxy
+./server proxy ../src/config/proxy.txt
+
+# Nodo Intermediario
+./server inter ../src/config/inter.txt
+
+# Simulador Arduino
+./server arduino ../src/config/arduino.txt
+
+# Bootstrap
+./server bootstrap ../src/config/bootstrap.txt
