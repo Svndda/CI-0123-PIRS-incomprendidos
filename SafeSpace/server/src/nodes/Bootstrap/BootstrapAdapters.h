@@ -15,7 +15,7 @@ std::pair<std::function<bool()>, std::function<bool()>> makeStorageAdapter(
   const std::string& nodeId, const std::string& diskPath);
 
 std::pair<std::function<bool()>, std::function<bool()>> makeIntermediaryAdapter(
-  int listenPort, const std::string& masterIp, int masterPort);
+  const std::string& masterIp, int listenPort,  int masterPort);
 
 std::pair<std::function<bool()>, std::function<bool()>> makeAuthAdapter(
   const std::string& listenIp, uint16_t listenPort);

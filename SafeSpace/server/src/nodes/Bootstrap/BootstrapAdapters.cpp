@@ -198,7 +198,7 @@ std::pair<StartCb, StopCb> makeStorageAdapter(
 
 // Intermediary adapter
 std::pair<StartCb, StopCb> makeIntermediaryAdapter(
-  int listenPort, const std::string& masterIp, int masterPort) {
+  const std::string& masterIp, int listenPort, int masterPort) {
   struct State { IntermediaryNode* node = nullptr; std::mutex m; };
   auto st = std::make_shared<State>();
 
