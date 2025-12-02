@@ -25,7 +25,7 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
   
   // Configurar LogManager para enviar logs a CriticalEventsNode
   auto& logger = LogManager::instance();
-  logger.enableFileLogging("./build/server_security_audit.log");
+  logger.enableFileLogging("./LOGS/server_security_audit.log");
   logger.configureRemote(eventsIp, eventsPort, "SafeSpaceServer");
   logger.info("SafeSpaceServer logging system initialized");
   logger.ipAddress("MASTER:" + ip + ":" + std::to_string(port));

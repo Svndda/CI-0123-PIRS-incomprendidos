@@ -100,7 +100,7 @@ class StorageNode: public UDPServer {
     Response handleQueryByDate(const uint8_t* data, ssize_t len);
     Response handleQueryBySensor(const uint8_t* data, ssize_t len);
     Response handleStoreSensorData(const uint8_t* data, ssize_t len);
-    Response handleStoreBitacora(const uint8_t* data, ssize_t len);
+    Response handleStoreBitacora(const uint8_t* data, ssize_t len, const std::string& peerLabel);
 
     // Utilidades
     std::string sockaddrToString(const sockaddr_in& addr) const;

@@ -285,7 +285,7 @@ void StorageNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
                 
             case MessageType::STORE_BITACORA:
                 std::cout << "[StorageNode] Store bitácora" << std::endl;
-                response = handleStoreBitacora(data, len);
+                response = handleStoreBitacora(data, len, peerStr);
                 break;
                 
             default:
@@ -479,55 +479,75 @@ Response StorageNode::handleStoreSensorData(const uint8_t* data, ssize_t len) {
     return resp;
 }
 
-Response StorageNode::handleStoreBitacora(const uint8_t* data, ssize_t len) {
+Response StorageNode::handleStoreBitacora(const uint8_t* data, ssize_t len, const std::string& peerLabel) {
     Response resp;
     resp.msgId = static_cast<uint8_t>(MessageType::RESPONSE_ACK);
     
-    if (len < 2) {
+    if (len <= 1) {
         resp.status = 1;
         errorsCount++;
+        LogManager::instance().warning("StorageNode received empty bitácora message");
         return resp;
     }
     
     try {
-        // Extraer mensaje de bitácora
-        std::string message(reinterpret_cast<const char*>(data + 1), len - 1);
-        
-        std::lock_guard<std::mutex> lock(fsMutex);
-        
-        // Archivo de bitácora
-        std::string bitacoraFile = "bitacora.log";
-        
-        // Crear si no existe
-        if (fs->find(bitacoraFile) < 0) {
-            fs->create(bitacoraFile);
+        std::string batchPayload(reinterpret_cast<const char*>(data + 1), static_cast<size_t>(len - 1));
+
+        std::istringstream stream(batchPayload);
+        std::vector<std::string> entries;
+        std::string line;
+        while (std::getline(stream, line)) {
+            if (!line.empty()) entries.push_back(std::move(line));
         }
-        
-        // Abrir, leer contenido actual, agregar nueva entrada
-        fs->openFile(bitacoraFile);
-        std::string currentLog = fs->read(bitacoraFile);
-        
-        // Agregar timestamp + mensaje
-        auto now = std::chrono::system_clock::now();
-        auto timestamp = std::chrono::system_clock::to_time_t(now);
-        std::string entry = "[" + timestampToString(timestamp) + "] " + message + "\n";
-        
-        currentLog += entry;
-        
-        // Escribir de vuelta
-        bool success = fs->write(bitacoraFile, currentLog);
-        fs->closeFile(bitacoraFile);
-        
-        if (success) {
-            resp.status = 0;
-            std::cout << "[StorageNode] Bitácora: " << entry;
-        } else {
+
+        if (entries.empty()) {
             resp.status = 1;
             errorsCount++;
+            LogManager::instance().warning("StorageNode bitácora batch empty after parsing from " + peerLabel);
+            return resp;
         }
+
+        std::ostringstream formatted;
+        for (const auto& original : entries) {
+            auto now = std::chrono::system_clock::now();
+            auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+            formatted << "[" << timestampToString(static_cast<uint64_t>(seconds)) << "] " << original << '\n';
+        }
+        const std::string formattedBatch = formatted.str();
+
+        std::lock_guard<std::mutex> lock(fsMutex);
+
+        const std::string bitacoraFile = "bitacora.log";
+        if (fs->find(bitacoraFile) < 0) {
+            if (fs->create(bitacoraFile) < 0) {
+                throw std::runtime_error("Failed to create bitacora.log");
+            }
+        }
+
+        if (fs->openFile(bitacoraFile) != 0) {
+            throw std::runtime_error("Failed to open bitacora.log");
+        }
+
+        std::string currentLog = fs->read(bitacoraFile);
+        if (!currentLog.empty() && currentLog.back() != '\n') {
+            currentLog.push_back('\n');
+        }
+        currentLog += formattedBatch;
+
+        const bool success = fs->write(bitacoraFile, currentLog);
+        fs->closeFile(bitacoraFile);
+
+        if (!success) {
+            throw std::runtime_error("Failed to write bitacora.log");
+        }
+
+        resp.status = 0;
+        LogManager::instance().info("StorageNode stored " + std::to_string(entries.size()) +
+                                    " log entries from " + peerLabel);
         
     } catch (const std::exception& e) {
         std::cerr << "[StorageNode] Error storing bitácora: " << e.what() << std::endl;
+        LogManager::instance().error(std::string("StorageNode bitácora store failed: ") + e.what());
         resp.status = 1;
         errorsCount++;
     }
