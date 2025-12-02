@@ -2,6 +2,7 @@
 #include "Proxy/ProxyNode.h"
 #include <csignal>
 #include <iostream>
+#include "nodes/interfaces/FirewallManager.h"
 
 #include "Arduino/Arduino_Node.h"
 #include "Auth/auth_udp_server.h"
@@ -54,12 +55,14 @@ int main(const int argc, char* argv[]) {
     std::string type = argv[1];
 
     if (type == "server") {
-      if (argc != 10) {
+      // The server component accepts an optional final argument:
+      //   server <local_ip> <local_port> <storage_ip> <storage_port> <events_ip> <events_port> <proxy_ip> <proxy_port> [--enable-firewall]
+      if (argc != 10 && argc != 11) {
         throw std::runtime_error("Master mode requires 9 arguments:"
         " server <local_ip> <local_port>"
         " <storageNode_ip> <storageNode_Port>"
         " <eventsNode_ip> <eventsNode_Port>"
-        " <ProxyNode_ip> <ProxyNode_Port>");
+        " <ProxyNode_ip> <ProxyNode_Port> [--enable-firewall]");
       }
 
       std::string localIp = argv[2];
@@ -71,13 +74,42 @@ int main(const int argc, char* argv[]) {
       std::string proxyIp = argv[8];
       uint16_t proxyPort = parsePort(argv[9]);
 
+      bool manageFirewall = false;
+      if (argc == 11) {
+        std::string opt = argv[10];
+        if (opt == "--enable-firewall" || opt == "--manage-firewall") manageFirewall = true;
+      }
+
       SafeSpaceServer server(localIp, localPort, storageIp, storagePort, eventsIp, eventsPort, proxyIp, proxyPort);
       std::cout << "[Main] Running SafeSpaceServer on port " << localPort << std::endl;
+
+      FirewallManager fw(!manageFirewall /*dry-run by default*/);
+      bool fw_enabled = false;
+      if (manageFirewall) {
+        // Prepare port lists: enable the ports provided to this server instance
+        std::vector<uint16_t> udp_ports = { localPort, storagePort, eventsPort, proxyPort };
+        std::vector<uint16_t> tcp_ports = { 22 };
+        if (!fw.enable(udp_ports, tcp_ports, true)) {
+          std::cerr << "[Main] Warning: failed to enable firewall (are you root?). Continuing without firewall." << std::endl;
+        } else {
+          fw_enabled = true;
+          std::cout << "[Main] Firewall enabled for server ports." << std::endl;
+        }
+      }
 
       // Run server in blocking mode for master/server component
       server.serveBlocking();
 
       if (stopFlag) server.stop();
+
+      if (fw_enabled) {
+        if (!fw.disable()) {
+          std::cerr << "[Main] Warning: failed to disable firewall on shutdown." << std::endl;
+        } else {
+          std::cout << "[Main] Firewall disabled on shutdown." << std::endl;
+        }
+      }
+
       std::cout << "[Main] Server stopped cleanly." << std::endl;
 
     } else if (type == "events") {

@@ -52,6 +52,7 @@ add_executable(server
         src/main.cpp
         src/nodes/interfaces/UDPServer.cpp
         src/nodes/interfaces/UDPServer.h
+        src/nodes/interfaces/FirewallManager.cpp
         src/nodes/interfaces/UDPClient.cpp
         src/nodes/interfaces/UDPClient.h
         src/model/structures/DiscoverRequest.h
