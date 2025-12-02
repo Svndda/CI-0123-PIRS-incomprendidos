@@ -67,6 +67,8 @@ add_executable(server
         src/nodes/Bootstrap/Bootstrap.h
         src/nodes/Bootstrap/BootstrapAdapters.cpp
         src/nodes/Bootstrap/BootstrapAdapters.h
+        src/model/managers/RAID1Manager.h
+        src/model/managers/RAID1Manager.cpp
 )
 
 # Link libraries
