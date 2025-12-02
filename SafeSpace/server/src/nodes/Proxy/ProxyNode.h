@@ -212,6 +212,8 @@ private:
    */
   void handleAuthResponse(const uint8_t *buffer, size_t length);
 
+  void handleGetSystemUsersResponse(const uint8_t *buffer, size_t length);
+
   /**
    * @brief Registers a new broadcast subscriber client.
    * @param addr Client socket address.

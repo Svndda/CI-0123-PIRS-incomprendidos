@@ -10,7 +10,7 @@
 #include "model.h"
 
 Model::Model()
-  : client("10.1.35.23", 8081, this) {
+  : client("172.17.0.70", 8080, this) {
   
   this->connect(
       &this->client, &QtUDPClient::sensorDataReceived,
@@ -18,6 +18,22 @@ Model::Model()
         qInfo() << "[Model] SensorData received:" << data.distance;        
         this->sensorsData.emplace_back(data);
         emit this->sensorDataReceived(data);
+      });
+  
+  this->connect(
+      &this->client, &QtUDPClient::authResponseReceived,
+      this, [this](const AuthResponse& resp) {
+        qInfo() << "Authentication response received:";
+        qInfo() << "  Session ID:" << resp.getSessionId();
+        qInfo() << "  Status:" << resp.getStatusCode();
+        qInfo() << "  Message:" << QString::fromStdString(resp.getMessage());
+        qInfo() << "  Token:" << QString::fromStdString(resp.getSessionToken());
+        
+        if (resp.getStatusCode() == 1) {
+          this->started = true;
+          this->client.sendConnectRequest(resp.getSessionId());
+        }
+        emit this->authenticatheResponse(this->started);
       });
 }
 
@@ -38,21 +54,6 @@ void Model::authenticate(
   // return this->usersManager.authenticate(username, password);
     std::cout << "Autentiando usuarios" << std::endl;
   qDebug() << "Autenticando usuario";
-  this->connect(
-    &this->client, &QtUDPClient::authResponseReceived,
-    this, [this](const AuthResponse& resp) {
-      qInfo() << "Authentication response received:";
-      qInfo() << "  Session ID:" << resp.getSessionId();
-      qInfo() << "  Status:" << resp.getStatusCode();
-      qInfo() << "  Message:" << QString::fromStdString(resp.getMessage());
-      qInfo() << "  Token:" << QString::fromStdString(resp.getSessionToken());
-      
-      if (resp.getStatusCode() == 1) {
-        this->started = true;
-        this->client.sendConnectRequest(resp.getSessionId());
-      }
-      emit this->authenticatheResponse(this->started);
-  });
   this->client.sendAuthRequest(1001, username, User::hashSHA256(password));
 }
 

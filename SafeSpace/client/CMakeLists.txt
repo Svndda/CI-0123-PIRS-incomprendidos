@@ -84,7 +84,6 @@ qt_add_executable(SafeSpace
   src/model/network/authenticationresponse.h
   src/model/network/connectrequest.cpp
   src/model/network/connectrequest.h
-  src/model/network/disconnectrequest.cpp
   src/model/network/disconnectrequest.h
   
   src/model/network/qtudpclient.h

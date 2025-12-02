@@ -282,6 +282,14 @@ void StorageNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
                 response = handleStoreBitacora(data, len);
                 break;
                 
+            case MessageType::SENSOR_DATA: // GET_SENSOR_DATA_REQUEST
+                response = handleGetSensorDataRequest(data, len);
+                break;
+
+            case MessageType::DELETE_SENSOR_DATA: // DELETE_SENSOR_DATA_REQUEST
+                response = handleDeleteSensorDataRequest(data, len);
+                break;
+                
             default:
                 // Si no es un tipo conocido, usar detección por longitud
                 if (len == 17) {  // Consulta por fecha: [msgType][startTime(8)][endTime(8)]
@@ -316,6 +324,127 @@ void StorageNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
     out_response.assign(reinterpret_cast<const char*>(responseBytes.data()),
                        responseBytes.size());
 }
+
+Response StorageNode::handleGetSensorDataRequest(const uint8_t* data, ssize_t len) {
+    Response resp;
+    resp.msgId = 0x91; // GET_SENSOR_DATA_RESPONSE
+
+    // Validate packet size: 1 + 2 + 16 = 19 bytes minimum
+    if (len < 19) {
+        std::cerr << "[StorageNode] Invalid GET request length: " << len << std::endl;
+        resp.status = 1;
+        return resp;
+    }
+
+    // Extract sensorId (big-endian)
+    uint16_t sensorId = (data[1] << 8) | data[2];
+
+    std::cout << "[StorageNode] GET_SENSOR_DATA_REQUEST for sensorId=" << sensorId << std::endl;
+
+    // TODO: (Optional) Validate 16-byte token data+3 .. data+18
+
+    // Query ALL historical entries for this sensor
+    uint64_t start = 0;
+    uint64_t end = UINT64_MAX;
+
+    auto entries = querySensorDataById(sensorId, start, end);
+
+    // Serialize all sensor entries
+    for (const auto& sd : entries) {
+        auto bytes = sensorDataToBytes(sd);
+        resp.data.insert(resp.data.end(), bytes.begin(), bytes.end());
+    }
+
+    resp.status = 0;
+    return resp;
+}
+
+Response StorageNode::handleStoreSensorDataRequest(const uint8_t* data, ssize_t len) {
+  Response resp;
+  resp.msgId = 0x93; // STORE_SENSOR_DATA_RESPONSE
+
+  // Minimum size: 1 + 2 + 16 + 2 = 21 bytes BEFORE payload
+  if (len < 21) {
+    std::cerr << "[StorageNode] STORE request too short (" << len << " bytes)\n";
+    resp.status = 1;
+    return resp;
+  }
+
+  uint16_t sensorId = (data[1] << 8) | data[2];
+
+  // Extract declared payload size
+  uint16_t payloadSize = (data[19] << 8) | data[20];
+
+  if (21 + payloadSize > len) {
+    std::cerr << "[StorageNode] STORE payload mismatch: declared=" 
+              << payloadSize << " received=" << (len - 21) << std::endl;
+    resp.status = 1;
+    return resp;
+  }
+
+  const uint8_t* payload = data + 21;
+
+  std::cout << "[StorageNode] STORE_SENSOR_DATA_REQUEST for sensor=" << sensorId
+            << " payloadSize=" << payloadSize << std::endl;
+
+  // Convert payload to string
+  std::string raw(reinterpret_cast<const char*>(payload), payloadSize);
+
+  try {
+    // Convert CSV into SensorData struct
+    SensorData sd = stringToSensorData(raw);
+
+    std::lock_guard<std::mutex> lock(fsMutex);
+    bool ok = storeSensorDataToFS(sd);
+
+    resp.status = ok ? 0 : 1;
+  }
+  catch (const std::exception& ex) {
+    std::cerr << "[StorageNode] Error parsing STORE payload: " << ex.what() << std::endl;
+    resp.status = 1;
+  }
+
+  return resp;
+}
+
+Response StorageNode::handleDeleteSensorDataRequest(const uint8_t* data, ssize_t len) {
+  Response resp;
+  resp.msgId = 0x95; // DELETE_SENSOR_DATA_RESPONSE
+
+  if (len < 19) {
+    std::cerr << "[StorageNode] DELETE request too short (" << len << " bytes)\n";
+    resp.status = 1;
+    return resp;
+  }
+
+  uint16_t sensorId = (data[1] << 8) | data[2];
+
+  std::cout << "[StorageNode] DELETE_SENSOR_DATA_REQUEST for sensorId=" << sensorId << std::endl;
+
+  bool removedAny = false;
+
+  std::lock_guard<std::mutex> lock(fsMutex);
+
+  for (const auto& entry : fs->getDirectory()) {
+    std::string filename(entry.name);
+
+    std::smatch m;
+    std::regex pattern(R"(sensor_(\d+)_(\d+)\.dat)");
+
+    if (std::regex_match(filename, m, pattern)) {
+      uint16_t fileId = std::stoi(m[1]);
+      if (fileId == sensorId) {
+        std::cout << "[StorageNode] Removing file: " << filename << std::endl;
+        fs->remove(filename);
+        removedAny = true;
+      }
+    }
+  }
+
+  resp.status = removedAny ? 0 : 1;
+  return resp;
+}
+
 
 Response StorageNode::handleQueryByDate(const uint8_t* data, ssize_t len) {
     Response resp;

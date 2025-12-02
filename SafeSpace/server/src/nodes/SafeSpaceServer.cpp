@@ -8,8 +8,54 @@
 #include "sensordata.h"
 #include "../../../common/LogManager.h"
 #include "SensorPacket.h"
+#include <GetSensorDataRequest.h>
+#include <DeleteSensorDataRequest.h>
 
 enum class LogLevel;
+
+void SafeSpaceServer::runInternalTests() {
+  std::cout << "[SafeSpaceServer] Running internal StorageNode tests...\n";
+
+  // -------------------------------------------------------------------
+  // 1. Build a dummy token (16 bytes)
+  // -------------------------------------------------------------------
+  uint8_t rawToken[16];
+  for (int i = 0; i < 16; ++i) {
+    rawToken[i] = i;  // predictable test token
+  }
+  Token16 token(rawToken);
+
+  uint16_t testSensorId = 123;  // arbitrary test sensor
+
+  // -------------------------------------------------------------------
+  // 2. GET SENSOR DATA TEST
+  // -------------------------------------------------------------------
+  std::cout << "[Test] Sending GET_SENSOR_DATA_REQUEST...\n";
+  GetSensorDataResponse getResp = sendGetSensorData(testSensorId, token);
+
+  std::cout << "  Status: " << (int)getResp.status << "\n";
+  std::cout << "  Payload size: " << getResp.payload.size() << "\n";
+
+  if (!getResp.payload.empty()) {
+    std::cout << "  Payload (hex): ";
+    for (uint8_t b : getResp.payload) {
+      printf("%02X ", b);
+    }
+    std::cout << "\n";
+  }
+
+  // -------------------------------------------------------------------
+  // 4. DELETE SENSOR DATA TEST
+  // -------------------------------------------------------------------
+  std::cout << "[Test] Sending DELETE_SENSOR_DATA_REQUEST...\n";
+  DeleteSensorDataResponse delResp =
+    this->sendDeleteSensorData(testSensorId, token);
+
+  std::cout << "  Status: " << (int)delResp.status << "\n";
+
+  std::cout << "[SafeSpaceServer] StorageNode tests completed.\n";
+}
+
 
 SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
                                  const std::string& storageIp, const uint16_t storagePort,
@@ -44,6 +90,7 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
                 << proxyNode.ip << ":" << proxyNode.port << std::endl;
     }
     std::cout << "SafeSpaceServer: started CriticalEventsNode on port " << (port + 1) << std::endl;
+    this->runInternalTests();
   } catch (const std::exception &ex) {
     std::cerr << "SafeSpaceServer: failed to start CriticalEventsNode: " << ex.what() << std::endl;
   }
@@ -99,7 +146,7 @@ void SafeSpaceServer::onReceive(
       std::string message(reinterpret_cast<const char*>(data + 5 + nodeNameLen), len - 5 - nodeNameLen);
 
       // Reenviar log al master con prefijo [FROM_AUTH]
-      LogLevel logLevel = static_cast<LogLevel>(level);
+      auto logLevel = static_cast<LogLevel>(level);
       logger.log(logLevel, "[FROM_" + nodeName + "] " + message);
 
       std::cout << "[SafeSpaceServer] Forwarded log from " << nodeName << " to CriticalEventsNode" << std::endl;
@@ -188,6 +235,144 @@ void SafeSpaceServer::onReceive(
     return;
   }
 
+  if (len == sizeof(GetSensorDataRequest)) {
+    const auto* pkt = reinterpret_cast<const GetSensorDataRequest*>(data);
+    // Obtener IP y puerto del remitente
+    char ipbuf[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
+
+    std::cout << "[SafeSpaceServer] GetSensorDataRequest recibido desde "
+              << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
+
+    try {
+      storageNode.client->sendRaw(pkt, sizeof(GetSensorDataRequest));
+    } catch (const std::exception& ex) {
+      std::cerr << "[SafeSpaceServer] Exception al reenviar SENSOR_PACKET: "
+                << ex.what() << std::endl;
+    }
+
+    // Generar respuesta ACK simple al emisor original (Arduino / Intermediario)
+    std::string ack = "ACK_SENSOR";
+    out_response.assign(ack.begin(), ack.end());
+    return;
+  }
+
+  if (len == sizeof(GetSensorDataResponse)) {
+    auto resp = GetSensorDataResponse::fromBytes(data, len);
+
+    if (resp.status != 0 || resp.payload.size() > 0) { // Respuesta válida
+      char ipbuf[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
+
+      std::cout << "[SafeSpaceServer] GetSensorDataResponse recibido desde "
+                << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
+      std::cout << "  sessionId: " << resp.sessionId << std::endl;
+      std::cout << "  status: " << static_cast<int>(resp.status) << std::endl;
+      std::cout << "  payload size: " << resp.payload.size() << " bytes" << std::endl;
+
+      // Buscar cliente original para reenviar
+      sockaddr_in originalClient;
+      bool found = false;
+      {
+        std::lock_guard<std::mutex> lock(pendingMutex_);
+        auto it = pendingRequesters_.find(resp.sessionId);
+        if (it != pendingRequesters_.end()) {
+          originalClient = it->second;
+          found = true;
+          pendingRequesters_.erase(it);
+        }
+      }
+
+      if (found) {
+        try {
+          // Reenviar al cliente original (ProxyNode)
+          proxyNode.client->sendRaw(data, len);
+          std::cout << "[SafeSpaceServer] Respuesta reenviada al cliente original" << std::endl;
+        } catch (const std::exception& ex) {
+          std::cerr << "[SafeSpaceServer] Error reenviando respuesta: "
+                    << ex.what() << std::endl;
+        }
+      } else {
+        std::cout << "[SafeSpaceServer] No se encontró cliente para sessionId="
+                  << resp.sessionId << std::endl;
+      }
+
+      out_response = "ACK_GET_SENSOR_RESPONSE";
+      return;
+    }
+  }
+
+  if (len == sizeof(DeleteSensorDataRequest)) {
+    const auto* pkt = reinterpret_cast<const DeleteSensorDataRequest*>(data);
+
+    char ipbuf[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
+
+    std::cout << "[SafeSpaceServer] DeleteSensorDataRequest recibido desde "
+              << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
+    std::cout << "  sessionId: " << pkt->sessionId << std::endl;
+    std::cout << "  sensorId: " << pkt->sensorId << std::endl;
+
+    try {
+      storageNode.client->sendRaw(pkt, len);
+
+      // Registrar para reenviar respuesta
+      {
+        std::lock_guard<std::mutex> lock(pendingMutex_);
+        pendingRequesters_[pkt->sessionId] = peer;
+      }
+
+    } catch (const std::exception& ex) {
+      std::cerr << "[SafeSpaceServer] Exception al reenviar DeleteSensorDataRequest: "
+                << ex.what() << std::endl;
+    }
+
+    out_response = "ACK_DELETE_SENSOR_REQUEST";
+    return;
+  }
+
+  if (len == sizeof(DeleteSensorDataResponse)) {
+    // Verificar si es DeleteSensorDataResponse por el MSG_ID
+    if (data[0] == 0x95) { // MSG_ID de DeleteSensorDataResponse
+      auto resp = DeleteSensorDataResponse::fromBytes(data, len);
+
+      char ipbuf[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
+
+      std::cout << "[SafeSpaceServer] DeleteSensorDataResponse recibido desde "
+                << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
+      std::cout << "  sessionId: " << resp.sessionId << std::endl;
+      std::cout << "  status: " << static_cast<int>(resp.status) << std::endl;
+
+      // Buscar cliente original
+      sockaddr_in originalClient;
+      bool found = false;
+      {
+        std::lock_guard<std::mutex> lock(pendingMutex_);
+        auto it = pendingRequesters_.find(resp.sessionId);
+        if (it != pendingRequesters_.end()) {
+          originalClient = it->second;
+          found = true;
+          pendingRequesters_.erase(it);
+        }
+      }
+
+      if (found) {
+        try {
+          proxyNode.client->sendRaw(data, len);
+          std::cout << "[SafeSpaceServer] Respuesta DELETE reenviada al cliente original" << std::endl;
+        } catch (const std::exception& ex) {
+          std::cerr << "[SafeSpaceServer] Error reenviando respuesta DELETE: "
+                    << ex.what() << std::endl;
+        }
+      }
+
+      out_response = "ACK_DELETE_SENSOR_RESPONSE";
+      return;
+    }
+  }
+
+
   if (len == sizeof(SensorData)) {
     const auto* pkt = reinterpret_cast<const SensorData*>(data);
 
@@ -195,7 +380,7 @@ void SafeSpaceServer::onReceive(
     char ipbuf[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
 
-    std::cout << "[SafeSpaceServer] SENSOR_PACKET recibido desde "
+    std::cout << "[SafeSpaceServer] SENSOR_DATA recibido desde "
               << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
     std::cout << "  ▸ Temperatura: " << pkt->temperature << " °C" << std::endl;
     std::cout << "  ▸ Distancia: " << pkt->distance << " cm" << std::endl;
@@ -221,4 +406,40 @@ void SafeSpaceServer::onReceive(
 
   // Fallback: let base class behavior handle it (echo)
   UDPServer::onReceive(peer, data, len, out_response);
+}
+
+GetSensorDataResponse SafeSpaceServer::sendGetSensorData(uint16_t sensorId, const Token16& token) {
+  GetSensorDataRequest req;
+  req.sensorId = sensorId;
+  req.token = token;
+
+  std::vector<uint8_t> bytes = req.toBytes();
+  this->storageNode.client->sendRaw(bytes.data(), bytes.size());
+
+  // Receive raw response from UDP socket
+  uint8_t buffer[4096];
+  int fd = storageNode.client->getSocketFd();
+  ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
+
+  return GetSensorDataResponse::fromBytes(buffer, n);
+}
+
+DeleteSensorDataResponse SafeSpaceServer::sendDeleteSensorData(
+  uint16_t sensorId, const Token16& token) {
+  // Build request datagram
+  DeleteSensorDataRequest req;
+  req.sensorId = sensorId;
+  req.token = token;
+
+  std::vector<uint8_t> bytes = req.toBytes();
+
+  // Send
+  storageNode.client->sendRaw(bytes.data(), bytes.size());
+
+  // Receive raw response from UDP socket
+  uint8_t buffer[256];
+  int fd = storageNode.client->getSocketFd();
+  ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
+
+  return DeleteSensorDataResponse::fromBytes(buffer, n);
 }

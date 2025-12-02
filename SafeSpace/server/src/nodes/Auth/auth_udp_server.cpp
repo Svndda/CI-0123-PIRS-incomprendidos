@@ -1,4 +1,6 @@
 #include "auth_udp_server.h"
+
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -21,7 +23,6 @@ struct DiscoverResponse {
     uint8_t type;
     uint8_t status;
 };
-#pragma pack(pop)
 
 AuthUDPServer::AuthUDPServer(const std::string& ip, uint16_t port)
     : UDPServer(ip, port, 1024) {
@@ -72,8 +73,10 @@ void AuthUDPServer::onReceive(const sockaddr_in& peer, const uint8_t* data, ssiz
     
     if (len == sizeof(DiscoverRequest)) {
         handleDiscover(peer, data, len, out_response);
-    } else if (len == 50) { // Tamaño de AuthRequest
+    } else if (len == 50) {
         handleAuthRequest(peer, data, len, out_response);
+    } else if (len == sizeof(GetSystemUsersRequest)) {
+        handleGetSystemUsers(peer, data, len);
     } else {
         std::cout << " Longitud no soportada: " << len << " bytes" << std::endl;
     }
@@ -140,7 +143,19 @@ void AuthUDPServer::handleAuthRequest(const sockaddr_in& peer, const uint8_t* da
         // Registrar sesión activa
         {
             std::lock_guard<std::mutex> session_lock(sessions_mutex);
-            active_sessions[sessionToken] = username;
+
+            // Verificar si ya existe una sesión con este sessionId
+            if (active_sessions.find(sessionId) != active_sessions.end()) {
+                // Sesión existente, podemos actualizarla o rechazar
+                std::cout << "Sesión existente para sessionId=" << sessionId
+                          << ", actualizando..." << std::endl;
+            }
+
+            active_sessions[sessionId] = std::make_pair(username, sessionToken);
+
+            std::cout << " Sesión registrada - sessionId: " << sessionId
+                      << ", usuario: " << username
+                      << ", token: " << sessionToken.substr(0, 8) << "..." << std::endl;
         }
         
         std::cout << " Autenticación EXITOSA: " << username << std::endl;
@@ -193,4 +208,103 @@ std::string AuthUDPServer::generateSessionID() {
     }
     
     return hash_ss.str();
+}
+
+void AuthUDPServer::handleGetSystemUsers(const sockaddr_in& peer,
+                                         const uint8_t* data,
+                                         ssize_t len) {
+    if (len != sizeof(GetSystemUsersRequest)) {
+        std::cout << "GET_SYSTEM_USERS: Tamaño incorrecto" << std::endl;
+        return;
+    }
+
+    GetSystemUsersRequest req;
+    std::memcpy(&req, data, sizeof(req));
+    req.toHostOrder();
+
+    uint16_t sessionId = req.sessionId; // sessionId está en host byte order
+
+    // Validar sesión activa - AHORA ES MÁS SIMPLE
+    bool sessionValid = false;
+    std::string username;
+    {
+        std::lock_guard<std::mutex> lock(sessions_mutex);
+        auto it = active_sessions.find(sessionId);
+        if (it != active_sessions.end()) {
+            sessionValid = true;
+            username = it->second.first; // Extraer el username
+            std::cout << "Sesión válida para sessionId=" << sessionId
+                      << ", usuario: " << username << std::endl;
+        }
+    }
+
+    if (!sessionValid) {
+        std::cout << "GET_USERS denegado. Sesión inválida: sessionId="
+                  << sessionId << std::endl;
+
+        // Opcional: enviar respuesta de error
+        GetSystemUsersResponse errorResp{};
+        errorResp.msgId = 0x21;
+        errorResp.sessionId = sessionId;
+        errorResp.totalUsers = 0;
+        errorResp.currentIndex = 0;
+        errorResp.permissions = 0;
+
+        sendTo(peer, reinterpret_cast<uint8_t*>(&errorResp), sizeof(errorResp));
+        return;
+    }
+
+    std::cout << "GET_SYSTEM_USERS solicitado por sessionId="
+              << sessionId << " (usuario: " << username << ")" << std::endl;
+
+    // std::lock_guard<std::mutex> users_lock(users_mutex);
+    // auto userIt = users.find(username);
+    // if (userIt == users.end() ||
+    //     (userIt->second.getPermissions() & User::PERM_VIEW_USERS) == 0) {
+    //     std::cout << "Permisos insuficientes para usuario: " << username << std::endl;
+    //     return;
+    // }
+
+    // Obtener número total de usuarios
+    size_t totalUsers = users.size();
+    uint16_t total = static_cast<uint16_t>(totalUsers);
+
+    uint16_t index = 0;
+
+    // Enviar cada usuario en un paquete separado
+    for (const auto& kv : users) {
+        const User& u = kv.second;
+
+        GetSystemUsersResponse resp{};
+        resp.msgId = 0x21;
+        resp.sessionId = sessionId; // Incluir sessionId en respuesta
+        resp.totalUsers = total;
+        resp.currentIndex = index;
+
+        std::memset(resp.username, 0, GetSystemUsersResponse::USERNAME_SIZE);
+        std::memset(resp.group, 0, GetSystemUsersResponse::GROUP_SIZE);
+
+        // Usar strncpy para evitar overflow
+        std::strncpy(resp.username, u.getUsername().c_str(),
+                    GetSystemUsersResponse::USERNAME_SIZE - 1);
+        resp.username[GetSystemUsersResponse::USERNAME_SIZE - 1] = '\0';
+
+        std::strncpy(resp.group, u.getGroup().c_str(),
+                    GetSystemUsersResponse::GROUP_SIZE - 1);
+        resp.group[GetSystemUsersResponse::GROUP_SIZE - 1] = '\0';
+
+        resp.permissions = u.getPermissions();
+        resp.toNetworkOrder();
+
+        // Enviar respuesta
+        sendTo(peer, reinterpret_cast<uint8_t*>(&resp), sizeof(resp));
+
+        std::cout << "  Enviado usuario #" << index << ": "
+                  << u.getUsername() << " (" << u.getGroup() << ")" << std::endl;
+
+        index++;
+    }
+
+    std::cout << " Total enviado: " << totalUsers << " paquetes GetSystemUsersResponse."
+              << std::endl;
 }

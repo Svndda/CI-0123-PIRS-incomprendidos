@@ -11,6 +11,12 @@
 #include "authenticationrequest.h"
 #include "authenticationresponse.h"
 #include "connectrequest.h"
+#include "DeleteSensorDataRequest.h"
+#include "DeleteSensorDataResponse.h"
+#include "GetSensorDataRequest.h"
+#include "GetSensorDataResponse.h"
+#include "GetSystemUsersRequest.h"
+#include "GetSystemUsersResponse.h"
 #include "sensordata.h"
 
 const size_t BUFFER_SIZE = 2048;
@@ -90,14 +96,170 @@ void ProxyNode::start() {
 void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
                           ssize_t len, std::string &out_response) {
   try {
+    uint8_t msgId = data[0];
     if (len == sizeof(ConnectRequest))
       return this->handleConnectRequest(peer, data, len, out_response);
 
     if (len == 50)
       return this->handleAuthRequest(peer, data, len, out_response);
 
+    if (msgId == 0x90 && len == 21) {
+      const auto* pkt = reinterpret_cast<const GetSensorDataRequest*>(data);
+      // Obtener IP y puerto del remitente
+      char ipbuf[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
+
+      std::cout << "[SafeSpaceServer] GetSensorDataRequest recibido desde "
+                << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
+
+      try {
+        masterNode.client->sendRaw(pkt, sizeof(GetSensorDataRequest));
+      } catch (const std::exception& ex) {
+        std::cerr << "[SafeSpaceServer] Exception al reenviar SENSOR_PACKET: "
+                  << ex.what() << std::endl;
+      }
+
+      // Generar respuesta ACK simple al emisor original (Arduino / Intermediario)
+      std::string ack = "ACK_SENSOR";
+      out_response.assign(ack.begin(), ack.end());
+      return;
+    }
+
+    if (msgId == 0x94 && len == 21) {
+      const auto* pkt = reinterpret_cast<const DeleteSensorDataRequest*>(data);
+      // Obtener IP y puerto del remitente
+      char ipbuf[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, &peer.sin_addr, ipbuf, sizeof(ipbuf));
+
+      std::cout << "[SafeSpaceServer] GetSensorDataRequest recibido desde "
+                << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
+
+      uint16_t sessionId = pkt->sessionId;
+
+      {
+        std::lock_guard<std::mutex> lk(clientsMutex);
+        pendingClients[sessionId] = ClientInfo{peer, pkt->MSG_ID};
+      }
+
+      try {
+        masterNode.client->sendRaw(pkt, sizeof(DeleteSensorDataRequest));
+      } catch (const std::exception& ex) {
+        std::cerr << "[SafeSpaceServer] Exception al reenviar SENSOR_PACKET: "
+                  << ex.what() << std::endl;
+      }
+
+      // Generar respuesta ACK simple al emisor original (Arduino / Intermediario)
+      std::string ack = "ACK_SENSOR";
+      out_response.assign(ack.begin(), ack.end());
+      return;
+    }
+
+    if (len == sizeof(GetSensorDataResponse)) {
+      const auto* pkt = reinterpret_cast<const GetSensorDataResponse*>(data);
+
+      const uint16_t sessionId = pkt->sessionId;
+
+      // Retrieve client pending info
+      ClientInfo clientInfo;
+      bool found = false;
+      {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        auto it = pendingClients.find(sessionId);
+
+        if (it != pendingClients.end()) {
+          clientInfo = it->second;
+          found = true;
+        }
+      }
+
+      if (!found) {
+        this->logger.warning(
+          "GetSensorDataResponse received for unknown sessionId=" + std::to_string(sessionId)
+        );
+        return;
+      }
+
+      try {
+        this->logger.info(
+          "Forwarding GetSensorDataResponse to client sessionId=" + std::to_string(sessionId)
+        );
+
+        this->sendTo(clientInfo.addr, data, len);
+      } catch (const std::exception &ex) {
+        this->logger.error(
+          std::string("Failed to forward GetSensorDataResponse to client: ") + ex.what()
+        );
+        return;
+      }
+    }
+
+    if (len == sizeof(DeleteSensorDataResponse)) {
+      const auto* pkt = reinterpret_cast<const DeleteSensorDataResponse*>(data);
+
+      const uint16_t sessionId = pkt->sessionId;
+
+      // Retrieve client pending info
+      ClientInfo clientInfo;
+      bool found = false;
+      {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        auto it = pendingClients.find(sessionId);
+
+        if (it != pendingClients.end()) {
+          clientInfo = it->second;
+          found = true;
+        }
+      }
+
+      if (!found) {
+        this->logger.warning(
+          "DeleteSensorDataResponse received for unknown sessionId=" + std::to_string(sessionId)
+        );
+        return;
+      }
+
+      try {
+        this->logger.info(
+          "Forwarding DeleteSensorDataResponse to client sessionId=" + std::to_string(sessionId)
+        );
+
+        this->sendTo(clientInfo.addr, data, len);
+      } catch (const std::exception &ex) {
+        this->logger.error(
+          std::string("Failed to forward DeleteSensorDataResponse to client: ") + ex.what()
+        );
+        return;
+      }
+    }
+
     if (len == sizeof(SensorData))
       return this->handleSensorData(peer, data, len, out_response);
+
+    if (len == sizeof(GetSystemUsersRequest)) {
+      GetSystemUsersRequest req;
+      std::memcpy(&req, data, sizeof(req));
+
+      // Convertir a host byte order
+      req.toHostOrder();  // O simplemente: req.sessionId = ntohs(req.sessionId);
+
+      uint16_t sessionId = req.sessionId;
+
+      {
+        std::lock_guard<std::mutex> lk(clientsMutex);
+        pendingClients[sessionId] = ClientInfo{peer, req.msgId};
+      }
+
+      // Convertir de vuelta a network byte order para enviar
+      req.toNetworkOrder();
+
+      // Forward raw packet to AuthNode
+      authNode.client->sendRaw(&req,
+        sizeof(req));
+
+      std::cout << "[ProxyNode] Forwarded GetSystemUsersRequest (sessionId="
+                << sessionId << ") to AuthNode." << std::endl;
+      return;
+    }
 
     if (len >= 5 && data[0] == 'L' && data[1] == 'O' && data[2] == 'G')
       return this->handleLogMessage(peer, data, len);
@@ -306,6 +468,8 @@ void ProxyNode::processAuthServerResponse(const std::vector<uint8_t>& buffer, si
                                           const sockaddr_in&) {
   if (length == AuthResponse::MESSAGE_SIZE + 3 + AuthResponse::TOKEN_SIZE) {
     this->handleAuthResponse(buffer.data(), length);
+  } else if (length == sizeof(GetSystemUsersResponse)) {
+    this->handleGetSystemUsersResponse(buffer.data(), length);
   } else {
     this->logger.warning("Received non-standard response (" + std::to_string(length) + " bytes).");
   }
@@ -330,61 +494,135 @@ void ProxyNode::broadcastToSubscribers(const uint8_t* data, size_t len) {
 }
 
 void ProxyNode::handleAuthResponse(const uint8_t *buffer, size_t length) {
+  // Validate expected size
   if (length != AuthResponse::MESSAGE_SIZE + 3 + AuthResponse::TOKEN_SIZE) {
-    this->logger.warning("Invalid AuthResponse length: " + std::to_string(length));
+    this->logger.warning(
+      "Invalid AuthResponse length: " + std::to_string(length)
+    );
     return;
   }
 
-  std::array<uint8_t, 51> payload{};
+  // Deserialize raw buffer into AuthResponse
+  std::array<uint8_t, 128> payload{};
   std::memcpy(payload.data(), buffer, length);
 
   AuthResponse resp;
   resp.setSessionId((payload[0] << 8) | payload[1]);
   resp.setStatusCode(payload[2]);
-  resp.setMessage(std::string(reinterpret_cast<const char*>(payload.data() + 3), AuthResponse::MESSAGE_SIZE));
-  resp.setSessionToken(std::string(reinterpret_cast<const char*>(payload.data() + 3 + AuthResponse::MESSAGE_SIZE),
-                                   AuthResponse::TOKEN_SIZE));
+  resp.setMessage(
+    std::string(reinterpret_cast<const char*>(payload.data() + 3),
+                AuthResponse::MESSAGE_SIZE)
+  );
+  resp.setSessionToken(
+    std::string(reinterpret_cast<const char*>(payload.data() + 3 + AuthResponse::MESSAGE_SIZE),
+                AuthResponse::TOKEN_SIZE)
+  );
 
-  uint16_t sessionId = resp.getSessionId();
+  const uint16_t sessionId = resp.getSessionId();
 
+  // Retrieve client pending info
   ClientInfo clientInfo;
   bool found = false;
   {
     std::lock_guard<std::mutex> lock(clientsMutex);
     auto it = pendingClients.find(sessionId);
+
     if (it != pendingClients.end()) {
       clientInfo = it->second;
       found = true;
     }
   }
 
+  if (!found) {
+    this->logger.warning(
+      "AuthResponse received for unknown sessionId=" + std::to_string(sessionId)
+    );
+    return;
+  }
+
+  // Forward raw AuthResponse back to the appropriate client
+  try {
+    this->logger.info(
+      "Forwarding AuthResponse to client sessionId=" + std::to_string(sessionId)
+    );
+
+    this->sendTo(clientInfo.addr, buffer, length);
+  } catch (const std::exception &ex) {
+    this->logger.error(
+      std::string("Failed to forward AuthResponse to client: ") + ex.what()
+    );
+    return;
+  }
+
+  // Register authenticated client
   if (resp.getStatusCode() == 1) {
-    this->logger.info("Authentication successful for sessionId " + std::to_string(sessionId));
-    if (found) {
-      try {
-        this->registerAuthenticatedClient(clientInfo.addr, sessionId);
-        this->logger.info("Client authenticated and registered for CONNECT_REQUEST (sessionId=" +
-                          std::to_string(sessionId) + ")");
+    this->registerAuthenticatedClient(clientInfo.addr, sessionId);
+    this->logger.info(
+      "Client authenticated and registered for sessionId=" + std::to_string(sessionId)
+    );
+  } else {
+    this->logger.warning(
+      "Authentication FAILED for sessionId=" + std::to_string(sessionId) +
+      " message=" + resp.getMessage()
+    );
+  }
 
-        {
-          std::lock_guard<std::mutex> lock(clientsMutex);
-          pendingClients.erase(sessionId);
-        }
+  // Remove from pending clients after response is delivered
+  {
+    std::lock_guard<std::mutex> lock(clientsMutex);
+    pendingClients.erase(sessionId);
+  }
+}
 
-      } catch (const std::exception& ex) {
-        this->logger.error(std::string("Failed to register authenticated client (sessionId=") +
-                          std::to_string(sessionId) + "): " + ex.what());
+void ProxyNode::handleGetSystemUsersResponse(const uint8_t *buffer, size_t length) {
+  if (length != sizeof(GetSystemUsersResponse)) {
+    this->logger.warning("Tamaño incorrecto para GetSystemUsersResponse");
+    return;
+  }
+
+  // CORRECCIÓN: Copiar la estructura y CONVERTIR a host byte order
+  GetSystemUsersResponse resp;
+  std::memcpy(&resp, buffer, sizeof(resp));
+
+  resp.sessionId = ntohs(resp.sessionId);
+  resp.totalUsers = ntohs(resp.totalUsers);
+  resp.currentIndex = ntohs(resp.currentIndex);
+
+  uint16_t sessionId = resp.sessionId;  // Ahora sí es 1001
+  uint16_t currentIndex = resp.currentIndex;
+  uint16_t totalUsers = resp.totalUsers;
+
+  // Buscar cliente usando el sessionId de la respuesta
+  ClientInfo clientInfo;
+  bool found = false;
+  {
+    std::lock_guard<std::mutex> lk(clientsMutex);
+    auto it = pendingClients.find(sessionId);
+    if (it != pendingClients.end()) {
+      clientInfo = it->second;
+      found = true;
+
+      // Si es el último paquete, eliminar del mapa
+      if (currentIndex + 1 == totalUsers) {
+        pendingClients.erase(sessionId);
+        this->logger.info("Respuesta completa de usuarios recibida para sessionId=" +
+                         std::to_string(sessionId));
       }
     }
-  } else {
-    this->logger.warning("Authentication failed for sessionId " + std::to_string(sessionId));
   }
 
   if (found) {
-    this->sendTo(clientInfo.addr, payload.data(), payload.size());
-    this->logger.info("Forwarded AUTH_RESPONSE sessionId=" + std::to_string(sessionId));
+    // Reenviar al cliente original
+
+    sendTo(clientInfo.addr, buffer, length);
+
+    this->logger.info("Reenviado GetSystemUsersResponse ["
+                     + std::to_string(currentIndex + 1) + "/"
+                     + std::to_string(totalUsers) + "] para sessionId="
+                     + std::to_string(sessionId));
   } else {
-    this->logger.warning("No pending client for AUTH_RESPONSE sessionId=" + std::to_string(sessionId));
+    this->logger.warning("No hay cliente pendiente para sessionId="
+                        + std::to_string(sessionId));
   }
 }
 
