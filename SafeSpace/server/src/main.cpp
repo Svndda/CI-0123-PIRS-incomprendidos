@@ -6,10 +6,12 @@
 #include <sstream>
 #include <map>
 #include <filesystem>
+#include <thread>
 
 #include "Arduino/Arduino_Node.h"
 #include "Auth/auth_udp_server.h"
 #include "Bootstrap/Bootstrap.h"
+#include "Bootstrap/BootstrapAdapters.h"  // ¡IMPORTANTE! Incluir esto
 #include "Intermediary/IntermediaryNode.h"
 #include "Storage/StorageNode.h"
 
@@ -131,7 +133,7 @@ std::string getConfigValue(const std::map<std::string, std::string>& config,
  * @brief Validates and parses command-line arguments.
  */
 void validateArgs(int argc, char* argv[]) {
-    if (argc < 3) {
+    if (argc < 2) {
         std::cerr << "SafeSpace - Unified Component Launcher\n\n"
                   << "Usage:\n"
                   << "  With config file (recommended):\n"
@@ -146,7 +148,7 @@ void validateArgs(int argc, char* argv[]) {
                   << "    " << argv[0] << " events <local_ip> <local_port> <out_file>\n"
                   << "    " << argv[0] << " inter <master_ip> <master_port> <local_port>\n"
                   << "    " << argv[0] << " arduino <master_ip> <master_port> [serial_path] [mode]\n"
-                  << "    " << argv[0] << " bootstrap\n\n"
+                  << "    " << argv[0] << " bootstrap [ip] [port]  (NO usa archivo config!)\n\n"
                   << "Available components: server, proxy, storage, auth, events, inter, arduino, bootstrap\n"
                   << "Config files are automatically searched in: ./config/, ../config/, src/config/\n"
                   << std::endl;
@@ -181,6 +183,113 @@ int main(const int argc, char* argv[]) {
 
     try {
         std::string type = argv[1];
+        
+        // Para bootstrap, NO usamos archivo de configuración
+        if (type == "bootstrap") {
+            // Bootstrap puede iniciarse con IP/PORT opcionales: `bootstrap <ip> <port>`
+            std::string bindIp = "0.0.0.0";
+            uint16_t bindPort = 8080;
+            if (argc >= 4) {
+                bindIp = argv[2];
+                bindPort = parsePort(argv[3]);
+            }
+
+            Bootstrap server(bindIp, bindPort);
+
+            // Registrar adaptadores para nodos comunes (IDs por convención)
+            // ID 1: ProxyNode (escucha 9000), reenvía a Auth=7000 y Master=6000
+            {
+                auto p = makeProxyAdapter("0.0.0.0", 9000, "0.0.0.0", 7000, "127.0.0.1", 6000);
+                server.registerNode(1, p.first, p.second);
+            }
+
+            // ID 2: StorageNode (puerto 9001), master en 127.0.0.1:6000
+            {
+                auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "../src/model/data/registers.bin");
+                server.registerNode(2, p.first, p.second);
+            }
+
+            // ID 3: IntermediaryNode (escucha 9002), master 127.0.0.1:6000
+            {
+                auto p = makeIntermediaryAdapter(9002, "127.0.0.1", 6000);
+                server.registerNode(3, p.first, p.second);
+            }
+
+            // ID 4: AuthUDPServer (escucha 7000)
+            {
+                auto p = makeAuthAdapter("0.0.0.0", 7000);
+                server.registerNode(4, p.first, p.second);
+            }
+
+            // ID 5: ArduinoNode (simulado) enviando a master 127.0.0.1:6000
+            {
+                auto p = makeArduinoAdapter("127.0.0.1", 9002, "simulate", "binary");
+                server.registerNode(5, p.first, p.second);
+            }
+
+            // ID 6: CriticalEventsNode (escucha 7001) -> guarda en data/events.log
+            {
+                auto p = makeEventsAdapter("0.0.0.0", 6001, "logs.txt");
+                server.registerNode(6, p.first, p.second);
+            }
+
+            // ID 0: SafeSpaceServer (master) — permite levantar el servidor maestro
+            // por defecto enlazará en 127.0.0.1:6000 y asumirá que Storage, Events
+            // y Proxy usan los puertos por convención usados arriba.
+            {
+                auto p = makeMasterAdapter("127.0.0.1", 6000,
+                                           "0.0.0.0", 9001,
+                                           "0.0.0.0", 6001,
+                                           "0.0.0.0", 9000);
+                server.registerNode(0, p.first, p.second);
+            }
+
+            // Run bootstrap in background so we can control nodes interactively
+            std::thread serverThread([&server]() {
+                server.serveBlocking();
+            });
+
+            std::cout << "Bootstrap interactive menu started. Commands: list | start <id> | stop <id> | quit" << std::endl;
+            std::string line;
+            while (true) {
+                std::cout << "> ";
+                if (!std::getline(std::cin, line)) break;
+                if (line.empty()) continue;
+                if (line == "list") {
+                    auto nodes = server.listNodes();
+                    std::cout << "Registered nodes:\n";
+                    for (auto &p : nodes) {
+                        std::cout << "  id=" << int(p.first) << " running=" << (p.second ? "yes" : "no") << std::endl;
+                    }
+                    continue;
+                }
+                if (line.rfind("start ", 0) == 0) {
+                    int id = std::stoi(line.substr(6));
+                    bool ok = server.startNode(static_cast<uint8_t>(id));
+                    std::cout << (ok ? "started" : "failed or unknown id") << std::endl;
+                    continue;
+                }
+                if (line.rfind("stop ", 0) == 0) {
+                    int id = std::stoi(line.substr(5));
+                    bool ok = server.stopNode(static_cast<uint8_t>(id));
+                    std::cout << (ok ? "stopped" : "failed or unknown id") << std::endl;
+                    continue;
+                }
+                if (line == "quit" || line == "exit") {
+                    std::cout << "Shutting down..." << std::endl;
+                    break;
+                }
+                std::cout << "Unknown command" << std::endl;
+            }
+
+            // Stop all nodes and the server
+            server.stopAllNodes();
+            server.stop();
+            if (serverThread.joinable()) serverThread.join();
+            return EXIT_SUCCESS;
+        }
+        
+        // Para los demás componentes, usamos lógica de archivo de configuración
         std::map<std::string, std::string> config;
         std::string configFile;
         bool usingConfigFile = false;
@@ -382,21 +491,6 @@ int main(const int argc, char* argv[]) {
 
             ArduinoNode node(masterIP, masterPort, serialPath, mode);
             node.run();
-
-        } else if (type == "bootstrap") {
-            std::string localIp;
-            uint16_t localPort;
-
-            if (usingConfigFile) {
-                localIp = getConfigValue(config, "local_ip", "0.0.0.0");
-                localPort = parsePort(getConfigValue(config, "local_port", "8080"));
-            } else {
-                localIp = "0.0.0.0";
-                localPort = 8080;
-            }
-
-            Bootstrap server(localIp, localPort);
-            server.serveBlocking();
 
         } else {
             throw std::runtime_error("Invalid component type: " + type);
