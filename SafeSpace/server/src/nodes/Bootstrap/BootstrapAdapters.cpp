@@ -12,6 +12,7 @@
 #include "Arduino/Arduino_Node.h"
 #include "SafeSpaceServer.h"
 #include "CriticalEvents/CriticalEventsNode.h"
+#include "interfaces/FirewallManager.h"
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -66,7 +67,8 @@ std::pair<StartCb, StopCb> makeMasterAdapter(
   const std::string& storageIp, uint16_t storagePort,
   const std::string& eventsIp, uint16_t eventsPort,
   const std::string& proxyIp, uint16_t proxyPort) {
-  struct State { SafeSpaceServer* server = nullptr; std::thread t; std::mutex m; };
+  struct State { SafeSpaceServer* server = nullptr; std::thread t; std::mutex m; 
+                 FirewallManager* fw = nullptr; bool fw_enabled = false; };
   auto st = std::make_shared<State>();
 
   StartCb start = [st, bindIp, bindPort, storageIp, storagePort, eventsIp, eventsPort, proxyIp, proxyPort]() -> bool {
@@ -77,6 +79,21 @@ std::pair<StartCb, StopCb> makeMasterAdapter(
     } catch (const std::exception &e) {
       std::cerr << "[MasterAdapter] Failed to construct SafeSpaceServer: " << e.what() << std::endl;
       return false;
+    }
+    // Try to enable firewall for the master and its related nodes.
+    try {
+      // Allocate FirewallManager (not dry-run)
+      st->fw = new FirewallManager(false);
+      std::vector<uint16_t> udp_ports = { bindPort, storagePort, eventsPort, proxyPort };
+      std::vector<uint16_t> tcp_ports = { 22 };
+      if (st->fw->enable(udp_ports, tcp_ports, true)) {
+        st->fw_enabled = true;
+        std::cout << "[MasterAdapter] Firewall enabled for master and nodes." << std::endl;
+      } else {
+        std::cerr << "[MasterAdapter] Warning: failed to enable firewall (insufficient privileges?)." << std::endl;
+      }
+    } catch (const std::exception &ex) {
+      std::cerr << "[MasterAdapter] Exception while enabling firewall: " << ex.what() << std::endl;
     }
     st->t = std::thread([st]() {
       try { st->server->serveBlocking(); } catch (const std::exception &e) {
@@ -99,6 +116,17 @@ std::pair<StartCb, StopCb> makeMasterAdapter(
     if (!s) return true;
     try { s->stop(); } catch (...) { }
     if (st->t.joinable()) st->t.join();
+    // Attempt to disable firewall if we enabled it
+    try {
+      if (st->fw && st->fw_enabled) {
+        if (!st->fw->disable()) {
+          std::cerr << "[MasterAdapter] Warning: failed to disable firewall on stop." << std::endl;
+        } else {
+          std::cout << "[MasterAdapter] Firewall disabled on master stop." << std::endl;
+        }
+      }
+    } catch (...) { /* ignore */ }
+    if (st->fw) { delete st->fw; st->fw = nullptr; }
     return true;
   };
 
