@@ -10,6 +10,8 @@
 #include "../../model/structures/authenticationrequest.h"
 #include "../../model/structures/authenticationresponse.h"
 #include "../interfaces/UDPServer.h"
+#include "../model/structures/GetSystemUsersRequest.h"
+#include "../model/structures/GetSystemUsersResponse.h"
 
 // struct User {
 //     std::string username;
@@ -23,7 +25,7 @@
 class AuthUDPServer : public UDPServer {
 private:
     std::unordered_map<std::string, User> users;
-    std::map<std::string, std::string> active_sessions;
+    std::map<uint16_t, std::pair<std::string, std::string>> active_sessions;
     std::mutex users_mutex;
     std::mutex sessions_mutex;
 
@@ -46,6 +48,9 @@ private:
                        std::string& out_response);
     void handleAuthRequest(const sockaddr_in& peer, const uint8_t* data, ssize_t len, 
                           std::string& out_response);
+    void handleGetSystemUsers(const sockaddr_in& peer,
+                                         const uint8_t* data,
+                                         ssize_t len);
 };
 
 #endif

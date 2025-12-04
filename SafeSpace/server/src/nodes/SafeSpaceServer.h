@@ -2,15 +2,15 @@
 #define SERVER_SAFESPACESERVER_H
 
 #include "interfaces/UDPServer.h"
-#include <vector>
 #include <map>
 #include <mutex>
 #include <string>
-#include <thread>
+#include <vector>
 
-// Critical events node
-#include "CriticalEvents/CriticalEventsNode.h"
 #include "interfaces/UDPClient.h"
+#include <GetSensorDataResponse.h>
+#include <Token.h>
+#include <DeleteSensorDataResponse.h>
 
 /**
  * @brief SafeSpaceServer routes datagrams between endpoints.
@@ -34,6 +34,8 @@ public:
 
   /** Remove all discover targets (simple utility). */
   void clearDiscoverTargets();
+
+  void runInternalTests();
 
 protected:
   /** Override onReceive to implement retransmission logic. */
@@ -81,9 +83,12 @@ private:
   std::map<uint8_t, sockaddr_in> pendingRequesters_{};
   std::mutex pendingMutex_;
 
-  // Critical events collector (runs in background)
-  CriticalEventsNode* criticalEventsNode_{nullptr};
-  std::thread criticalThread_;
+  GetSensorDataResponse sendGetSensorData(uint16_t sensorId, const Token16& token);
+
+  DeleteSensorDataResponse sendDeleteSensorData(
+    uint16_t sensorId,
+    const Token16& token);
 };
 
 #endif // SERVER_SAFESPACESERVER_H
+

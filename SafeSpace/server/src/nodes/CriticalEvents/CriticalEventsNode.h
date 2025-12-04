@@ -14,8 +14,8 @@ public:
     ~CriticalEventsNode() override;
 
     void onReceive(const sockaddr_in& peer, const uint8_t* data, ssize_t len, std::string& out_response) override;
-    
-    
+    void configureMasterForwarding(const std::string& masterIp, uint16_t masterPort);
+    void startBatchForwarder();
 private:
     std::string outPath_;
     std::mutex fileMutex_;
@@ -24,12 +24,13 @@ private:
     std::mutex batchMutex;
     std::thread batchThread; 
     std::atomic<bool> batchRunning_{false};
-    std::string masterIp;
-    uint16_t masterPort;
+    std::string masterIp_;
+    uint16_t masterPort_{0};
+    std::atomic<bool> masterConfigured_{false};
 
     void appendLine(const std::string& line);
     std::string makeTimestamp();
     void batchWorkerLoop();                  
-    void startBatchForwarder(std::string ip, uint16_t port);
+    
     void stopBatchForwarder();
 };

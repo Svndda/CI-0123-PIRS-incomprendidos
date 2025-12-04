@@ -20,13 +20,16 @@ enum class MessageType : uint8_t {
     // Consultas
     QUERY_BY_DATE = 0x01,           // Consultar por fecha (2 bytes)
     QUERY_BY_SENSOR = 0x02,         // Consultar por sensor ID (15 bytes)
+    SENSOR_DATA = 0x90,
+    DELETE_SENSOR_DATA = 0x94,
 
     // Almacenamiento
     STORE_SENSOR_DATA = 0x10,       // Guardar datos de sensores (50 bytes)
     STORE_BITACORA = 0x11,          // Guardar bitácora
 
     // Respuestas
-    RESPONSE_SENSOR_DATA = 0x20,    // Respuesta con datos de sensores
+    RESPONSE_SENSOR_DATA = 0x93,    // Respuesta con datos de sensores
+    RESONSE_DELETE_SENSOR_DATA = 0x95,
     RESPONSE_SENSOR_HISTORY = 0x21, // Respuesta con histórico
     RESPONSE_ACK = 0x22,            // Confirmación
     RESPONSE_ERROR = 0x23,          // Error
@@ -100,7 +103,11 @@ class StorageNode: public UDPServer {
     Response handleQueryByDate(const uint8_t* data, ssize_t len);
     Response handleQueryBySensor(const uint8_t* data, ssize_t len);
     Response handleStoreSensorData(const uint8_t* data, ssize_t len);
+    Response handleStoreBitacora(const uint8_t* data, ssize_t len, const std::string& peerLabel);
     Response handleStoreBitacora(const uint8_t* data, ssize_t len);
+    Response handleGetSensorDataRequest(const uint8_t* data, ssize_t len);
+    Response handleStoreSensorDataRequest(const uint8_t* data, ssize_t len);
+    Response handleDeleteSensorDataRequest(const uint8_t* data, ssize_t len);
 
     // Utilidades
     std::string sockaddrToString(const sockaddr_in& addr) const;

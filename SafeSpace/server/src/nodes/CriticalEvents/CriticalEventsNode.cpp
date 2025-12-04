@@ -8,6 +8,8 @@
 #include <utility>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <cstring>
+#include <cerrno>
 
 CriticalEventsNode::CriticalEventsNode(const std::string& ip, uint16_t port, std::string  outPath)
     : UDPServer(ip, port, 2048), outPath_(std::move(outPath)) {
@@ -18,7 +20,7 @@ CriticalEventsNode::CriticalEventsNode(const std::string& ip, uint16_t port, std
     logger.enableFileLogging("critical_events_ip_addresses.log");
     logger.ipAddress(ip + std::string(":") + std::to_string(port));
 
-    startBatchForwarder(ip, port);
+    startBatchForwarder();
     
 }
 
@@ -100,11 +102,10 @@ void CriticalEventsNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
     std::cout << "[CriticalEventsNode] " << line.str() << std::endl;
 }
 
-void CriticalEventsNode::startBatchForwarder(std::string ip, uint16_t port){
-    batchRunning_.store(true);
-    masterPort = port;
-    masterIp = ip;
-
+void CriticalEventsNode::startBatchForwarder(){
+    if (batchRunning_.exchange(true)) {
+        return; // already running
+    }
     batchThread = std::thread(&CriticalEventsNode::batchWorkerLoop, this);
 }
 
@@ -125,21 +126,43 @@ void CriticalEventsNode::batchWorkerLoop(){
         return;
     }
 
-    sockaddr_in dest{};
-    dest.sin_family = AF_INET;
-    dest.sin_port = htons(masterPort);
-    ::inet_aton(masterIp.c_str(), &dest.sin_addr);
+    bool warnedAboutConfig = false;
 
     while (this->batchRunning_.load()) {
         std::this_thread::sleep_for(std::chrono::minutes(1));
 
+        if (!masterConfigured_.load()) {
+            if (!warnedAboutConfig) {
+                LogManager::instance().warning("CriticalEventsNode batch forwarder awaiting master configuration");
+                warnedAboutConfig = true;
+            }
+            continue;
+        }
+        warnedAboutConfig = false;
+        // swap buffer
         std::vector<std::string> snapshot;
+        std::string targetIp;
+        uint16_t targetPort = 0;
         {
             std::lock_guard<std::mutex> lk(batchMutex);
             if (batchBuffer.empty()) {
                 continue; // nothing to send
             }
             snapshot.swap(batchBuffer);
+            targetIp = masterIp_;
+            targetPort = masterPort_;
+        }
+
+        sockaddr_in dest{};
+        dest.sin_family = AF_INET;
+        dest.sin_port = htons(targetPort);
+        if (::inet_aton(targetIp.c_str(), &dest.sin_addr) == 0) {
+            LogManager::instance().error("CriticalEventsNode batch forwarder invalid master IP: " + targetIp);
+            {
+                std::lock_guard<std::mutex> lk(batchMutex);
+                batchBuffer.insert(batchBuffer.begin(), snapshot.begin(), snapshot.end());
+            }
+            continue;
         }
         std::ostringstream batchData;
         batchData << "LOG_BATCH\n";
@@ -151,11 +174,20 @@ void CriticalEventsNode::batchWorkerLoop(){
                                 reinterpret_cast<sockaddr*>(&dest), sizeof(dest));
 
         if (sent < 0) {
-            std::cerr << "[CriticalEventsNode] ERROR: failed to send batch UDP packet: ";
             auto& logger = LogManager::instance();
-            logger.error("CriticalEventsNode] ERROR: failed to send batch UDP packet: ");
+            const std::string err = std::strerror(errno);
+            std::cerr << "[CriticalEventsNode] ERROR: failed to send batch UDP packet: " << err << std::endl;
+            logger.error("CriticalEventsNode batch forward send failure: " + err);
         }
         
     }   
     ::close(sock);
+}
+
+void CriticalEventsNode::configureMasterForwarding(const std::string& masterIp, uint16_t masterPort) {
+    std::lock_guard<std::mutex> lk(batchMutex);
+    masterIp_ = masterIp;
+    masterPort_ = masterPort;
+    this->masterConfigured_.store(true);
+    LogManager::instance().info("CriticalEventsNode: Configured master forwarding to " + masterIp + ":" + std::to_string(masterPort));
 }

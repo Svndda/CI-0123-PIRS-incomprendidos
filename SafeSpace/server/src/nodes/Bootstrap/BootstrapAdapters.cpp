@@ -135,15 +135,17 @@ std::pair<StartCb, StopCb> makeMasterAdapter(
 
 // Events (CriticalEventsNode) adapter
 std::pair<StartCb, StopCb> makeEventsAdapter(
-  const std::string& listenIp, uint16_t listenPort, const std::string& outPath) {
+  const std::string& listenIp, uint16_t listenPort, const std::string& outPath,
+  const std::string& masterIp, uint16_t masterPort) {
   struct State { CriticalEventsNode* node = nullptr; std::thread t; std::mutex m; };
   auto st = std::make_shared<State>();
 
-  StartCb start = [st, listenIp, listenPort, outPath]() -> bool {
+  StartCb start = [st, listenIp, listenPort, outPath, masterIp, masterPort]() -> bool {
     std::lock_guard<std::mutex> lg(st->m);
     if (st->node) return true;
     try {
       st->node = new CriticalEventsNode(listenIp, listenPort, outPath);
+      st->node->configureMasterForwarding(masterIp, masterPort);
     } catch (const std::exception &e) {
       std::cerr << "[EventsAdapter] Failed to construct CriticalEventsNode: " << e.what() << std::endl;
       return false;
@@ -226,7 +228,7 @@ std::pair<StartCb, StopCb> makeStorageAdapter(
 
 // Intermediary adapter
 std::pair<StartCb, StopCb> makeIntermediaryAdapter(
-  int listenPort, const std::string& masterIp, int masterPort) {
+  const std::string& masterIp, int listenPort, int masterPort) {
   struct State { IntermediaryNode* node = nullptr; std::mutex m; };
   auto st = std::make_shared<State>();
 

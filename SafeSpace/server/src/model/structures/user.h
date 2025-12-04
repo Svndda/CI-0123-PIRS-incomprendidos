@@ -161,6 +161,13 @@ public:
    */
   std::string getGroup() const {return this->group;}
 
+    /**
+    * @brief Get the user's group.
+    *
+    * @return std::string
+    */
+    uint16_t getPermissions() const {return this->permissions;}
+
   /**
    * @brief Get the user's group.
    *
