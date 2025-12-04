@@ -8,10 +8,11 @@
 #include <unistd.h>
 #include <regex>
 #include <sstream>
+#include "../../model/filesystem/Raid1FileSystem.h"
 
 const size_t BUFFER_SIZE = 65535;
 
-// --- función auxiliar para decodificar texto hex a bytes ---
+// --- auxiliary function to decode hex text to bytes ---
 static std::vector<uint8_t> hexToBytes(const std::string& hex) {
     std::vector<uint8_t> bytes;
     bytes.reserve(hex.size() / 2);
@@ -27,7 +28,7 @@ std::vector<uint8_t> StorageNode::sensorDataToBytes(const SensorData& data) cons
     std::vector<uint8_t> bytes;
     bytes.reserve(24); // 6 floats * 4 bytes = 24 bytes
     
-    // Convertir cada float a bytes (network byte order)
+    // Convert each float to bytes (network byte order)
     uint32_t dist_net = htonl(*reinterpret_cast<const uint32_t*>(&data.distance));
     bytes.insert(bytes.end(), reinterpret_cast<uint8_t*>(&dist_net), 
                 reinterpret_cast<uint8_t*>(&dist_net) + 4);
@@ -65,7 +66,6 @@ SensorData StorageNode::bytesToSensorData(const uint8_t* data, size_t len) const
     }
     
     try {
-        // Usar memcpy para evitar problemas de alineación
         float values[6];
         
         for (int i = 0; i < 6; i++) {
@@ -73,12 +73,12 @@ SensorData StorageNode::bytesToSensorData(const uint8_t* data, size_t len) const
             std::memcpy(&f, data + (i * 4), 4);
             values[i] = f; 
         }
-        
+        /*
         std::cout << "[StorageNode] Parsed values - "
                   << "Dist:" << values[0] << " Temp:" << values[1]
                   << " Pres:" << values[2] << " Alt:" << values[3]
                   << " SealPres:" << values[4] << " RealAlt:" << values[5] << std::endl;
-        
+        */
         return SensorData(values[0], values[1], values[2], values[3], values[4], values[5]);
     } catch (const std::exception& e) {
         std::cerr << "[StorageNode] Error in bytesToSensorData: " << e.what() << std::endl;
@@ -101,7 +101,7 @@ std::string StorageNode::sensorDataToString(const SensorData& data) const {
 SensorData StorageNode::stringToSensorData(const std::string& str) const {
     std::cout << "[StorageNode] stringToSensorData parsing: " << str << std::endl;
     
-    // Si hay múltiples líneas, tomar solo la primera
+    // If there are multiple lines, take only the first one
     std::string firstLine = str;
     size_t newlinePos = str.find('\n');
     if (newlinePos != std::string::npos) {
@@ -160,17 +160,17 @@ StorageNode::StorageNode(uint16_t storagePort, const std::string& masterServerIp
     std::cout << "[StorageNode] Storage port: " << storagePort << std::endl;
     std::cout << "[StorageNode] Master server: " << masterServerIp 
               << ":" << masterServerPort << std::endl;
-    std::cout << "[StorageNode] Disk path: " << diskPath << std::endl;
+    std::cout << "[StorageNode] Disk path: " << diskPath + ".bin" << std::endl;
     
     try {
-        // Inicializar FileSystem
-        fs = new FileSystem(diskPath);
+        // Initialize RAID1 with primary disk and mirror
+        fs = new Raid1FileSystem(diskPath + ".bin", diskPath + "_mirror.bin");
         if (!fs->isValid()) {
-            throw std::runtime_error("FileSystem initialization failed");
+            throw std::runtime_error("Raid1FileSystem initialization failed");
         }
-        std::cout << "[StorageNode] FileSystem initialized successfully" << std::endl;
+        std::cout << "[StorageNode] Raid1FileSystem initialized successfully" << std::endl;
         
-        // Crear cliente para comunicarse con master
+        // Create client to communicate with master
         masterClient = new UDPClient(masterServerIp, masterServerPort);
         std::cout << "[StorageNode] Master client created" << std::endl;
         
@@ -189,7 +189,6 @@ StorageNode::StorageNode(uint16_t storagePort, const std::string& masterServerIp
 }
 
 StorageNode::~StorageNode() {
-    
     auto& logger = LogManager::instance();
     logger.info("StorageNode cerrándose - Estadísticas: Registros=" + 
             std::to_string(totalSensorRecords.load()) + 
@@ -197,7 +196,7 @@ StorageNode::~StorageNode() {
             ", Errores=" + std::to_string(errorsCount.load()));
     std::cout << "[StorageNode] Shutting down..." << std::endl;
     
-    // Detener thread de escucha
+    // Stop listening thread
     listening.store(false);
     
     if (listenerThread.joinable()) {
@@ -222,17 +221,17 @@ void StorageNode::start() {
     
     std::cout << "[StorageNode] Starting storage node: " << nodeId << std::endl;
     
-    // Registrarse con el master
+    // Register with the master
     registerWithMaster();
     
-    // Iniciar thread para escuchar respuestas del master
+    // Start thread to listen for responses from the master
     listening.store(true);
     listenerThread = std::thread(&StorageNode::listenMasterServerResponses, this);
     
     std::cout << "[StorageNode] Listener thread started" << std::endl;
     std::cout << "[StorageNode] Ready to receive sensor data" << std::endl;
     
-    // Iniciar servidor UDP (bloqueante)
+    // Start UDP server (blocking)
     try {
         serveBlocking();
     } catch (const std::exception &e) {
@@ -260,7 +259,7 @@ void StorageNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
     MessageType msgType = static_cast<MessageType>(data[0]);
     
     try {
-        // Primero verificar por tipo de mensaje explícito
+        // Check by explicit message type
         switch (msgType) {
             case MessageType::QUERY_BY_DATE:
                 std::cout << "[StorageNode] Query by date" << std::endl;
@@ -291,23 +290,23 @@ void StorageNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
                 break;
                 
             default:
-                // Si no es un tipo conocido, usar detección por longitud
-                if (len == 17) {  // Consulta por fecha: [msgType][startTime(8)][endTime(8)]
+                // If it is not a known type, use length detection.
+                if (len == 17) {  // Search by date: [msgType][startTime(8)][endTime(8)]
                     std::cout << "[StorageNode] Detected QUERY_BY_DATE (legacy format)" << std::endl;
                     response = handleQueryByDate(data, len);
                     
-                } else if (len == 18) {  // Consulta por sensor: [msgType][sensorId][startTime(8)][endTime(8)]
+                } else if (len == 18) {  // Search by sensor: [msgType][sensorId][startTime(8)][endTime(8)]
                     std::cout << "[StorageNode] Detected QUERY_BY_SENSOR (legacy format)" << std::endl;
                     response = handleQueryBySensor(data, len);
                     
-                } else if (len >= 24 && len <= 100) {  // Guardar datos de sensores (25-100 bytes)
+                } else if (len >= 24 && len <= 100) {  // Save sensor data (25-100 bytes)
                     std::cout << "[StorageNode] Detected STORE_SENSOR_DATA" << std::endl;
                     response = handleStoreSensorData(data, len);
                     
                 } else {
                     std::cout << "[StorageNode] Unknown message format (" << len 
                              << " bytes), using default behavior" << std::endl;
-                    // Llamar al comportamiento por defecto de UDPServer (echo)
+                    
                     UDPServer::onReceive(peer, data, len, out_response);
                     return;
                 }
@@ -319,7 +318,7 @@ void StorageNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
         errorsCount++;
     }
     
-    // Convertir respuesta a string
+    // Convert response to string
     auto responseBytes = response.toBytes();
     out_response.assign(reinterpret_cast<const char*>(responseBytes.data()),
                        responseBytes.size());
@@ -450,7 +449,7 @@ Response StorageNode::handleQueryByDate(const uint8_t* data, ssize_t len) {
     Response resp;
     resp.msgId = static_cast<uint8_t>(MessageType::RESPONSE_SENSOR_HISTORY);
     
-    // Formato: [msgType][startTime(8)][endTime(8)] = 17 bytes
+    // Format: [msgType][startTime(8)][endTime(8)] = 17 bytes
     if (len < 17) {
         resp.status = 1;
         errorsCount++;
@@ -471,7 +470,6 @@ Response StorageNode::handleQueryByDate(const uint8_t* data, ssize_t len) {
     
     std::cout << "[StorageNode] Found " << results.size() << " records" << std::endl;
     
-    // Serializar resultados
     for (const auto& record : results) {
         auto bytes = sensorDataToBytes(record);
         resp.data.insert(resp.data.end(), bytes.begin(), bytes.end());
@@ -480,11 +478,11 @@ Response StorageNode::handleQueryByDate(const uint8_t* data, ssize_t len) {
     resp.status = 0;
     totalQueries++;
 
-    // Imprimir tabla de resultados - usar hora actual como placeholder
+    // Print results table - use current time as placeholder
     auto currentTime = std::chrono::system_clock::now();
     auto currentTimeT = std::chrono::system_clock::to_time_t(currentTime);
     
-    // Imprimir tabla de resultados
+    // Print results table
     std::cout << "[StorageNode] Fecha | Distancia | Temperatura | Presión | Altitud | Presión nivel mar | Altitud real" << std::endl;
     for (const auto& record : results) {
         std::cout << timestampToString(currentTimeT) << " | "
@@ -503,7 +501,7 @@ Response StorageNode::handleQueryBySensor(const uint8_t* data, ssize_t len) {
     Response resp;
     resp.msgId = static_cast<uint8_t>(MessageType::RESPONSE_SENSOR_HISTORY);
     
-    // Formato: [msgType][sensorId][startTime(8)][endTime(8)] = 18 bytes
+    // Format: [msgType][sensorId][startTime(8)][endTime(8)] = 18 bytes
     if (len < 18) {
         resp.status = 1;
         errorsCount++;
@@ -526,7 +524,6 @@ Response StorageNode::handleQueryBySensor(const uint8_t* data, ssize_t len) {
     
     std::cout << "[StorageNode] Found " << results.size() << " records" << std::endl;
     
-    // Serializar resultados
     for (const auto& record : results) {
         auto bytes = sensorDataToBytes(record);
         resp.data.insert(resp.data.end(), bytes.begin(), bytes.end());
@@ -535,11 +532,11 @@ Response StorageNode::handleQueryBySensor(const uint8_t* data, ssize_t len) {
     resp.status = 0;
     totalQueries++;
 
-    // Imprimir tabla de resultados - usar hora actual como placeholder
+    // Print results table - use current time as placeholder
     auto currentTime = std::chrono::system_clock::now();
     auto currentTimeT = std::chrono::system_clock::to_time_t(currentTime);
     
-  // Imprimir tabla
+    // Print table
     std::cout << "[StorageNode] Fecha | Datos del sensor" << std::endl;
     for (const auto& record : results) {
         std::cout << timestampToString(currentTimeT) << " | "
@@ -560,8 +557,8 @@ Response StorageNode::handleStoreSensorData(const uint8_t* data, ssize_t len) {
 
     std::cout << "[StorageNode] handleStoreSensorData - len: " << len << std::endl;
     
-    // Parsear datos del sensor (mínimo 24 bytes para 6 floats)
-    if (len != sizeof(SensorData)) {  // 1 byte tipo + 24 bytes datos (6 floats)
+    // Parse sensor data (minimum 24 bytes for 6 floats)
+    if (len != sizeof(SensorData)) {  // 1 byte type + 24 bytes data (6 floats)
         resp.status = 1;
         errorsCount++;
         std::cerr << "[StorageNode] Invalid sensor data length: " << len << std::endl;
@@ -613,31 +610,30 @@ Response StorageNode::handleStoreBitacora(const uint8_t* data, ssize_t len) {
     }
     
     try {
-        // Extraer mensaje de bitácora
+        // Extract log message
         std::string message(reinterpret_cast<const char*>(data + 1), len - 1);
         
         std::lock_guard<std::mutex> lock(fsMutex);
         
-        // Archivo de bitácora
+        // Log archive
         std::string bitacoraFile = "bitacora.log";
         
-        // Crear si no existe
+        // Create if it does not exist
         if (fs->find(bitacoraFile) < 0) {
             fs->create(bitacoraFile);
         }
         
-        // Abrir, leer contenido actual, agregar nueva entrada
+        // Open, read current content, add new entry
         fs->openFile(bitacoraFile);
         std::string currentLog = fs->read(bitacoraFile);
         
-        // Agregar timestamp + mensaje
+        // Add timestamp + message
         auto now = std::chrono::system_clock::now();
         auto timestamp = std::chrono::system_clock::to_time_t(now);
         std::string entry = "[" + timestampToString(timestamp) + "] " + message + "\n";
         
         currentLog += entry;
         
-        // Escribir de vuelta
         bool success = fs->write(bitacoraFile, currentLog);
         fs->closeFile(bitacoraFile);
         
@@ -659,7 +655,6 @@ Response StorageNode::handleStoreBitacora(const uint8_t* data, ssize_t len) {
 }
 
 bool StorageNode::storeSensorDataToFS(const SensorData& data) {
-    // Usar segundos consistentemente
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(
         now.time_since_epoch()).count();
@@ -668,13 +663,13 @@ bool StorageNode::storeSensorDataToFS(const SensorData& data) {
     uint8_t sensorId = 0;
     std::string filename = generateSensorFilename(timestamp, sensorId);
     
-    std::cout << "[StorageNode] Creating file: " << filename 
+    std::cout << "[StorageNode] Creating file (RAID1): " << filename 
               << " with timestamp: " << timestampToString(timestamp) << std::endl;
     
-    // Crear archivo si no existe
+    // Create if it does not exist
     if (fs->find(filename) < 0) {
         if (fs->create(filename) < 0) {
-            std::cerr << "[StorageNode] Failed to create file: " << filename << std::endl;
+            std::cerr << "[StorageNode] Failed to create file RAID1: " << filename << std::endl;
             auto& logger = LogManager::instance();
             try{
                 logger.error("Failed to create file: " + filename);
@@ -688,9 +683,8 @@ bool StorageNode::storeSensorDataToFS(const SensorData& data) {
                   << ", data will be appended" << std::endl;
     }
     
-    // Abrir archivo
     if (fs->openFile(filename) != 0) {
-        std::cerr << "[StorageNode] Failed to open file: " << filename << std::endl;
+        std::cerr << "[StorageNode] Failed to open file in RAID1: " << filename << std::endl;
         auto& logger = LogManager::instance();
         try{
             logger.error("Failed to open file: " + filename);
@@ -701,13 +695,13 @@ bool StorageNode::storeSensorDataToFS(const SensorData& data) {
         return false;
     }
     
-    // Leer contenido existente (si hay)
+    // Read existing content (if any)
     std::string existingContent = fs->read(filename);
     
-    // Convertir SensorData a string para almacenar
+    // Convert SensorData to string for storage
     std::string dataString = sensorDataToString(data);
     
-    // Si ya hay contenido, agregar nueva línea
+    // If there is already content, add a new line
     std::string contentToWrite;
     if (!existingContent.empty()) {
         contentToWrite = existingContent + "\n" + dataString;
@@ -717,14 +711,12 @@ bool StorageNode::storeSensorDataToFS(const SensorData& data) {
         std::cout << "[StorageNode] Writing new file content" << std::endl;
     }
     
-    // Escribir
     bool success = fs->write(filename, contentToWrite);
     
-    // Cerrar
     fs->closeFile(filename);
     
     if (success) {
-        std::cout << "[StorageNode] Successfully stored data in: " << filename << std::endl;
+        std::cout << "[StorageNode] Successfully stored data in (RAID1): " << filename << std::endl;
     }
     
     return success;
@@ -736,14 +728,14 @@ std::vector<SensorData> StorageNode::querySensorDataByDate(uint64_t startTime, u
     std::cout << "[StorageNode] Searching files from " << timestampToString(startTime) 
               << " to " << timestampToString(endTime) << std::endl;
 
-    // Recorremos las entradas del directorio virtual
+    // We browse through the entries in the virtual directory.
     for (const auto& entry : fs->getDirectory()) {
-        if (entry.inode_id == 0) continue; // entrada vacía
+        if (entry.inode_id == 0) continue; 
 
         std::string filename(entry.name);
         std::cout << "[StorageNode] Checking file: " << filename << std::endl;
 
-        // Coincide con formato sensor_<id>_<timestamp>.dat
+        // Matches format sensor_<id>_<timestamp>.dat
         std::smatch match;
         std::regex pattern(R"(sensor_(\d+)_(\d+)\.dat)");
         if (!std::regex_match(filename, match, pattern)) {
@@ -768,7 +760,7 @@ std::vector<SensorData> StorageNode::querySensorDataByDate(uint64_t startTime, u
 
         std::cout << "[StorageNode] Raw data from " << filename << ": " << raw << std::endl;
 
-        // Procesar múltiples líneas si existen
+        // Process multiple lines if they exist
         std::istringstream rawStream(raw);
         std::string line;
         int lineCount = 0;
