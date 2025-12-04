@@ -30,32 +30,36 @@ ProxyNode::ProxyNode(
     masterNode(nullptr, masterServerIp, masterServerPort),
     listening(false) {
   try {
-    this->logger.configureRemote(masterNode.ip, masterNode.port, "ProxyNode");
-    this->logger.info("ProxyNode configured to forward logs to SafeSpaceServer at " +
+    LogManager::instance().enableFileLogging("./build/proxy_node_logs.log");
+    LogManager::instance().configureRemote(masterNode.ip, masterNode.port, "ProxyNode");
+    
+    LogManager::instance().info("ProxyNode configured to forward logs to SafeSpaceServer at " +
                       masterNode.ip + ":" + std::to_string(masterNode.port));
+    LogManager::instance().ipAddress("PROXY:" + ip + ":" + std::to_string(proxyPort));
   } catch (const std::exception &ex) {
-    this->logger.error(std::string("Failed to configure SafeSpace log forwarding: ") + ex.what());
+    LogManager::instance().error(std::string("Failed to configure SafeSpace log forwarding: ") + ex.what());
   }
 
   try {
     this->authNode.client = new UDPClient(this->authNode.ip, this->authNode.port);
-    this->logger.info("Auth client initialized for " + authServerIp + ":" + std::to_string(authServerPort));
+    LogManager::instance().info("Auth client initialized for " + authServerIp + ":" + std::to_string(authServerPort));
   } catch (const std::exception &e) {
-    this->logger.error(std::string("Failed to create auth client: ") + e.what());
+    LogManager::instance().error(std::string("Failed to create auth client: ") + e.what());
     throw;
   }
 
   try {
     this->masterNode.client = new UDPClient(this->masterNode.ip, this->masterNode.port);
-    this->logger.info("Master client initialized for " + masterServerIp + ":" + std::to_string(masterServerPort));
+    LogManager::instance().info("Master client initialized for " + masterServerIp + ":" + std::to_string(masterServerPort));
   } catch (const std::exception &e) {
-    this->logger.error(std::string("Failed to create master client: ") + e.what());
+    LogManager::instance().error(std::string("Failed to create master client: ") + e.what());
     throw;
   }
 }
 
 ProxyNode::~ProxyNode() {
-  this->logger.info("ProxyNode shutting down...");
+  LogManager::instance().info("ProxyNode shutting down - Security logging ended");
+  LogManager::instance().disableFileLogging();
   listening.store(false);
 
   if (listenerThread.joinable()) {
@@ -65,13 +69,13 @@ ProxyNode::~ProxyNode() {
   delete this->authNode.client;
   delete this->masterNode.client;
 
-  this->logger.info("ProxyNode shutdown complete.");
+  LogManager::instance().info("ProxyNode shutdown complete.");
 }
 
 void ProxyNode::start() {
   // Checks the auth client.
   if (!this->authNode.client) {
-    this->logger.error("Cannot start ProxyNode: auth client not initialized");
+    LogManager::instance().error("Cannot start ProxyNode: auth client not initialized");
     throw std::runtime_error("Auth client not initialized");
   }
   // Starts the listener
@@ -79,16 +83,8 @@ void ProxyNode::start() {
   listenerThread = std::thread(&ProxyNode::listenAuthServerResponses, this);
 
   // Logs that the proxy has been initialized.
-  this->logger.info("ProxyNode authentication listener started");
-  try {
-    this->serveBlocking();
-  } catch (const std::exception &e) {
-    this->logger.error(std::string("ProxyNode serveBlocking exception: ") + e.what());
-    std::cerr << "[ProxyNode] serveBlocking exception: " << e.what() << std::endl;
-  } catch (...) {
-    this->logger.error("ProxyNode serveBlocking unknown exception");
-    std::cerr << "[ProxyNode] serveBlocking unknown exception" << std::endl;
-  }
+  LogManager::instance().info("ProxyNode authentication listener started");
+  this->serveBlocking();
 
   listening.store(false);
 }
@@ -266,20 +262,20 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
 
     this->handleUnknownMessage(peer, data, len, out_response);
   } catch (const std::exception &ex) {
-    this->logger.error(std::string("Error handling packet: ") + ex.what());
+    LogManager::instance().error(std::string("Error handling packet: ") + ex.what());
   }
 }
 
 void ProxyNode::handleConnectRequest(const sockaddr_in &peer, const uint8_t *data,
                                      ssize_t len, std::string &out_response) {
   if (len < 6) {
-    this->logger.warning("CONNECT_REQUEST too short (" + std::to_string(len) + " bytes)");
+    LogManager::instance().warning("CONNECT_REQUEST too short (" + std::to_string(len) + " bytes)");
     return;
   }
 
   // Validate identifier
   if (data[0] != ConnectRequest::IDENTIFIER) {
-    this->logger.warning("CONNECT_REQUEST invalid identifier: " + std::to_string(data[0]));
+    LogManager::instance().warning("CONNECT_REQUEST invalid identifier: " + std::to_string(data[0]));
     return;
   }
 
@@ -288,12 +284,12 @@ void ProxyNode::handleConnectRequest(const sockaddr_in &peer, const uint8_t *dat
   uint16_t sensorId  = (data[3] << 8) | data[4];
   uint8_t flagBits   = data[5];
 
-  this->logger.info("CONNECT_REQUEST received: sessionId=" + std::to_string(sessionId) +
+  LogManager::instance().info("CONNECT_REQUEST received: sessionId=" + std::to_string(sessionId) +
                     ", sensorId=" + std::to_string(sensorId) +
                     ", flags=" + std::to_string(flagBits));
 
   if (!this->isClientAuthenticated(sessionId)) {
-    this->logger.warning("Unauthorized CONNECT_REQUEST (sessionId=" + std::to_string(sessionId) + ")");
+    LogManager::instance().warning("Unauthorized CONNECT_REQUEST (sessionId=" + std::to_string(sessionId) + ")");
     out_response = "UNAUTHORIZED";
     return;
   }
@@ -315,7 +311,7 @@ void ProxyNode::handleAuthRequest(const sockaddr_in &peer, const uint8_t *data,
 
   const uint16_t sessionId = req.getSessionId();
   if (this->isClientAuthenticated(sessionId)) {
-    this->logger.info("AUTH_REQUEST ignored: session already authenticated (sessionId=" +
+    LogManager::instance().info("AUTH_REQUEST ignored: session already authenticated (sessionId=" +
                   std::to_string(sessionId) + ")");
 
     // We can optionally send back an OK-style auth response here
@@ -329,9 +325,9 @@ void ProxyNode::handleAuthRequest(const sockaddr_in &peer, const uint8_t *data,
 
   try {
     this->forwardToAuthServer(data, len);
-    this->logger.info("Forwarded AUTH_REQUEST for sessionId=" + std::to_string(sessionId));
+    LogManager::instance().info("Forwarded AUTH_REQUEST for sessionId=" + std::to_string(sessionId));
   } catch (const std::exception &e) {
-    this->logger.error(std::string("Error forwarding AUTH_REQUEST: ") + e.what());
+    LogManager::instance().error(std::string("Error forwarding AUTH_REQUEST: ") + e.what());
     this->removePendingClient(sessionId);
   }
 }
@@ -339,7 +335,7 @@ void ProxyNode::handleAuthRequest(const sockaddr_in &peer, const uint8_t *data,
 void ProxyNode::handleSensorData(const sockaddr_in &peer, const uint8_t *data,
                                  ssize_t len, std::string &out_response) {
   const auto *pkt = reinterpret_cast<const SensorData *>(data);
-  this->logger.info(
+  LogManager::instance().info(
     "Received SENSOR_DATA: Temp=" + std::to_string(pkt->temperature) +
     " Dist=" + std::to_string(pkt->distance)
     );
@@ -358,12 +354,12 @@ void ProxyNode::handleLogMessage(const sockaddr_in &peer, const uint8_t *data, s
   std::string node(reinterpret_cast<const char *>(data + 5), nodeLen);
   std::string msg(reinterpret_cast<const char *>(data + 5 + nodeLen), len - 5 - nodeLen);
 
-  this->logger.log(static_cast<LogLevel>(level), "[FROM_" + node + "] " + msg);
+  LogManager::instance().log(static_cast<LogLevel>(level), "[FROM_" + node + "] " + msg);
 }
 
 void ProxyNode::handleUnknownMessage(const sockaddr_in &peer, const uint8_t *data,
                                      ssize_t len, std::string &out_response) {
-  this->logger.warning("Unknown message type (" + std::to_string(len) + " bytes)");
+  LogManager::instance().warning("Unknown message type (" + std::to_string(len) + " bytes)");
   UDPServer::onReceive(peer, data, len, out_response);
 }
 
@@ -424,7 +420,7 @@ void ProxyNode::forwardToMasterServer(const uint8_t *data, size_t len) {
 }
 
 void ProxyNode::listenAuthServerResponses() {
-  this->logger.info("Auth server listener thread started (ID=" +
+  LogManager::instance().info("Auth server listener thread started (ID=" +
                     std::to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())) + ")");
   std::vector<uint8_t> buffer(BUFFER_SIZE);
 
@@ -438,7 +434,7 @@ void ProxyNode::listenAuthServerResponses() {
     this->processAuthServerResponse(buffer, static_cast<size_t>(received), authAddr);
   }
 
-  this->logger.info("Auth server response listener stopped.");
+  LogManager::instance().info("Auth server response listener stopped.");
 }
 
 ssize_t ProxyNode::receiveFromAuthServer(std::vector<uint8_t>& buffer, sockaddr_in& authAddr, socklen_t& addrLen) {
@@ -457,7 +453,7 @@ ssize_t ProxyNode::receiveFromAuthServer(std::vector<uint8_t>& buffer, sockaddr_
   if (received < 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
       return -1;
-    this->logger.error(std::string("recvfrom() failed: ") + std::strerror(errno));
+    LogManager::instance().error(std::string("recvfrom() failed: ") + std::strerror(errno));
     return -1;
   }
 
@@ -471,24 +467,24 @@ void ProxyNode::processAuthServerResponse(const std::vector<uint8_t>& buffer, si
   } else if (length == sizeof(GetSystemUsersResponse)) {
     this->handleGetSystemUsersResponse(buffer.data(), length);
   } else {
-    this->logger.warning("Received non-standard response (" + std::to_string(length) + " bytes).");
+    LogManager::instance().warning("Received non-standard response (" + std::to_string(length) + " bytes).");
   }
 }
 
 void ProxyNode::broadcastToSubscribers(const uint8_t* data, size_t len) {
   std::lock_guard<std::mutex> lock(subscribersMutex);
   if (subscribers.empty()) {
-    this->logger.info("No active subscribers to broadcast.");
+    LogManager::instance().info("No active subscribers to broadcast.");
     return;
   }
 
-  this->logger.info("Broadcasting SensorData to " + std::to_string(subscribers.size()) + " subscribers.");
+  LogManager::instance().info("Broadcasting SensorData to " + std::to_string(subscribers.size()) + " subscribers.");
   for (const auto& sub : subscribers) {
     try {
       this->sendTo(sub.second.addr, data, len);
-      this->logger.info("Data sent to " + sockaddrToString(sub.second.addr));
+      LogManager::instance().info("Data sent to " + sockaddrToString(sub.second.addr));
     } catch (const std::exception& e) {
-      this->logger.error(std::string("Failed to send to subscriber: ") + e.what());
+      LogManager::instance().error(std::string("Failed to send to subscriber: ") + e.what());
     }
   }
 }
@@ -496,9 +492,7 @@ void ProxyNode::broadcastToSubscribers(const uint8_t* data, size_t len) {
 void ProxyNode::handleAuthResponse(const uint8_t *buffer, size_t length) {
   // Validate expected size
   if (length != AuthResponse::MESSAGE_SIZE + 3 + AuthResponse::TOKEN_SIZE) {
-    this->logger.warning(
-      "Invalid AuthResponse length: " + std::to_string(length)
-    );
+    LogManager::instance().warning("Invalid AuthResponse length: " + std::to_string(length));
     return;
   }
 
@@ -556,16 +550,12 @@ void ProxyNode::handleAuthResponse(const uint8_t *buffer, size_t length) {
 
   // Register authenticated client
   if (resp.getStatusCode() == 1) {
-    this->registerAuthenticatedClient(clientInfo.addr, sessionId);
-    this->logger.info(
-      "Client authenticated and registered for sessionId=" + std::to_string(sessionId)
-    );
-  } else {
-    this->logger.warning(
-      "Authentication FAILED for sessionId=" + std::to_string(sessionId) +
-      " message=" + resp.getMessage()
-    );
-  }
+    LogManager::instance().info("Authentication successful for sessionId " + std::to_string(sessionId));
+    if (found) {
+      try {
+        this->registerAuthenticatedClient(clientInfo.addr, sessionId);
+        LogManager::instance().info("Client authenticated and registered for CONNECT_REQUEST (sessionId=" +
+                          std::to_string(sessionId) + ")");
 
   // Remove from pending clients after response is delivered
   {
@@ -574,6 +564,21 @@ void ProxyNode::handleAuthResponse(const uint8_t *buffer, size_t length) {
   }
 }
 
+      } catch (const std::exception& ex) {
+        LogManager::instance().error(std::string("Failed to register authenticated client (sessionId=") +
+                          std::to_string(sessionId) + "): " + ex.what());
+      }
+    }
+  } else {
+    LogManager::instance().warning("Authentication failed for sessionId " + std::to_string(sessionId));
+  }
+
+  if (found) {
+    this->sendTo(clientInfo.addr, payload.data(), payload.size());
+    LogManager::instance().info("Forwarded AUTH_RESPONSE sessionId=" + std::to_string(sessionId));
+  } else {
+    LogManager::instance().warning("No pending client for AUTH_RESPONSE sessionId=" + std::to_string(sessionId));
+    
 void ProxyNode::handleGetSystemUsersResponse(const uint8_t *buffer, size_t length) {
   if (length != sizeof(GetSystemUsersResponse)) {
     this->logger.warning("Tamaño incorrecto para GetSystemUsersResponse");
@@ -633,7 +638,7 @@ void ProxyNode::registerAuthenticatedClient(const sockaddr_in &addr, uint16_t se
     return;
 
   this->authenticatedClients[sessionId] = ClientInfo{addr, 0};
-  this->logger.info("Registered authenticated client (sessionId=" + std::to_string(sessionId) + ")");
+  LogManager::instance().info("Registered authenticated client (sessionId=" + std::to_string(sessionId) + ")");
 }
 
 bool ProxyNode::isClientAuthenticated(uint16_t sessionId) {

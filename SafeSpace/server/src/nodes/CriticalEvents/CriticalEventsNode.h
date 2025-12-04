@@ -3,7 +3,10 @@
 #include "../interfaces/UDPServer.h"
 #include <string>
 #include <mutex>
-
+#include <vector>
+#include <thread>
+#include <atomic>
+#include "../../../common/LogManager.h"
 class CriticalEventsNode : public UDPServer {
 public:
     // Listen on given UDP port and append received events to a host file
@@ -11,11 +14,23 @@ public:
     ~CriticalEventsNode() override;
 
     void onReceive(const sockaddr_in& peer, const uint8_t* data, ssize_t len, std::string& out_response) override;
-
+    void configureMasterForwarding(const std::string& masterIp, uint16_t masterPort);
+    void startBatchForwarder();
 private:
     std::string outPath_;
     std::mutex fileMutex_;
 
+    std::vector<std::string> batchBuffer;
+    std::mutex batchMutex;
+    std::thread batchThread; 
+    std::atomic<bool> batchRunning_{false};
+    std::string masterIp_;
+    uint16_t masterPort_{0};
+    std::atomic<bool> masterConfigured_{false};
+
     void appendLine(const std::string& line);
     std::string makeTimestamp();
+    void batchWorkerLoop();                  
+    
+    void stopBatchForwarder();
 };

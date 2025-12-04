@@ -14,6 +14,7 @@
 #include "Bootstrap/BootstrapAdapters.h"  
 #include "Intermediary/IntermediaryNode.h"
 #include "Storage/StorageNode.h"
+#include "CriticalEvents/CriticalEventsNode.h"
 
 static volatile std::sig_atomic_t stopFlag = 0;
 extern "C" void sigHandler(int) { stopFlag = 1; }
@@ -172,121 +173,223 @@ uint16_t parsePort(const std::string& str) {
 }
 
 int main(const int argc, char* argv[]) {
-    validateArgs(argc, argv);
+  validateArgs(argc, argv);
 
-    struct sigaction sa{};
-    sa.sa_handler = sigHandler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SIGINT, &sa, nullptr);
-    sigaction(SIGTERM, &sa, nullptr);
+  struct sigaction sa{};
+  sa.sa_handler = sigHandler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+  sigaction(SIGINT, &sa, nullptr);
+  sigaction(SIGTERM, &sa, nullptr);
 
-    try {
-        std::string type = argv[1];
-        
-        // Para bootstrap, NO usamos archivo de configuración
-        if (type == "bootstrap") {
-            // Bootstrap puede iniciarse con IP/PORT opcionales: `bootstrap <ip> <port>`
-            std::string bindIp = "0.0.0.0";
-            uint16_t bindPort = 8080;
-            if (argc >= 4) {
-                bindIp = argv[2];
-                bindPort = parsePort(argv[3]);
-            }
+  try {
+    std::string type = argv[1];
 
-            Bootstrap server(bindIp, bindPort);
+    if (type == "server") {
+      if (argc != 10) {
+        throw std::runtime_error("Master mode requires 9 arguments:"
+        " server <local_ip> <local_port>"
+        " <storageNode_ip> <storageNode_Port>"
+        " <eventsNode_ip> <eventsNode_Port>"
+        " <ProxyNode_ip> <ProxyNode_Port>");
+      }
 
-            // Registrar adaptadores para nodos comunes (IDs por convención)
-            // ID 1: ProxyNode (escucha 9000), reenvía a Auth=7000 y Master=6000
-            {
-                auto p = makeProxyAdapter("0.0.0.0", 9000, "0.0.0.0", 7000, "127.0.0.1", 6000);
-                server.registerNode(1, p.first, p.second);
-            }
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
+      std::string storageIp = argv[4];
+      uint16_t storagePort = parsePort(argv[5]);
+      std::string eventsIp = argv[6];
+      uint16_t eventsPort = parsePort(argv[7]);
+      std::string proxyIp = argv[8];
+      uint16_t proxyPort = parsePort(argv[9]);
 
-            // ID 2: StorageNode (puerto 9001), master en 127.0.0.1:6000
-            {
-                auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "../src/model/data/registers.bin");
-                server.registerNode(2, p.first, p.second);
-            }
+      SafeSpaceServer server(localIp, localPort, storageIp, storagePort, eventsIp, eventsPort, proxyIp, proxyPort);
+      std::cout << "[Main] Running SafeSpaceServer on port " << localPort << std::endl;
 
-            // ID 3: IntermediaryNode (escucha 9002), master 127.0.0.1:6000
-            {
-                auto p = makeIntermediaryAdapter(9002, "127.0.0.1", 6000);
-                server.registerNode(3, p.first, p.second);
-            }
+      // Run server in blocking mode for master/server component
+      server.serveBlocking();
 
-            // ID 4: AuthUDPServer (escucha 7000)
-            {
-                auto p = makeAuthAdapter("0.0.0.0", 7000);
-                server.registerNode(4, p.first, p.second);
-            }
+      if (stopFlag) server.stop();
+      std::cout << "[Main] Server stopped cleanly." << std::endl;
 
-            // ID 5: ArduinoNode (simulado) enviando a master 127.0.0.1:6000
-            {
-                auto p = makeArduinoAdapter("127.0.0.1", 9002, "simulate", "binary");
-                server.registerNode(5, p.first, p.second);
-            }
+    } else if (type == "events") {
+      if (argc != 7) {
+        throw std::runtime_error("Events mode requires 6 arguments: events <local_ip> <local_port> <out.txt> <master_ip> <master_port>");
+      }
 
-            // ID 6: CriticalEventsNode (escucha 7001) -> guarda en data/events.log
-            {
-                auto p = makeEventsAdapter("0.0.0.0", 6001, "logs.txt");
-                server.registerNode(6, p.first, p.second);
-            }
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
+      std::string outPath = argv[4];
+      std::string masterIp = argv[5];
+      uint16_t masterPort = parsePort(argv[6]);
 
-            // ID 0: SafeSpaceServer (master) — permite levantar el servidor maestro
-            // por defecto enlazará en 127.0.0.1:6000 y asumirá que Storage, Events
-            // y Proxy usan los puertos por convención usados arriba.
-            {
-                auto p = makeMasterAdapter("127.0.0.1", 6000,
-                                           "0.0.0.0", 9001,
-                                           "0.0.0.0", 6001,
-                                           "0.0.0.0", 9000);
-                server.registerNode(0, p.first, p.second);
-            }
+      CriticalEventsNode node(localIp, localPort, outPath);
+      node.configureMasterForwarding(masterIp, masterPort);
+      node.serveBlocking();
 
-            // Run bootstrap in background so we can control nodes interactively
-            std::thread serverThread([&server]() {
-                server.serveBlocking();
-            });
+    } else if (type == "proxy") {
+      if (argc != 8) {
+        throw std::runtime_error("Proxy mode requires 7 arguments: proxy <local_ip> <local_port> <authNode_ip> <authNode_port> <masterNode_Ip> <masterNode_Port>");
+      }
 
-            std::cout << "Bootstrap interactive menu started. Commands: list | start <id> | stop <id> | quit" << std::endl;
-            std::string line;
-            while (true) {
-                std::cout << "> ";
-                if (!std::getline(std::cin, line)) break;
-                if (line.empty()) continue;
-                if (line == "list") {
-                    auto nodes = server.listNodes();
-                    std::cout << "Registered nodes:\n";
-                    for (auto &p : nodes) {
-                        std::cout << "  id=" << int(p.first) << " running=" << (p.second ? "yes" : "no") << std::endl;
-                    }
-                    continue;
-                }
-                if (line.rfind("start ", 0) == 0) {
-                    int id = std::stoi(line.substr(6));
-                    bool ok = server.startNode(static_cast<uint8_t>(id));
-                    std::cout << (ok ? "started" : "failed or unknown id") << std::endl;
-                    continue;
-                }
-                if (line.rfind("stop ", 0) == 0) {
-                    int id = std::stoi(line.substr(5));
-                    bool ok = server.stopNode(static_cast<uint8_t>(id));
-                    std::cout << (ok ? "stopped" : "failed or unknown id") << std::endl;
-                    continue;
-                }
-                if (line == "quit" || line == "exit") {
-                    std::cout << "Shutting down..." << std::endl;
-                    break;
-                }
-                std::cout << "Unknown command" << std::endl;
-            }
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
+      std::string authNodeIp = argv[4];
+      uint16_t authNodePort = parsePort(argv[5]);
+      std::string masterNodeIp = argv[6];
+      uint16_t masterNodePort = parsePort(argv[7]);
 
-            // Stop all nodes and the server
-            server.stopAllNodes();
-            server.stop();
-            if (serverThread.joinable()) serverThread.join();
-            return EXIT_SUCCESS;
+      std::cout << "Datos de AuthNode " << authNodeIp << ": " << authNodePort << std::endl;
+      std::cout << "Datos de MasterNode " << masterNodeIp << ": " << masterNodePort << std::endl;
+
+      ProxyNode proxy(
+        localIp, localPort,
+        authNodeIp, authNodePort,
+        masterNodeIp, masterNodePort
+      );
+
+      std::cout << "[Main] Running ProxyNode on ip" << localIp
+        <<  " and port " << localPort
+        << " → forwarding to AuthNode " << authNodeIp << ":" << authNodePort
+        << "and  → forwarding to MasterNode " << masterNodeIp << masterNodePort << std::endl;
+
+      proxy.start();
+
+      if (stopFlag) proxy.stop();
+      std::cout << "[Main] ProxyNode stopped cleanly." << std::endl;
+
+    } else if (type == "storage") {
+
+      if (argc != 7) {
+        throw std::runtime_error("Storage mode requires 6 arguments: storage <local_ip> <local_port> <masterNode_ip> <masterNode_port> <diskPath>");
+      }
+
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
+      const std::string masterIp = argv[4];
+      const uint16_t masterPort = parsePort(argv[5]);
+      const std::string nodeId = "storage1";
+      const std::string diskPath = argv[6]; // Usar el archivo proporcionado
+
+      // Crear instancia de StorageNode
+      StorageNode storage(localPort, masterIp, masterPort, nodeId, diskPath);
+      storage.start();
+    } else if (type ==  "auth") {
+      if (argc != 4) throw std::runtime_error("Auth mode requires 3 arguments: auth <local_ip> <local_port>");
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
+      AuthUDPServer server(localIp, localPort);
+      std::cout << " Iniciando AuthUDPServer en puerto: " << localPort << std::endl;
+      server.serveBlocking();
+
+    } else if (type == "inter") {
+      if (argc != 5) {
+        throw std::runtime_error("Intermediary mode requires 4 arguments: intermediary <local_ip> <local_port> <master_port>");
+      }
+
+      std::string localIp = argv[2];
+      uint16_t localPort = parsePort(argv[3]);
+      uint16_t interPort = parsePort(argv[4]);
+      IntermediaryNode node(interPort, localIp, localPort);
+      node.start();
+
+      // Mantener proceso vivo
+      while (!stopFlag) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      }
+
+    } else if (type == "arduino") {
+      if (argc < 4) {
+          std::cerr << "Uso: ./Arduino_Node <IP_NODO_MAESTRO> <PUERTO> [SERIAL_PATH|stdin|simulate] [format=json|binary|both]\n";
+          return 1;
+      }
+
+      std::string masterIP = argv[2];
+      int masterPort = parsePort(argv[3]);
+      std::string serialPath = "";
+      std::string mode;
+      if (argc >= 5) serialPath = argv[4];
+      if (argc >= 6) mode = argv[5];
+
+     ArduinoNode node(masterIP, masterPort, serialPath, mode);
+     node.run();
+    } else if (type == "bootstrap") {
+      // Bootstrap puede iniciarse con IP/PORT opcionales: `bootstrap <ip> <port>`
+      std::string bindIp = "0.0.0.0";
+      uint16_t bindPort = 8080;
+      if (argc >= 4) {
+        bindIp = argv[2];
+        bindPort = parsePort(argv[3]);
+      }
+
+      Bootstrap server(bindIp, bindPort);
+
+      // Registrar adaptadores para nodos comunes (IDs por convención)
+      // ID 1: ProxyNode (escucha 9000), reenvía a Auth=7000 y Master=6000
+      {
+        auto p = makeProxyAdapter("0.0.0.0", 9000, "0.0.0.0", 7000, "127.0.0.1", 6000);
+        server.registerNode(1, p.first, p.second);
+      }
+
+      // ID 2: StorageNode (puerto 9001), master en 127.0.0.1:6000
+      {
+        auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "../src/model/data/registers.bin");
+        server.registerNode(2, p.first, p.second);
+      }
+
+      // ID 3: IntermediaryNode (escucha 9002), master 127.0.0.1:6000
+      {
+        auto p = makeIntermediaryAdapter("0.0.0.0", 9002, 6000);
+        server.registerNode(3, p.first, p.second);
+      }
+
+      // ID 4: AuthUDPServer (escucha 7000)
+      {
+        auto p = makeAuthAdapter("0.0.0.0", 7000);
+        server.registerNode(4, p.first, p.second);
+      }
+
+      // ID 5: ArduinoNode (simulado) enviando a master 127.0.0.1:6000
+      {
+        auto p = makeArduinoAdapter("0.0.0.0", 9002, "/dev/ttyACM0", "binary");
+        server.registerNode(5, p.first, p.second);
+      }
+
+      // ID 6: CriticalEventsNode (escucha 7001) -> guarda en data/events.log
+      {
+        auto p = makeEventsAdapter("0.0.0.0", 6001, "logs.txt", "127.0.0.1", 6000);
+        server.registerNode(6, p.first, p.second);
+      }
+
+      // ID 0: SafeSpaceServer (master) — permite levantar el servidor maestro
+      // por defecto enlazará en 127.0.0.1:6000 y asumirá que Storage, Events
+      // y Proxy usan los puertos por convención usados arriba.
+      {
+        auto p = makeMasterAdapter("127.0.0.1", 6000,
+                                   "0.0.0.0", 9001,
+                                   "0.0.0.0", 6001,
+                                   "0.0.0.0", 9000);
+        server.registerNode(0, p.first, p.second);
+      }
+
+      // Run bootstrap in background so we can control nodes interactively
+      std::thread serverThread([&server]() {
+        server.serveBlocking();
+      });
+
+      std::cout << "Bootstrap interactive menu started. Commands: list | start <id> | stop <id> | quit" << std::endl;
+      std::string line;
+      while (true) {
+        std::cout << "> ";
+        if (!std::getline(std::cin, line)) break;
+        if (line.empty()) continue;
+        if (line == "list") {
+          auto nodes = server.listNodes();
+          std::cout << "Registered nodes:\n";
+          for (auto &p : nodes) {
+            std::cout << "  id=" << int(p.first) << " running=" << (p.second ? "yes" : "no") << std::endl;
+          }
+          continue;
         }
         
         // Para los demás componentes, usamos lógica de archivo de configuración

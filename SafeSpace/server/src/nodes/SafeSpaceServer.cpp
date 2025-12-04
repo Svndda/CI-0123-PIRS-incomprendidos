@@ -4,10 +4,12 @@
 #include <arpa/inet.h>
 #include <cstring>
 #include <iostream>
+#include <algorithm>
 
 #include "sensordata.h"
 #include "../../../common/LogManager.h"
 #include "SensorPacket.h"
+#include "Storage/StorageNode.h"
 #include <GetSensorDataRequest.h>
 #include <DeleteSensorDataRequest.h>
 
@@ -69,15 +71,12 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
   
   // Configurar LogManager para enviar logs a CriticalEventsNode
   auto& logger = LogManager::instance();
+  logger.enableFileLogging("./build/server_security_audit.log");
   logger.configureRemote(eventsIp, eventsPort, "SafeSpaceServer");
   logger.info("SafeSpaceServer logging system initialized");
-  // Start critical events node on a nearby port (port+1) to collect logs from nodes
+  logger.ipAddress("MASTER:" + ip + ":" + std::to_string(port));
+
   try {
-    // uint16_t critPort = static_cast<uint16_t>(port + 1);
-    // criticalEventsNode_ = new CriticalEventsNode(critPort);
-    // criticalThread_ = std::thread([this]() {
-    //   if (criticalEventsNode_) criticalEventsNode_->serveBlocking();
-    // });
     if (!storageNode.client) {
       storageNode.client = new UDPClient(storageNode.ip, storageNode.port);
       std::cout << "[SafeSpaceServer] Created Storage UDP client to "
@@ -92,19 +91,15 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
     std::cout << "SafeSpaceServer: started CriticalEventsNode on port " << (port + 1) << std::endl;
     this->runInternalTests();
   } catch (const std::exception &ex) {
-    std::cerr << "SafeSpaceServer: failed to start CriticalEventsNode: " << ex.what() << std::endl;
+    std::cerr << "SafeSpaceServer: failed to initialize UDP clients: " << ex.what() << std::endl;
   }
 }
 
 SafeSpaceServer::~SafeSpaceServer() {
-  // stop critical events node if running
-  if (criticalEventsNode_) {
-    criticalEventsNode_->stop();
-    // UDPServer::stop signals serveBlocking to finish; join thread
-    if (criticalThread_.joinable()) criticalThread_.join();
-    delete criticalEventsNode_;
-    criticalEventsNode_ = nullptr;
-  }
+  // Gracefully stop master-side logging
+  auto& logger = LogManager::instance();
+  logger.info("Server shutting down - Security logging ended");
+  logger.disableFileLogging();
 }
 
 sockaddr_in SafeSpaceServer::makeSockaddr(const std::string& ip, uint16_t port) {
@@ -132,6 +127,37 @@ void SafeSpaceServer::clearDiscoverTargets() {
 void SafeSpaceServer::onReceive(
   const sockaddr_in& peer, const uint8_t* data,
   ssize_t len, std::string& out_response) {
+  // Procesamiento especial para lotes de logs enviados por CriticalEventsNode
+  if (len >= 9 && std::memcmp(data, "LOG_BATCH", 9) == 0) {
+    const std::string batch(reinterpret_cast<const char*>(data), static_cast<size_t>(len));
+    const std::size_t newlinePos = batch.find('\n');
+    const std::string logs = (newlinePos == std::string::npos) ? std::string{} : batch.substr(newlinePos + 1);
+
+    if (logs.empty()) {
+      LogManager::instance().warning("SafeSpaceServer received empty LOG_BATCH payload");
+      return;
+    }
+
+    if (!storageNode.client) {
+      LogManager::instance().error("SafeSpaceServer has no StorageNode client for LOG_BATCH forwarding");
+      return;
+    }
+
+    std::string payload;
+    payload.reserve(1 + logs.size());
+    payload.push_back(static_cast<char>(MessageType::STORE_BITACORA));
+    payload.append(logs);
+
+    try {
+      storageNode.client->sendRaw(payload.data(), payload.size());
+      std::cout << "[SafeSpaceServer] Forwarded LOG_BATCH to StorageNode with "
+                << std::count(logs.begin(), logs.end(), '\n') << " entries" << std::endl;
+    } catch (const std::exception& ex) {
+      LogManager::instance().error(std::string("SafeSpaceServer failed to forward LOG_BATCH: ") + ex.what());
+    }
+    return;
+  }
+
   // Verificar si es un log del LogManager (empieza con "LOG")
   if (len >= 5 && data[0] == 'L' && data[1] == 'O' && data[2] == 'G') {
     // Es un log del AuthNode, reenviarlo al master
@@ -145,11 +171,17 @@ void SafeSpaceServer::onReceive(
       std::string nodeName(reinterpret_cast<const char*>(data + 5), nodeNameLen);
       std::string message(reinterpret_cast<const char*>(data + 5 + nodeNameLen), len - 5 - nodeNameLen);
 
-      // Reenviar log al master con prefijo [FROM_AUTH]
-      auto logLevel = static_cast<LogLevel>(level);
-      logger.log(logLevel, "[FROM_" + nodeName + "] " + message);
-
-      std::cout << "[SafeSpaceServer] Forwarded log from " << nodeName << " to CriticalEventsNode" << std::endl;
+      // Reenviar log al master con prefijo [FROM_<nodeName>]
+      LogLevel logLevel = static_cast<LogLevel>(level);
+      // Evitar reenvío recursivo si el mensaje ya contiene el prefijo
+      std::string marker = "[FROM_" + nodeName + "]";
+      if (message.find(marker) == std::string::npos) {
+        logger.log(logLevel, "[FROM_" + nodeName + "] " + message);
+        std::cout << "[SafeSpaceServer] Forwarded log from " << nodeName << " to CriticalEventsNode" << std::endl;
+      } else {
+        // Mensaje ya fue reenviado anteriormente; descartarlo para evitar bucle
+        std::cout << "[SafeSpaceServer] Dropping recursive forwarded log from " << nodeName << std::endl;
+      }
     }
     return; // No generar respuesta para logs
   }
