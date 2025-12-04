@@ -557,12 +557,11 @@ void ProxyNode::handleAuthResponse(const uint8_t *buffer, size_t length) {
         LogManager::instance().info("Client authenticated and registered for CONNECT_REQUEST (sessionId=" +
                           std::to_string(sessionId) + ")");
 
-  // Remove from pending clients after response is delivered
-  {
-    std::lock_guard<std::mutex> lock(clientsMutex);
-    pendingClients.erase(sessionId);
-  }
-}
+        // Remove from pending clients after response is delivered
+        {
+          std::lock_guard<std::mutex> lock(clientsMutex);
+          pendingClients.erase(sessionId);
+        }
 
       } catch (const std::exception& ex) {
         LogManager::instance().error(std::string("Failed to register authenticated client (sessionId=") +
@@ -578,6 +577,8 @@ void ProxyNode::handleAuthResponse(const uint8_t *buffer, size_t length) {
     LogManager::instance().info("Forwarded AUTH_RESPONSE sessionId=" + std::to_string(sessionId));
   } else {
     LogManager::instance().warning("No pending client for AUTH_RESPONSE sessionId=" + std::to_string(sessionId));
+  }
+}
     
 void ProxyNode::handleGetSystemUsersResponse(const uint8_t *buffer, size_t length) {
   if (length != sizeof(GetSystemUsersResponse)) {
