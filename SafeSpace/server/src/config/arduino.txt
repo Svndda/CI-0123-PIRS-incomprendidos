@@ -1,0 +1,20 @@
+# Arduino Node Configuration
+# Simulates or connects to Arduino devices
+
+master_ip=172.16.123.100
+master_port=8080
+serial_path=simulate
+mode=binary
+
+# Simulation settings
+simulation_interval=2000  # 2 seconds
+min_temperature=20.0
+max_temperature=35.0
+min_distance=10.0
+max_distance=100.0
+
+# Real device settings (if using actual Arduino)
+# baud_rate=9600
+# data_bits=8
+# stop_bits=1
+# parity=none

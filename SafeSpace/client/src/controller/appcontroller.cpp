@@ -52,7 +52,7 @@ void AppController::setupConnections() {
   );  
   // Hides/Disables the pages buttons.
   this->setButtonsState(false);
-  this->userAuthenticated();  
+  // this->userAuthenticated();  
 }
 
 void AppController::setButtonsState(bool state) {
