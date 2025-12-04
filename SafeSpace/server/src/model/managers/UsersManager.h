@@ -6,13 +6,11 @@
 #include <cstdint>
 #include "user.h"
 #include "FileSystem.h"
-#include "RAID1Manager.h"
 
 class UsersManager {
 private:
   std::vector<User> users;
   FileSystem& fileSystem;
-  RAID1Manager raid1Manager;
   std::string userFile = "UserList";
 public:
   UsersManager(FileSystem& fs);
@@ -30,9 +28,6 @@ public:
   bool deleteUser(const std::string& username);
   bool updateUser(const std::string& username, const User& updatedUser);
   User findUser(const std::string& username);
-
-  void checkRAIDStatus();
-  bool rebuildRAIDIfNeeded();
 private:
   void saveAllToFile();
 };
