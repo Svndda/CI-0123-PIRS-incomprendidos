@@ -11,7 +11,7 @@
 #include "Arduino/Arduino_Node.h"
 #include "Auth/auth_udp_server.h"
 #include "Bootstrap/Bootstrap.h"
-#include "Bootstrap/BootstrapAdapters.h"  // ¡IMPORTANTE! Incluir esto
+#include "Bootstrap/BootstrapAdapters.h"  
 #include "Intermediary/IntermediaryNode.h"
 #include "Storage/StorageNode.h"
 
@@ -500,4 +500,5 @@ int main(const int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
+
 }
