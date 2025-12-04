@@ -5,6 +5,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <regex>
 
 #include "user.h"
 #include "../../model/structures/authenticationrequest.h"
@@ -12,15 +13,6 @@
 #include "../interfaces/UDPServer.h"
 #include "../model/structures/GetSystemUsersRequest.h"
 #include "../model/structures/GetSystemUsersResponse.h"
-
-// struct User {
-//     std::string username;
-//     std::string password_hash;
-//     std::string group;
-//     int permissions;
-//     int failed_attempts;
-//     bool is_locked;
-// };
 
 class AuthUDPServer : public UDPServer {
 private:
@@ -35,6 +27,12 @@ public:
 
     bool addUser(const std::string& username, const std::string& password, 
                  const std::string& group, int permissions);
+    
+    // Nuevo método para mostrar formato de contraseña
+    static std::string getPasswordFormatDescription();
+    
+    // Nuevo método para verificar formato de contraseña
+    static bool validatePasswordFormat(const std::string& password);
 
 protected:
     void onReceive(const sockaddr_in& peer, const uint8_t* data, ssize_t len,
@@ -42,7 +40,6 @@ protected:
 
 private:
     void loadDefaultUsers();
-    std::string hashPassword(const std::string& password);
     std::string generateSessionID();
     void handleDiscover(const sockaddr_in& peer, const uint8_t* data, ssize_t len, 
                        std::string& out_response);

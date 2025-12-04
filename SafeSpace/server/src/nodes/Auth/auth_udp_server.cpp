@@ -9,6 +9,7 @@
 #include <cstring>
 #include <openssl/sha.h>
 #include <arpa/inet.h>
+#include <regex>
 
 // Estructuras para mensajes DISCOVER 
 #pragma pack(push, 1)
@@ -26,6 +27,14 @@ struct DiscoverResponse {
 
 AuthUDPServer::AuthUDPServer(const std::string& ip, uint16_t port)
     : UDPServer(ip, port, 1024) {
+    
+    // Mostrar formato de contraseña requerido al iniciar
+    std::cout << "\n" << std::string(50, '=') << std::endl;
+    std::cout << "NODO DE AUTENTICACIÓN - FORMATO DE CONTRASEÑAS" << std::endl;
+    std::cout << std::string(50, '=') << std::endl;
+    std::cout << getPasswordFormatDescription() << std::endl;
+    std::cout << std::string(50, '=') << std::endl << std::endl;
+    
     loadDefaultUsers();
     std::cout << " AuthUDPServer iniciado en puerto UDP " << port << std::endl;
 }
@@ -34,15 +43,101 @@ AuthUDPServer::~AuthUDPServer() {
     stop();
 }
 
-void AuthUDPServer::loadDefaultUsers() {
-    addUser("realAdmin", "M2sv8KxpLq", "system_admin", 7);
-    addUser("audiTT", "gH5pxL9pQ", "auditor", 5);
-    addUser("dataAdmin", "N7vbq2R0", "data_admin", 6);
-    addUser("guestAA", "aB7nyZt9Qw1", "guest", 4);
+// Método para obtener descripción del formato de contraseña
+std::string AuthUDPServer::getPasswordFormatDescription() {
+    std::stringstream ss;
+    ss << "La contraseña debe cumplir con los siguientes requisitos:\n";
+    ss << "1. Mínimo 8 caracteres\n";
+    ss << "2. Al menos una letra mayúscula\n";
+    ss << "3. Al menos un número (0-9)\n";
+    ss << "4. Al menos un símbolo (!@#$%^&*()_+-=[]{}|;:,.<>?)\n";
+    ss << "5. Puede incluir letras minúsculas\n";
+    ss << "\nEjemplos válidos: P@ssw0rd!, Secur3#123, MyP@ss123";
+    return ss.str();
+}
+
+// Método para validar formato de contraseña
+bool AuthUDPServer::validatePasswordFormat(const std::string& password) {
+    // Verificar longitud mínima
+    if (password.length() < 8) {
+        std::cout << "   La contraseña debe tener al menos 8 caracteres" << std::endl;
+        return false;
+    }
     
-    std::cout << " Usuarios cargados:" << std::endl;
-    for (const auto& user : users) {
-        std::cout << "   - " << user.first << " (" << user.second.getGroup() << ")" << std::endl;
+    // Verificar al menos una mayúscula
+    bool hasUpperCase = false;
+    bool hasLowerCase = false;
+    bool hasDigit = false;
+    bool hasSymbol = false;
+    
+    // Definir símbolos permitidos
+    const std::string symbols = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+    
+    for (char c : password) {
+        if (std::isupper(c)) hasUpperCase = true;
+        else if (std::islower(c)) hasLowerCase = true;
+        else if (std::isdigit(c)) hasDigit = true;
+        else if (symbols.find(c) != std::string::npos) hasSymbol = true;
+    }
+    
+    // Verificar todos los requisitos
+    if (!hasUpperCase) {
+        std::cout << "   La contraseña debe contener al menos una letra mayúscula" << std::endl;
+    }
+    if (!hasDigit) {
+        std::cout << "   La contraseña debe contener al menos un número" << std::endl;
+    }
+    if (!hasSymbol) {
+        std::cout << "   La contraseña debe contener al menos un símbolo" << std::endl;
+    }
+    
+    return hasUpperCase && hasDigit && hasSymbol;
+}
+
+void AuthUDPServer::loadDefaultUsers() {
+    std::cout << "Cargando usuarios por defecto..." << std::endl;
+    
+    // Contraseñas que cumplen con el formato requerido
+    std::vector<std::tuple<std::string, std::string, std::string, int>> defaultUsers = {
+        {"realAdmin", "M2sv8KxpLq!", "system_admin", 7},      // 10 chars, mayúscula M, número 2, símbolo !
+        {"audiTT", "gH5pxL9pQ@", "auditor", 5},              // 9 chars, mayúscula H y Q, número 5 y 9, símbolo @
+        {"dataAdmin", "N7vbq2R0#", "data_admin", 6},         // 8 chars, mayúscula N y R, número 7,2,0, símbolo #
+        {"guestAA", "aB7nyZt9Qw1$", "guest", 4}             // 11 chars, mayúscula B y Z, número 7,9,1, símbolo $
+    };
+    
+    int loadedCount = 0;
+    int failedCount = 0;
+    
+    for (const auto& user : defaultUsers) {
+        const auto& [username, password, group, permissions] = user;
+        
+        std::cout << "\nVerificando usuario: " << username << std::endl;
+        std::cout << "Contraseña: " << password << std::endl;
+        
+        if (validatePasswordFormat(password)) {
+            if (addUser(username, password, group, permissions)) {
+                std::cout << "   Usuario '" << username << "' cargado exitosamente" << std::endl;
+                loadedCount++;
+            } else {
+                std::cout << "   Error al cargar usuario '" << username << "'" << std::endl;
+                failedCount++;
+            }
+        } else {
+            std::cout << "   Contraseña no cumple formato para usuario '" << username << "'" << std::endl;
+            failedCount++;
+        }
+    }
+    
+    std::cout << "\nResumen de carga de usuarios:" << std::endl;
+    std::cout << "  Cargados exitosamente: " << loadedCount << std::endl;
+    std::cout << "  Fallidos: " << failedCount << std::endl;
+    
+    if (loadedCount > 0) {
+        std::cout << "\nUsuarios disponibles:" << std::endl;
+        std::lock_guard<std::mutex> lock(users_mutex);
+        for (const auto& user : users) {
+            std::cout << "  - " << user.first << " (" << user.second.getGroup() << ")" << std::endl;
+        }
     }
 }
 
@@ -50,15 +145,27 @@ bool AuthUDPServer::addUser(const std::string& username, const std::string& pass
                            const std::string& group, int permissions) {
     std::lock_guard<std::mutex> lock(users_mutex);
     
+    // Verificar si el usuario ya existe
     if (users.find(username) != users.end()) {
+        std::cout << "   El usuario '" << username << "' ya existe" << std::endl;
         return false;
     }
     
+    // Validar formato de contraseña
+    std::cout << "\nValidando formato de contraseña para '" << username << "'..." << std::endl;
+    if (!validatePasswordFormat(password)) {
+        std::cout << "   Formato de contraseña inválido para usuario '" << username << "'" << std::endl;
+        return false;
+    }
+    
+    // Generar hash de la contraseña
     std::string password_hash = User::hashSHA256(password);
 
+    // Crear y almacenar usuario
     const User new_user(username, password_hash, group, permissions);
-    
     users[username] = new_user;
+    
+    std::cout << "   Usuario '" << username << "' agregado exitosamente" << std::endl;
     return true;
 }
 
