@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "model/managers/UsersManager.h"
-#include "model/filesystem/FileSystem.h"
+#include "model/filesystem/Raid1FileSystem.h"
 
 /**
  * @class Model
@@ -21,9 +21,9 @@ class Model {
   Model& operator=(const Model&) = delete;
 
 private:
-  const std::string UNITY_PATH = "data/unity.bin";
+  const std::string UNITY_PATH = "data/unity";
   bool started = false;       ///< Flag indicating if the model has been started.
-  FileSystem filesystem;
+  Raid1FileSystem raidFS;
   UsersManager usersManager;
 private:
   /**

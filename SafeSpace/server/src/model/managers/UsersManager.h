@@ -5,15 +5,15 @@
 #include <ctime>
 #include <cstdint>
 #include "user.h"
-#include "FileSystem.h"
+#include "Raid1FileSystem.h"
 
 class UsersManager {
 private:
   std::vector<User> users;
-  FileSystem& fileSystem;
+  Raid1FileSystem& fileSystem;
   std::string userFile = "UserList";
 public:
-  UsersManager(FileSystem& fs);
+  UsersManager(Raid1FileSystem& fs);
   ~UsersManager();
   
 public: ///> Getters

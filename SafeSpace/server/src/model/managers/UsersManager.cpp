@@ -1,11 +1,9 @@
 #include "UsersManager.h"
-
 #include <algorithm>
 
-UsersManager::UsersManager(FileSystem& fs) : fileSystem(fs) {
-  // Leer contenido actual del archivo
+UsersManager::UsersManager(Raid1FileSystem& fs) : fileSystem(fs) {
+  // Read current file content
   this->fileSystem.openFile(this->userFile);
-  
   loadUsers();
 }
 
@@ -27,13 +25,16 @@ bool UsersManager::saveUser(const User& user) {
   // Append new serialized user to file
   std::string current = this->fileSystem.read(this->userFile);
   current += user.serialize();
-  this->fileSystem.write(this->userFile, current);
-  
+
+  if (!this->fileSystem.write(this->userFile, current)) {
+    std::cout << "Failed to persist user.";
+    return false;
+  }
+
   users.push_back(user);
   std::cout << "User saved successfully:" << user.getUsername();
   return true;
 }
-
 
 void UsersManager::loadUsers(){
   std::string data = this->fileSystem.read(this->userFile);
@@ -59,7 +60,6 @@ void UsersManager::loadUsers(){
   std::cout << "Users loaded successfully:" << this->users.size();
 }
     
- 
 bool UsersManager::authenticate(const std::string& username,
   const std::string& password) {
   auto it = std::remove_if(
