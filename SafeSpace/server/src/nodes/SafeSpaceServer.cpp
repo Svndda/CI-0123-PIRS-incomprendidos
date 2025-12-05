@@ -66,7 +66,7 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
                                  const std::string& storageIp, const uint16_t storagePort,
                                  const std::string& eventsIp, const uint16_t eventsPort,
                                  const std::string& proxyIp, const uint16_t proxyPort)
-  : UDPServer(ip, port, 2048)
+  : UDPServer(ip, port, 65535)
   , storageNode(nullptr, storageIp, storagePort)
   , eventsNode(nullptr, eventsIp, eventsPort)
   , proxyNode(nullptr, proxyIp, proxyPort) {
@@ -92,7 +92,7 @@ SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
                 << proxyNode.ip << ":" << proxyNode.port << std::endl;
     }
     std::cout << "SafeSpaceServer: started CriticalEventsNode on port " << (port + 1) << std::endl;
-    this->runInternalTests();
+    // this->runInternalTests();
   } catch (const std::exception &ex) {
     std::cerr << "SafeSpaceServer: failed to initialize UDP clients: " << ex.what() << std::endl;
   }
@@ -297,7 +297,23 @@ void SafeSpaceServer::onReceive(
     }
 
     try {
-      storageNode.client->sendRaw(pkt, sizeof(GetSensorDataRequest));
+      // storageNode.client->sendRaw(pkt, sizeof(GetSensorDataRequest));
+
+      sockaddr_in storageAddr = makeSockaddr(storageNode.ip, storageNode.port);
+
+      ssize_t sent = ::sendto(
+        sockfd_,                                   // ✅ MISMO SOCKET DEL SERVER
+        pkt,
+        sizeof(GetSensorDataRequest),
+        0,
+        reinterpret_cast<sockaddr*>(&storageAddr),
+        sizeof(storageAddr)
+      );
+
+      if (sent < 0) {
+        std::cerr << "[SafeSpaceServer] sendto(Storage) failed: "
+                  << std::strerror(errno) << std::endl;
+      }
     } catch (const std::exception& ex) {
       std::cerr << "[SafeSpaceServer] Exception al reenviar SENSOR_PACKET: "
                 << ex.what() << std::endl;
@@ -309,7 +325,7 @@ void SafeSpaceServer::onReceive(
     return;
   }
 
-  if (len == sizeof(GetSensorDataResponse)) {
+  if (data[0] == GetSensorDataResponse::MSG_ID) {
     auto resp = GetSensorDataResponse::fromBytes(data, len);
 
     if (resp.status != 0 || resp.payload.size() > 0) { // Respuesta válida
@@ -335,19 +351,20 @@ void SafeSpaceServer::onReceive(
         }
       }
 
-      if (found) {
-        try {
-          // Reenviar al cliente original (ProxyNode)
-          proxyNode.client->sendRaw(data, len);
-          std::cout << "[SafeSpaceServer] Respuesta reenviada al cliente original" << std::endl;
-        } catch (const std::exception& ex) {
-          std::cerr << "[SafeSpaceServer] Error reenviando respuesta: "
-                    << ex.what() << std::endl;
-        }
-      } else {
-        std::cout << "[SafeSpaceServer] No se encontró cliente para sessionId="
-                  << resp.sessionId << std::endl;
-      }
+      proxyNode.client->sendRaw(data, len);
+
+      // if (found) {
+      //   try {
+      //     // Reenviar al cliente original (ProxyNode)
+      //     std::cout << "[SafeSpaceServer] Respuesta reenviada al cliente original" << std::endl;
+      //   } catch (const std::exception& ex) {
+      //     std::cerr << "[SafeSpaceServer] Error reenviando respuesta: "
+      //               << ex.what() << std::endl;
+      //   }
+      // } else {
+      //   std::cout << "[SafeSpaceServer] No se encontró cliente para sessionId="
+      //             << resp.sessionId << std::endl;
+      // }
 
       out_response = "ACK_GET_SENSOR_RESPONSE";
       return;
