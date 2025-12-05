@@ -5,6 +5,8 @@
 #include <cstring>
 #include <iostream>
 #include <algorithm>
+#include <vector>
+#include <sys/time.h>
 
 #include "sensordata.h"
 #include "../../../common/LogManager.h"
@@ -14,6 +16,8 @@
 #include <DeleteSensorDataRequest.h>
 
 enum class LogLevel;
+constexpr uint8_t QUERY_BY_DATE = 0x01;
+constexpr uint8_t QUERY_BY_SENSOR = 0x02;
 
 void SafeSpaceServer::runInternalTests() {
   std::cout << "[SafeSpaceServer] Running internal StorageNode tests...\n";
@@ -266,6 +270,17 @@ void SafeSpaceServer::onReceive(
     return;
   }
 
+  // Queries routed to StorageNode (DATE or SENSOR)
+  if ((len == 17 || len == 18) &&
+      (data[0] == QUERY_BY_DATE || data[0] == QUERY_BY_SENSOR)) {
+    if (forwardSensorQueryToStorage(data, len, out_response)) {
+      return;
+    }
+    std::cerr << "[SafeSpaceServer] Failed to forward sensor query to storage" << std::endl;
+    out_response = "QUERY_ERROR";
+    return;
+  }
+
   if (len == sizeof(GetSensorDataRequest)) {
     const auto* pkt = reinterpret_cast<const GetSensorDataRequest*>(data);
     // Obtener IP y puerto del remitente
@@ -443,6 +458,61 @@ void SafeSpaceServer::onReceive(
 
   // Fallback: let base class behavior handle it (echo)
   UDPServer::onReceive(peer, data, len, out_response);
+}
+
+bool SafeSpaceServer::forwardSensorQueryToStorage(const uint8_t* data,
+                                                  ssize_t len,
+                                                  std::string& out_response) {
+  if (!storageNode.client) {
+    std::cerr << "[SafeSpaceServer] Storage client not initialized" << std::endl;
+    return false;
+  }
+
+  sockaddr_in storageAddr = makeSockaddr(storageNode.ip, storageNode.port);
+
+  ssize_t sent = ::sendto(
+    storageNode.client->getSocketFd(),
+    data,
+    static_cast<size_t>(len),
+    0,
+    reinterpret_cast<const sockaddr*>(&storageAddr),
+    sizeof(storageAddr)
+  );
+
+  if (sent < 0 || sent != len) {
+    std::cerr << "[SafeSpaceServer] sendto storage failed: " << std::strerror(errno) << std::endl;
+    return false;
+  }
+
+  std::vector<uint8_t> buffer(65535);
+  sockaddr_in src{};
+  socklen_t srcLen = sizeof(src);
+  struct timeval tv {2, 0};
+  setsockopt(storageNode.client->getSocketFd(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+  while (std::chrono::steady_clock::now() < deadline) {
+    ssize_t received = ::recvfrom(
+      storageNode.client->getSocketFd(),
+      buffer.data(),
+      buffer.size(),
+      0,
+      reinterpret_cast<sockaddr*>(&src),
+      &srcLen
+    );
+
+    if (received <= 0) continue;
+
+    // Solo aceptar la respuesta de historial
+    if (buffer[0] == static_cast<uint8_t>(MessageType::RESPONSE_SENSOR_HISTORY)) {
+      out_response.assign(reinterpret_cast<const char*>(buffer.data()), received);
+      return true;
+    }
+    // Ignorar ACKs previos rezagados.
+  }
+
+  std::cerr << "[SafeSpaceServer] Timeout waiting storage response: " << std::strerror(errno) << std::endl;
+  return false;
 }
 
 GetSensorDataResponse SafeSpaceServer::sendGetSensorData(uint16_t sensorId, const Token16& token) {

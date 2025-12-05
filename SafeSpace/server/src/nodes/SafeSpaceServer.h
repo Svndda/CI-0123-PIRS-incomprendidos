@@ -83,6 +83,10 @@ private:
   std::map<uint8_t, sockaddr_in> pendingRequesters_{};
   std::mutex pendingMutex_;
 
+  bool forwardSensorQueryToStorage(const uint8_t* data,
+                                   ssize_t len,
+                                   std::string& out_response);
+
   GetSensorDataResponse sendGetSensorData(uint16_t sensorId, const Token16& token);
 
   DeleteSensorDataResponse sendDeleteSensorData(
@@ -91,4 +95,3 @@ private:
 };
 
 #endif // SERVER_SAFESPACESERVER_H
-
