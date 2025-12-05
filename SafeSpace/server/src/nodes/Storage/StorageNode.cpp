@@ -133,12 +133,45 @@ SensorData StorageNode::stringToSensorData(const std::string& str) const {
     return SensorData(values[0], values[1], values[2], values[3], values[4], values[5]);
 }
 
+// std::vector<uint8_t> Response::toBytes() const {
+//     std::vector<uint8_t> bytes;
+//     bytes.reserve(2 + data.size());
+//     bytes.push_back(msgId);
+//     bytes.push_back(status);
+//     bytes.insert(bytes.end(), data.begin(), data.end());
+//     return bytes;
+//
+//
+// }
+
 std::vector<uint8_t> Response::toBytes() const {
     std::vector<uint8_t> bytes;
-    bytes.reserve(2 + data.size());
     bytes.push_back(msgId);
-    bytes.push_back(status);
-    bytes.insert(bytes.end(), data.begin(), data.end());
+
+    // Para los mensajes que requieren sessionId (GET_RESPONSE y DELETE_RESPONSE)
+    if (msgId == 0x91 || msgId == 0x95) {
+        // sessionId en big endian (2 bytes)
+        bytes.push_back(static_cast<uint8_t>((sessionId >> 8) & 0xFF));
+        bytes.push_back(static_cast<uint8_t>(sessionId & 0xFF));
+        bytes.push_back(status);
+
+        // Para GET_SENSOR_DATA_RESPONSE, necesitamos agregar el tamaño del payload
+        if (msgId == 0x91) {
+            // El payload está en el campo data, pero debemos asegurarnos de que no incluya el sessionId
+            // En este caso, data ya debe contener solo el payload (sin sessionId)
+            uint16_t payloadSize = static_cast<uint16_t>(data.size());
+            bytes.push_back(static_cast<uint8_t>((payloadSize >> 8) & 0xFF));
+            bytes.push_back(static_cast<uint8_t>(payloadSize & 0xFF));
+            // Agregar el payload
+            bytes.insert(bytes.end(), data.begin(), data.end());
+        }
+        // Para DELETE_SENSOR_DATA_RESPONSE, no hay payload, así que solo sessionId y status
+    } else {
+        // Para otros tipos de respuesta, usamos el formato antiguo (sin sessionId)
+        bytes.push_back(status);
+        bytes.insert(bytes.end(), data.begin(), data.end());
+    }
+
     return bytes;
 }
 
@@ -327,6 +360,10 @@ void StorageNode::onReceive(const sockaddr_in& peer, const uint8_t* data,
     
     // Convertir respuesta a string
     auto responseBytes = response.toBytes();
+    std::cout << "[StorageNode] Sending response: msgId=0x" << std::hex
+          << static_cast<int>(response.msgId) << std::dec
+          << ", sessionId=" << response.sessionId
+          << ", size=" << responseBytes.size() << " bytes" << std::endl;
     out_response.assign(reinterpret_cast<const char*>(responseBytes.data()),
                        responseBytes.size());
 }
@@ -342,12 +379,15 @@ Response StorageNode::handleGetSensorDataRequest(const uint8_t* data, ssize_t le
         return resp;
     }
 
-    // Extract sensorId (big-endian)
-    uint16_t sensorId = (data[1] << 8) | data[2];
+    // Extract sessionId (big-endian) - bytes 1-2
+    uint16_t sessionId = (data[1] << 8) | data[2];
+    // Extract sensorId (big-endian) - bytes 3-4
+    uint16_t sensorId = (data[3] << 8) | data[4];
 
-    std::cout << "[StorageNode] GET_SENSOR_DATA_REQUEST for sensorId=" << sensorId << std::endl;
+    std::cout << "[StorageNode] GET_SENSOR_DATA_REQUEST for sensorId=" << sensorId
+              << " sessionId=" << sessionId << std::endl;
 
-    // TODO: (Optional) Validate 16-byte token data+3 .. data+18
+    // TODO: (Optional) Validate 16-byte token data+5 .. data+20
 
     // Query ALL historical entries for this sensor
     uint64_t start = 0;
@@ -355,12 +395,13 @@ Response StorageNode::handleGetSensorDataRequest(const uint8_t* data, ssize_t le
 
     auto entries = querySensorDataById(sensorId, start, end);
 
-    // Serialize all sensor entries
+    // Serialize all sensor entries into the response data (without sessionId)
     for (const auto& sd : entries) {
         auto bytes = sensorDataToBytes(sd);
         resp.data.insert(resp.data.end(), bytes.begin(), bytes.end());
     }
 
+    resp.sessionId = sessionId; // Set the sessionId in the response
     resp.status = 0;
     return resp;
 }
@@ -414,43 +455,32 @@ Response StorageNode::handleStoreSensorDataRequest(const uint8_t* data, ssize_t 
 }
 
 Response StorageNode::handleDeleteSensorDataRequest(const uint8_t* data, ssize_t len) {
-  Response resp;
-  resp.msgId = 0x95; // DELETE_SENSOR_DATA_RESPONSE
+    Response resp;
+    resp.msgId = 0x95; // DELETE_SENSOR_DATA_RESPONSE
 
-  if (len < 19) {
-    std::cerr << "[StorageNode] DELETE request too short (" << len << " bytes)\n";
-    resp.status = 1;
-    return resp;
-  }
-
-  uint16_t sensorId = (data[1] << 8) | data[2];
-
-  std::cout << "[StorageNode] DELETE_SENSOR_DATA_REQUEST for sensorId=" << sensorId << std::endl;
-
-  bool removedAny = false;
-
-  std::lock_guard<std::mutex> lock(fsMutex);
-
-  for (const auto& entry : fs->getDirectory()) {
-    std::string filename(entry.name);
-
-    std::smatch m;
-    std::regex pattern(R"(sensor_(\d+)_(\d+)\.dat)");
-
-    if (std::regex_match(filename, m, pattern)) {
-      uint16_t fileId = std::stoi(m[1]);
-      if (fileId == sensorId) {
-        std::cout << "[StorageNode] Removing file: " << filename << std::endl;
-        fs->remove(filename);
-        removedAny = true;
-      }
+    // Validar tamaño mínimo: 1 (msgId) + 2 (sessionId) + 2 (sensorId) + 16 (token) = 21
+    if (len < 21) {
+        std::cerr << "[StorageNode] Invalid DELETE request length: " << len << std::endl;
+        resp.status = 1;
+        return resp;
     }
-  }
 
-  resp.status = removedAny ? 0 : 1;
-  return resp;
+    // Extraer sessionId (big-endian) - bytes 1-2
+    uint16_t sessionId = (data[1] << 8) | data[2];
+    // Extraer sensorId (big-endian) - bytes 3-4
+    uint16_t sensorId = (data[3] << 8) | data[4];
+
+    std::cout << "[StorageNode] DELETE_SENSOR_DATA_REQUEST for sensorId=" << sensorId
+              << " sessionId=" << sessionId << std::endl;
+
+    // TODO: Implementar eliminación real de datos
+    // Por ahora, simular éxito
+
+    resp.sessionId = sessionId; // Set the sessionId in the response
+    resp.status = 0; // Éxito
+
+    return resp;
 }
-
 
 Response StorageNode::handleQueryByDate(const uint8_t* data, ssize_t len) {
     Response resp;

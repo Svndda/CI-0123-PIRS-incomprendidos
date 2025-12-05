@@ -43,6 +43,7 @@ enum class MessageType : uint8_t {
 struct Response {
     uint8_t msgId;
     uint8_t status;
+    uint16_t sessionId;
     std::vector<uint8_t> data;
 
     std::vector<uint8_t> toBytes() const;

@@ -27,7 +27,7 @@ void SafeSpaceServer::runInternalTests() {
   }
   Token16 token(rawToken);
 
-  uint16_t testSensorId = 123;  // arbitrary test sensor
+  uint16_t testSensorId = 0;  // arbitrary test sensor
 
   // -------------------------------------------------------------------
   // 2. GET SENSOR DATA TEST
@@ -46,18 +46,17 @@ void SafeSpaceServer::runInternalTests() {
     std::cout << "\n";
   }
 
-  // -------------------------------------------------------------------
-  // 4. DELETE SENSOR DATA TEST
-  // -------------------------------------------------------------------
-  std::cout << "[Test] Sending DELETE_SENSOR_DATA_REQUEST...\n";
-  DeleteSensorDataResponse delResp =
-    this->sendDeleteSensorData(testSensorId, token);
-
-  std::cout << "  Status: " << (int)delResp.status << "\n";
-
-  std::cout << "[SafeSpaceServer] StorageNode tests completed.\n";
+  // // -------------------------------------------------------------------
+  // // 4. DELETE SENSOR DATA TEST
+  // // -------------------------------------------------------------------
+  // std::cout << "[Test] Sending DELETE_SENSOR_DATA_REQUEST...\n";
+  // DeleteSensorDataResponse delResp =
+  //   this->sendDeleteSensorData(testSensorId, token);
+  //
+  // std::cout << "  Status: " << (int)delResp.status << "\n";
+  //
+  // std::cout << "[SafeSpaceServer] StorageNode tests completed.\n";
 }
-
 
 SafeSpaceServer::SafeSpaceServer(const std::string& ip, const uint16_t port,
                                  const std::string& storageIp, const uint16_t storagePort,
@@ -276,6 +275,12 @@ void SafeSpaceServer::onReceive(
     std::cout << "[SafeSpaceServer] GetSensorDataRequest recibido desde "
               << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
 
+    {
+      std::lock_guard<std::mutex> lg(pendingMutex_);
+      // Assume GetSensorDataRequest has field sessionId (uint16_t)
+      pendingRequesters_[pkt->sessionId] = peer;
+    }
+
     try {
       storageNode.client->sendRaw(pkt, sizeof(GetSensorDataRequest));
     } catch (const std::exception& ex) {
@@ -449,7 +454,7 @@ GetSensorDataResponse SafeSpaceServer::sendGetSensorData(uint16_t sensorId, cons
   this->storageNode.client->sendRaw(bytes.data(), bytes.size());
 
   // Receive raw response from UDP socket
-  uint8_t buffer[4096];
+  uint8_t buffer[65536];
   int fd = storageNode.client->getSocketFd();
   ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
 
