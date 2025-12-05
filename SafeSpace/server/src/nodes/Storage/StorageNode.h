@@ -3,7 +3,7 @@
 
 #include "../interfaces/UDPServer.h"
 #include "../interfaces/UDPClient.h"
-#include "../../model/filesystem/FileSystem.h"
+#include "../../model/filesystem/Raid1FileSystem.h"
 #include "../../common/LogManager.h"
 #include "../../model/structures/sensordata.h"
 #include <string>
@@ -82,7 +82,7 @@ class StorageNode: public UDPServer {
     std::string nodeId;
     std::string diskPath;
 
-    FileSystem* fs;
+    Raid1FileSystem* fs;
     mutable std::mutex fsMutex;
 
     // Thread para escuchar respuestas del master

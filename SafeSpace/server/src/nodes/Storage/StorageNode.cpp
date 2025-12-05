@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <regex>
 #include <sstream>
+#include "../../model/filesystem/Raid1FileSystem.h"
 
 const size_t BUFFER_SIZE = 65535;
 
@@ -160,15 +161,15 @@ StorageNode::StorageNode(uint16_t storagePort, const std::string& masterServerIp
     std::cout << "[StorageNode] Storage port: " << storagePort << std::endl;
     std::cout << "[StorageNode] Master server: " << masterServerIp 
               << ":" << masterServerPort << std::endl;
-    std::cout << "[StorageNode] Disk path: " << diskPath << std::endl;
+    std::cout << "[StorageNode] Disk path: " << diskPath + ".bin" << std::endl;
     
     try {
-        // Inicializar FileSystem
-        fs = new FileSystem(diskPath);
+        // Initialize RAID1 with primary disk and mirror
+        fs = new Raid1FileSystem(diskPath + ".bin", diskPath + "_mirror.bin");
         if (!fs->isValid()) {
-            throw std::runtime_error("FileSystem initialization failed");
+            throw std::runtime_error("Raid1FileSystem initialization failed");
         }
-        std::cout << "[StorageNode] FileSystem initialized successfully" << std::endl;
+        std::cout << "[StorageNode] Raid1FileSystem initialized successfully" << std::endl;
         
         // Crear cliente para comunicarse con master
         masterClient = new UDPClient(masterServerIp, masterServerPort);
