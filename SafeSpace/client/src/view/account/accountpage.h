@@ -12,12 +12,15 @@ class AccountPage : public Page {
 
 public:
   explicit AccountPage(
-      QWidget *parent = nullptr, Model& model = Model::getInstance()\
+      QWidget *parent = nullptr, Model& model = Model::getInstance()
   );
   ~AccountPage();
 
 private:
   Ui::AccountPage *ui;
+  
+signals:
+  void logout_requested();
 };
 
 #endif // ACCOUNTPAGE_H

@@ -159,6 +159,8 @@ public:
    * @param newGroup
    */
   void setGroup(const std::string& newGroup) {this->group = newGroup;}
+  
+  uint16_t getPermissions() {return this->permissions;}
 };
 
 #endif // USER_H

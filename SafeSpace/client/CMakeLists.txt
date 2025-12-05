@@ -98,6 +98,12 @@ qt_add_executable(SafeSpace
   src/model/network/ConnectResponse.h
   src/model/network/disconnectresponse.h
   src/model/network/connectresponse.h
+  src/model/network/GetSensorDataRequest.h
+  src/model/network/GetSensorDataResponse.h
+  src/model/network/GetSystemUsersRequest.h
+  src/model/network/GetSystemUsersResponse.h
+  src/model/network/Token.h  
+  
   # ../common/LogManager.h ../common/LogManager.cpp
 
 )

@@ -10,8 +10,8 @@
 #include "model.h"
 
 Model::Model()
-  : client("172.17.0.70", 8080, this) {
-  
+  : client("172.17.0.70", 8083, this) {
+    
   this->connect(
       &this->client, &QtUDPClient::sensorDataReceived,
       this, [this](const SensorData& data) {
@@ -19,6 +19,14 @@ Model::Model()
         this->sensorsData.emplace_back(data);
         emit this->sensorDataReceived(data);
       });
+  
+  QObject::connect(
+      &client,
+      &QtUDPClient::systemUsersResponseReceived,
+      this,
+      &Model::onSystemUsersResponseReceived
+      );
+  
   
   this->connect(
       &this->client, &QtUDPClient::authResponseReceived,
@@ -31,10 +39,15 @@ Model::Model()
         
         if (resp.getStatusCode() == 1) {
           this->started = true;
+          this->sessionId = resp.getSessionId();
+          this->token = Token16(resp.getSessionToken());
           this->client.sendConnectRequest(resp.getSessionId());
+          this->client.sendGetSystemUsersRequest(this->sessionId);
+          this->client.sendGetSensorDataRequest(this->sessionId, 0, this->token);
         }
         emit this->authenticatheResponse(this->started);
       });
+  
 }
 
 Model& Model::getInstance() {
@@ -54,6 +67,7 @@ void Model::authenticate(
   // return this->usersManager.authenticate(username, password);
     std::cout << "Autentiando usuarios" << std::endl;
   qDebug() << "Autenticando usuario";
+  this->user = User(username, User::hashSHA256(password), "guest", 4, 0, false);
   this->client.sendAuthRequest(1001, username, User::hashSHA256(password));
 }
 
@@ -67,6 +81,28 @@ bool Model::deleteUser(
   return 1 /*this->usersManager.deleteUser(user.getUsername())*/;
 }
 
+void Model::onSystemUsersResponseReceived(
+    const GetSystemUsersResponse& response) {
+  
+  // Clear vector when first packet arrives
+  if (response.currentIndex == 0) {
+    systemUsers.clear();
+  }
+  
+  // Parse raw UDP response to User entity
+  User user(response.username, "", response.group, response.permissions, 0, false);
+  if (this->user.getUsername() == response.username)
+    this->user = user;
+  std::cout << "Usuario matched" <<std::endl;
+  
+  systemUsers.push_back(user);
+  
+  // If last packet → emit full list
+  if (response.currentIndex == response.totalUsers) {
+    emit systemUsersReceived(systemUsers);
+  }
+}
+
 bool Model::updateUser(
     const std::string& username, const User& updatedUser) {
   return 1 /*this->usersManager.updateUser(username, updatedUser)*/;
@@ -78,3 +114,28 @@ bool Model::saveUser(
   newUser.setPassword(password.toStdString());
   return 1; /*this->usersManager.saveUser(newUser);*/
 }
+
+void Model::reset() {
+  // --- Stop the model execution state ---
+  // This flag controls whether the system is considered authenticated
+  this->started = false;
+  
+  this->sessionId = 0;
+  
+
+  this->token = Token16();
+  
+
+  this->user = User();
+  
+
+  this->systemUsers.clear();
+  this->systemUsers.shrink_to_fit();
+  
+  this->sensorsData.clear();
+  this->sensorsData.shrink_to_fit();
+  
+  
+  qDebug() << "[Model] Full system reset completed.";
+}
+

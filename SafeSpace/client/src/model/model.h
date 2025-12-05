@@ -32,6 +32,9 @@ private:
       = QApplication::applicationDirPath().toStdString() + "\\unity.bin";
   bool started = false;       ///< Flag indicating if the model has been started.
   QtUDPClient client;
+  uint16_t sessionId;
+  std::vector<User> systemUsers;  
+  Token16 token;
   User user = User();
   std::vector<SensorData> sensorsData;
   
@@ -57,6 +60,10 @@ public:  ///< Getters
   inline bool isStarted() { return this->started; }
 
   inline std::vector<SensorData>& getSensorsData() {return this->sensorsData;}
+  
+  inline void sendSystemUsersRequest() {this->client.sendGetSystemUsersRequest(this->sessionId);}
+  
+  inline User getUser() {return this->user;}
   
   // /**
   //  * @brief getPageAccess Checks the user's access to the given page index.
@@ -85,6 +92,21 @@ public:  ///< Functions.
   bool start(/*const User& user*/);
   
   /**
+   * @brief Fully resets the internal state of the application model.
+   *
+   * This method clears:
+   *  - Authentication session
+   *  - Cached users
+   *  - Sensor data buffers
+   *  - Network tokens and session IDs
+   *  - Internal started flag
+   *
+   * After calling this method, the model returns to a clean
+   * pre-authentication state.
+   */
+  void reset();
+  
+  /**
    * @brief Shuts down the POS model.
    *
    * Saves the current product and supply data to backup files and clears internal data.
@@ -106,13 +128,21 @@ public:  ///< Functions.
   bool saveUser(
     const QString &username, const QString &password, const QString &rol);
   
+  inline const std::vector<User>& getSystemUsers() const {
+    return systemUsers;
+  }
+  
   // User findUser(const std::string& username) {
   //   return this->usersManager.findUser(username);
   // };
   
+private slots:
+  void onSystemUsersResponseReceived(const GetSystemUsersResponse& response);
+  
 signals:
   bool authenticatheResponse(bool state);
   SensorData sensorDataReceived(const SensorData);
+  void systemUsersReceived(const std::vector<User>& users);  
 };
 
 #endif // MODEL_H

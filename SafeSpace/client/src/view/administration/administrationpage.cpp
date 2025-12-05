@@ -12,7 +12,7 @@ AdministrationPage::AdministrationPage(
   
   this->ui->pages_layout->addWidget(this->pageStack);
   SystemUsersPage* systemUsersPage = new SystemUsersPage(this->pageStack, this->model);
-  RegistrationPage* registrationPage = new RegistrationPage(this->pageStack, this->model);\
+  RegistrationPage* registrationPage = new RegistrationPage(this->pageStack, this->model);
   
   this->pageStack->addWidget(systemUsersPage);
   this->pageStack->addWidget(registrationPage);
@@ -27,12 +27,12 @@ AdministrationPage::AdministrationPage(
     qDebug() << "Botón clicado!";
   });
   
-  connect(
-    registrationPage,
-    &RegistrationPage::userRegistrationSuccessful,
-    systemUsersPage,
-    &SystemUsersPage::usersModified
-  );
+  // connect(
+  //   registrationPage,
+  //   &RegistrationPage::userRegistrationSuccessful,
+  //   systemUsersPage,
+  //   &SystemUsersPage::usersModified
+  // );
 }
 
 AdministrationPage::~AdministrationPage() {

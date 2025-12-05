@@ -58,7 +58,6 @@ void AppController::setupConnections() {
 void AppController::setButtonsState(bool state) {
   // Enables all the system pages buttons.
   this->ui->arduinosPage_button->setVisible(state);
-  this->ui->nodesPage_button->setVisible(state);
   this->ui->administrationPage_button->setVisible(state);
   this->ui->accountPage_button->setVisible(state);
 }
@@ -67,14 +66,12 @@ void AppController::prepareSystemPages() {
   delete this->pageStack->currentWidget();
   
   // // Creates the different program pages.
-  NodesPage* nodesPage = new NodesPage(this, this->model);
   ArduinosPage* arduinosPage = new ArduinosPage(this, this->model);
   AdministrationPage* administrationPage
       = new AdministrationPage(this, this->model);
   AccountPage* accountPage = new AccountPage(this, this->model);
     
   // // Adds the program pages to the stack of pages.
-  this->pageStack->addWidget(nodesPage);
   this->pageStack->addWidget(arduinosPage);
   this->pageStack->addWidget(administrationPage);
   this->pageStack->addWidget(accountPage);
@@ -82,15 +79,20 @@ void AppController::prepareSystemPages() {
   this->connect(
       this->ui->accountPage_button, &QPushButton::clicked,
       this, [this]() {
-        this->switchPages(3);
+        this->switchPages(2);
         std::cout << "selecionando pagina cuenta" << std::endl;
       }
   );
   
   this->connect(
+      accountPage, &AccountPage::logout_requested,
+      this, &AppController::resetApplicationState
+  );
+  
+  this->connect(
       this->ui->administrationPage_button, &QPushButton::clicked,
       this, [this]() {
-        this->switchPages(2);
+        this->switchPages(1);
         std::cout << "selecionando pagina adminitracion" << std::endl;
       }
   );
@@ -98,16 +100,8 @@ void AppController::prepareSystemPages() {
   this->connect(
       this->ui->arduinosPage_button, &QPushButton::clicked,
       this, [this]() {
-        this->switchPages(1);
-        std::cout << "selecionando pagina sensores" << std::endl;
-      }
-  );
-  
-  this->connect(
-      this->ui->nodesPage_button, &QPushButton::clicked,
-      this, [this]() {
         this->switchPages(0);
-        std::cout << "selecionando pagina visualizadores" << std::endl;
+        std::cout << "selecionando pagina sensores" << std::endl;
       }
   );
   
@@ -132,7 +126,6 @@ void AppController::pageButtonsRefresh(const size_t pageIndex) {
   
   // Vector of the application buttons to move through the pages.
   QVector<QPushButton*> buttons = {
-    this->ui->nodesPage_button,
     this->ui->arduinosPage_button,
     this->ui->administrationPage_button,
     this->ui->accountPage_button
@@ -151,6 +144,32 @@ void AppController::userAuthenticated() {
 }
 
 void AppController::resetApplicationState() {
+  // --- Disable all system navigation buttons ---
+  this->setButtonsState(false);
+  
+  // --- Destroy all existing pages in the stack safely ---
+  while (this->pageStack->count() > 0) {
+    QWidget* page = this->pageStack->widget(0);
+    this->pageStack->removeWidget(page);
+    delete page;
+  }
+  
+  // --- Reset the application model internal state ---
+  // This should clear users, sessions, buffers, etc.
+  this->model.reset();
+  
+  // --- Recreate the login page ---
+  LoginPage* loginPage = new LoginPage(this, this->model);
+  
+  this->pageStack->addWidget(loginPage);
   this->pageStack->setCurrentIndex(0);
+  
+  // --- Reconnect authentication signal ---
+  this->connect(
+      loginPage, &LoginPage::userAuthenticated,
+      this, &AppController::userAuthenticated
+      );
+  
+  qDebug() << "System fully reset. Returned to login state.";
 }
 

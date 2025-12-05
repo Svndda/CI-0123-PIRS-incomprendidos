@@ -9,7 +9,10 @@
 
 #include "model/network/authenticationrequest.h"
 #include "model/network/authenticationresponse.h"
+#include "network/GetSensorDataResponse.h"
+#include "network/GetSystemUsersResponse.h"
 #include "sensordata.h"
+#include "Token.h"
 
 /**
  * @class QtUDPClient
@@ -59,6 +62,10 @@ public:
    */
   void sendConnectRequest(std::uint16_t sessionId);
   
+  void sendGetSystemUsersRequest(uint16_t sessionId);
+  void sendGetSensorDataRequest(uint16_t sessionId, uint16_t sensorId, const Token16& token);
+  void sendDeleteSensorDataRequest(uint16_t sessionId, uint16_t sensorId, const Token16& token);
+  
 signals:
   /**
    * @brief Emitted when an AuthResponse is successfully received and parsed.
@@ -76,6 +83,10 @@ signals:
    * @brief Emitted when a SensorData datagram is successfully parsed.
    */
   void sensorDataReceived(SensorData sensordata);
+  
+  void systemUsersResponseReceived(const GetSystemUsersResponse& response);
+  void getSensorDataResponseReceived(const GetSensorDataResponse& response);
+  // void deleteSensorDataResponseReceived(const DeleteSensorDataResponse& response);
   
   /**
    * @brief Emitted on any socket or protocol error.
@@ -117,6 +128,24 @@ private:
  *
  */
   void handleSensorDataDatagram(
+      const QByteArray &datagram,
+      const QHostAddress &sender,
+      quint16 senderPort
+  );
+  
+  void handleGetSystemUsersResponse(
+      const QByteArray &datagram,
+      const QHostAddress &sender,
+      quint16 senderPort
+  );
+  
+  void handleGetSensorDataResponse(
+      const QByteArray &datagram,
+      const QHostAddress &sender,
+      quint16 senderPort
+  );
+  
+  void handleDeleteSensorDataResponse(
       const QByteArray &datagram,
       const QHostAddress &sender,
       quint16 senderPort

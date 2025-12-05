@@ -8,7 +8,9 @@ AccountPage::AccountPage(QWidget *parent, Model& model) :
   ui->setupUi(this);
   this->connect(this->ui->logout_button, &QPushButton::clicked,
       this, [this]() {
-    // this->model.
+    if (this->askUserConfirmation("¿Cerrar sesión?")) {
+      emit this->logout_requested();
+    }
   });
 }
 
