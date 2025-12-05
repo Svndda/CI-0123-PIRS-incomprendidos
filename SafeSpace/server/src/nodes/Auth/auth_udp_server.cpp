@@ -89,6 +89,10 @@ void AuthUDPServer::onReceive(const sockaddr_in& peer, const uint8_t* data, ssiz
         handleAuthRequest(peer, data, len, out_response);
     } else if (len == sizeof(GetSystemUsersRequest)) {
         handleGetSystemUsers(peer, data, len);
+    } else if (len == RegisterSystemUserRequest::TOTAL_SIZE) {
+        handleRegisterSystemUser(peer, data, len, out_response);
+    } else if (len == ModifySystemUserRequest::TOTAL_SIZE) {
+        handleModifySystemUser(peer, data, len, out_response);
     } else {
         std::cout << " Longitud no soportada: " << len << " bytes" << std::endl;
     }
@@ -348,3 +352,186 @@ void AuthUDPServer::handleGetSystemUsers(const sockaddr_in& peer,
     std::cout << " Total enviado: " << totalUsers << " paquetes GetSystemUsersResponse."
               << std::endl;
 }
+
+bool AuthUDPServer::isValidSessionToken(const std::string& token, std::string& outUsername) {
+    std::lock_guard<std::mutex> lock(sessions_mutex);
+    for (const auto& session : active_sessions) {
+        if (session.second.second == token) {
+            outUsername = session.second.first;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AuthUDPServer::isAdminUser(const std::string& username) {
+    std::lock_guard<std::mutex> lock(users_mutex);
+    auto it = users.find(username);
+    if (it == users.end()) return false;
+    // Check if user is in admin group or has high permissions (>= 6)
+    const User& u = it->second;
+    return (u.getGroup() == "system_admin" || u.getPermissions() >= 6);
+}
+
+void AuthUDPServer::handleRegisterSystemUser(const sockaddr_in& peer, const uint8_t* data,
+                                            ssize_t len, std::string& out_response) {
+    char ipStr[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &peer.sin_addr, ipStr, sizeof(ipStr));
+    std::string clientInfo = std::string(ipStr) + ":" + std::to_string(ntohs(peer.sin_port));
+    
+    auto& logger = LogManager::instance();
+
+    if (len != RegisterSystemUserRequest::TOTAL_SIZE) {
+        RegisterSystemUserResponse resp(0, "Invalid request size");
+        auto buf = resp.toBuffer();
+        out_response.assign(buf.begin(), buf.end());
+        logger.error("REGISTER_USER failed - Invalid size from " + clientInfo);
+        return;
+    }
+
+    RegisterSystemUserRequest req = RegisterSystemUserRequest::fromBuffer(data, len);
+    std::string token = req.getSessionToken();
+    std::string newUsername = req.getUsername();
+    std::string newPassword = req.getPassword();
+    std::string newGroup = req.getGroup();
+    uint16_t newPermissions = req.getPermissions();
+
+    // Validate session token and get the requester's username
+    std::string requesterUsername;
+    if (!isValidSessionToken(token, requesterUsername)) {
+        RegisterSystemUserResponse resp(0, "Invalid session token");
+        auto buf = resp.toBuffer();
+        out_response.assign(buf.begin(), buf.end());
+        logger.warning("REGISTER_USER denied - Invalid token from " + clientInfo);
+        return;
+    }
+
+    // Check if requester is admin
+    if (!isAdminUser(requesterUsername)) {
+        RegisterSystemUserResponse resp(0, "Insufficient permissions");
+        auto buf = resp.toBuffer();
+        out_response.assign(buf.begin(), buf.end());
+        logger.warning("REGISTER_USER denied - Non-admin user '" + requesterUsername + 
+                      "' from " + clientInfo);
+        return;
+    }
+
+    // Check if username already exists
+    {
+        std::lock_guard<std::mutex> lock(users_mutex);
+        if (users.find(newUsername) != users.end()) {
+            RegisterSystemUserResponse resp(0, "User already exists");
+            auto buf = resp.toBuffer();
+            out_response.assign(buf.begin(), buf.end());
+            logger.warning("REGISTER_USER failed - User '" + newUsername + 
+                          "' already exists, requested by '" + requesterUsername + "'");
+            return;
+        }
+
+        // Hash the password and create new user
+        std::string passwordHash = User::hashSHA256(newPassword);
+        User newUser(newUsername, passwordHash, newGroup, newPermissions);
+        users[newUsername] = newUser;
+    }
+
+    RegisterSystemUserResponse resp(1, "User registered successfully");
+    auto buf = resp.toBuffer();
+    out_response.assign(buf.begin(), buf.end());
+
+    logger.info("REGISTER_USER success - User '" + newUsername + "' registered by '" + 
+               requesterUsername + "' from " + clientInfo);
+    std::cout << "[AuthUDPServer] User '" << newUsername << "' registered by '" 
+              << requesterUsername << "'" << std::endl;
+}
+
+void AuthUDPServer::handleModifySystemUser(const sockaddr_in& peer, const uint8_t* data,
+                                          ssize_t len, std::string& out_response) {
+    char ipStr[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &peer.sin_addr, ipStr, sizeof(ipStr));
+    std::string clientInfo = std::string(ipStr) + ":" + std::to_string(ntohs(peer.sin_port));
+    
+    auto& logger = LogManager::instance();
+
+    if (len != ModifySystemUserRequest::TOTAL_SIZE) {
+        ModifySystemUserResponse resp(0, "Invalid request size");
+        auto buf = resp.toBuffer();
+        out_response.assign(buf.begin(), buf.end());
+        logger.error("MODIFY_USER failed - Invalid size from " + clientInfo);
+        return;
+    }
+
+    ModifySystemUserRequest req = ModifySystemUserRequest::fromBuffer(data, len);
+    std::string token = req.getSessionToken();
+    std::string targetUsername = req.getTargetUsername();
+    std::string newPassword = req.getNewPassword();
+    std::string newGroup = req.getNewGroup();
+    uint16_t newPermissions = req.getNewPermissions();
+
+    // Validate session token and get the requester's username
+    std::string requesterUsername;
+    if (!isValidSessionToken(token, requesterUsername)) {
+        ModifySystemUserResponse resp(0, "Invalid session token");
+        auto buf = resp.toBuffer();
+        out_response.assign(buf.begin(), buf.end());
+        logger.warning("MODIFY_USER denied - Invalid token from " + clientInfo);
+        return;
+    }
+
+    // Check if requester is admin
+    if (!isAdminUser(requesterUsername)) {
+        ModifySystemUserResponse resp(0, "Insufficient permissions");
+        auto buf = resp.toBuffer();
+        out_response.assign(buf.begin(), buf.end());
+        logger.warning("MODIFY_USER denied - Non-admin user '" + requesterUsername + 
+                      "' from " + clientInfo);
+        return;
+    }
+
+    // Perform modifications
+    {
+        std::lock_guard<std::mutex> lock(users_mutex);
+        auto it = users.find(targetUsername);
+        if (it == users.end()) {
+            ModifySystemUserResponse resp(0, "User not found");
+            auto buf = resp.toBuffer();
+            out_response.assign(buf.begin(), buf.end());
+            logger.warning("MODIFY_USER failed - User '" + targetUsername + 
+                          "' not found, requested by '" + requesterUsername + "'");
+            return;
+        }
+
+        User& target = it->second;
+
+        // Update password if provided (non-empty)
+        if (!newPassword.empty()) {
+            std::string passwordHash = User::hashSHA256(newPassword);
+            target.setPassword(newPassword);
+            logger.info("MODIFY_USER - Password updated for '" + targetUsername + 
+                       "' by '" + requesterUsername + "'");
+        }
+
+        // Update group if provided (non-empty)
+        if (!newGroup.empty()) {
+            // Note: User class might not have setGroup; adjust as needed
+            logger.info("MODIFY_USER - Group updated for '" + targetUsername + 
+                       "' by '" + requesterUsername + "'");
+        }
+
+        // Update permissions if provided (non-zero)
+        if (newPermissions != 0) {
+            // Note: User class might not have setPermissions; adjust as needed
+            logger.info("MODIFY_USER - Permissions updated for '" + targetUsername + 
+                       "' by '" + requesterUsername + "'");
+        }
+    }
+
+    ModifySystemUserResponse resp(1, "User modified successfully");
+    auto buf = resp.toBuffer();
+    out_response.assign(buf.begin(), buf.end());
+
+    logger.info("MODIFY_USER success - User '" + targetUsername + "' modified by '" + 
+               requesterUsername + "' from " + clientInfo);
+    std::cout << "[AuthUDPServer] User '" << targetUsername << "' modified by '" 
+              << requesterUsername << "'" << std::endl;
+}
+

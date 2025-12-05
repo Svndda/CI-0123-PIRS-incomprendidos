@@ -9,6 +9,10 @@
 #include "user.h"
 #include "../../model/structures/authenticationrequest.h"
 #include "../../model/structures/authenticationresponse.h"
+#include "../../model/structures/RegisterSystemUserRequest.h"
+#include "../../model/structures/RegisterSystemUserResponse.h"
+#include "../../model/structures/ModifySystemUserRequest.h"
+#include "../../model/structures/ModifySystemUserResponse.h"
 #include "../interfaces/UDPServer.h"
 #include "../model/structures/GetSystemUsersRequest.h"
 #include "../model/structures/GetSystemUsersResponse.h"
@@ -51,6 +55,12 @@ private:
     void handleGetSystemUsers(const sockaddr_in& peer,
                                          const uint8_t* data,
                                          ssize_t len);
+    void handleRegisterSystemUser(const sockaddr_in& peer, const uint8_t* data, ssize_t len,
+                                 std::string& out_response);
+    void handleModifySystemUser(const sockaddr_in& peer, const uint8_t* data, ssize_t len,
+                               std::string& out_response);
+    bool isValidSessionToken(const std::string& token, std::string& outUsername);
+    bool isAdminUser(const std::string& username);
 };
 
 #endif
