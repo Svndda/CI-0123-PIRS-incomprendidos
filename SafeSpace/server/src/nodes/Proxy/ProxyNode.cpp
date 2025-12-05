@@ -23,6 +23,7 @@
 const size_t BUFFER_SIZE = 2048;
 constexpr uint8_t QUERY_BY_DATE = 0x01;
 constexpr uint8_t QUERY_BY_SENSOR = 0x02;
+constexpr uint8_t RESPONSE_SENSOR_HISTORY = 0x21;
 
 ProxyNode::ProxyNode(
   const std::string &ip, uint16_t proxyPort,
@@ -389,22 +390,31 @@ void ProxyNode::handleSensorQuery(const sockaddr_in &peer, const uint8_t *data,
   struct timeval tv {2, 0};
   setsockopt(this->masterNode.client->getSocketFd(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-  ssize_t received = ::recvfrom(
-    this->masterNode.client->getSocketFd(),
-    buffer.data(),
-    buffer.size(),
-    0,
-    reinterpret_cast<sockaddr*>(&src),
-    &srcLen
-  );
+  // Descartar datagramas antiguos y quedarse con la respuesta de historial
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+  while (std::chrono::steady_clock::now() < deadline) {
+    ssize_t received = ::recvfrom(
+      this->masterNode.client->getSocketFd(),
+      buffer.data(),
+      buffer.size(),
+      0,
+      reinterpret_cast<sockaddr*>(&src),
+      &srcLen
+    );
 
-  if (received <= 0) {
-    LogManager::instance().warning("Timeout waiting Storage response for SENSOR_QUERY");
-    out_response = "TIMEOUT";
-    return;
+    if (received <= 0) {
+      continue;
+    }
+
+    if (buffer[0] == RESPONSE_SENSOR_HISTORY) {
+      out_response.assign(reinterpret_cast<const char*>(buffer.data()), received);
+      return;
+    }
+    // Ignorar ACKs u otras respuestas rezagadas.
   }
 
-  out_response.assign(reinterpret_cast<const char*>(buffer.data()), received);
+  LogManager::instance().warning("Timeout waiting Storage response for SENSOR_QUERY");
+  out_response = "TIMEOUT";
 }
 
 void ProxyNode::handleLogMessage(const sockaddr_in &peer, const uint8_t *data, ssize_t len) {
