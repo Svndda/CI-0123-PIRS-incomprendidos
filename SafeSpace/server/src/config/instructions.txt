@@ -24,3 +24,12 @@ y estando desde la carpeta del build se usaria
 
 # Bootstrap
 ./server bootstrap ../src/config/bootstrap.txt
+
+# Servidor Principal con firewall
+./server server ../src/config/server-firewall.txt
+
+# Bootstrap con 4 handlers y poder configurarlos
+./server bootstrap ../src/config/bootstrap-dynamic-custom.txt
+
+# Bootstrap con 4 handlres solamente y por defecto
+./server bootstrap ../src/config/bootstrap-dynamic-4handlers.txt

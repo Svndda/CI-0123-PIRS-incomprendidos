@@ -1,0 +1,10 @@
+# Configuración del servidor principal con firewall
+local_ip=0.0.0.0
+local_port=8080
+storage_ip=127.0.0.1
+storage_port=8081
+events_ip=127.0.0.1
+events_port=8082
+proxy_ip=127.0.0.1
+proxy_port=8083
+firewall=true

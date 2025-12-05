@@ -1,0 +1,44 @@
+# Configuración dinámica personalizada - 4 handlers completos
+Bootstrap-id=4
+Ip=0.0.0.0
+port=9090
+
+# Handler 1: Master Server
+node0_type=master
+node0_local_ip=0.0.0.0
+node0_local_port=9190
+node0_storage_ip=127.0.0.1
+node0_storage_port=9191
+node0_events_ip=127.0.0.1
+node0_events_port=9192
+node0_proxy_ip=127.0.0.1
+node0_proxy_port=9193
+
+# Handler 2: Arduino + Intermediario
+node1_type=arduino_intermediary
+node1_master_ip=127.0.0.1
+node1_master_port=9190
+node1_arduino_serial=/dev/ttyUSB0
+node1_arduino_mode=ascii
+node1_inter_port=9194
+
+# Handler 3: Proxy + Auth
+node2_type=proxy_auth
+node2_local_ip=0.0.0.0
+node2_local_port=9195
+node2_auth_ip=127.0.0.1
+node2_auth_port=9196
+node2_master_ip=127.0.0.1
+node2_master_port=9190
+
+# Handler 4: Storage + Events 
+node3_type=storage_events
+node3_storage_local_ip=0.0.0.0
+node3_storage_port=9197
+node3_master_ip=127.0.0.1
+node3_master_port=9190
+node3_node_id=storage1
+node3_disk_path=./storage_data
+node3_events_ip=0.0.0.0
+node3_events_port=9198
+node3_events_output=events.log
