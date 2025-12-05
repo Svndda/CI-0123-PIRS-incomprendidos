@@ -18,6 +18,10 @@
 #include "GetSystemUsersRequest.h"
 #include "GetSystemUsersResponse.h"
 #include "sensordata.h"
+#include "RegisterSystemUserRequest.h"
+#include "RegisterSystemUserResponse.h"
+#include "ModifySystemUserRequest.h"
+#include "ModifySystemUserResponse.h"
 
 const size_t BUFFER_SIZE = 65535;
 
@@ -98,6 +102,59 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
 
     if (len == 50)
       return this->handleAuthRequest(peer, data, len, out_response);
+
+    // RegisterSystemUserRequest or ModifySystemUserRequest (90 bytes)
+    if (len == 90) {
+      LogManager::instance().info("Forwarding user management request (90 bytes) to AuthServer");
+      
+      // Extract sessionToken (first 16 bytes) to use as routing key
+      std::string tokenKey(reinterpret_cast<const char*>(data), 16);
+      
+      {
+        std::lock_guard<std::mutex> lk(clientsMutex);
+        // Store with a special key for user management operations
+        // Using 0xFFFF as a special marker, we'll use the token for routing
+        pendingClients[0xFFFE] = ClientInfo{peer, 0xFF};
+      }
+      
+      try {
+        authNode.client->sendRaw(data, len);
+        LogManager::instance().info("User management request forwarded to AuthServer");
+      } catch (const std::exception& ex) {
+        LogManager::instance().error(std::string("Failed to forward user management request: ") + ex.what());
+      }
+      return;
+    }
+
+    // RegisterSystemUserResponse or ModifySystemUserResponse (35 bytes)
+    // These responses don't include sessionId, so we route to last client who sent a 90-byte request
+    if (len == 35 && data[0] <= 1) {  // statusCode is 0 or 1
+      LogManager::instance().info("User management response received (35 bytes)");
+      
+      ClientInfo clientInfo;
+      bool found = false;
+      {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        auto it = pendingClients.find(0xFFFE);
+        if (it != pendingClients.end()) {
+          clientInfo = it->second;
+          found = true;
+          pendingClients.erase(it);
+        }
+      }
+      
+      if (found) {
+        try {
+          this->sendTo(clientInfo.addr, data, len);
+          LogManager::instance().info("User management response forwarded to client");
+        } catch (const std::exception& ex) {
+          LogManager::instance().error(std::string("Failed to forward user management response: ") + ex.what());
+        }
+      } else {
+        LogManager::instance().warning("User management response received but no pending client found");
+      }
+      return;
+    }
 
     if (msgId == 0x90 && len == 21) {
       const auto* pkt = reinterpret_cast<const GetSensorDataRequest*>(data);
