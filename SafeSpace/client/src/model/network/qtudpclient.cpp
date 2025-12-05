@@ -2,6 +2,8 @@
 #include "connectrequest.h"
 #include "network/GetSensorDataRequest.h"
 #include "network/GetSystemUsersRequest.h"
+#include "disconnectrequest.h"
+#include "disconnectresponse.h"
 #include "sensordata.h"
 
 QtUDPClient::QtUDPClient(
@@ -156,6 +158,19 @@ void QtUDPClient::sendGetSystemUsersRequest(std::uint16_t sessionId) {
   }
 }
 
+void QtUDPClient::sendDisconnectRequest(uint16_t sessionId) {
+  DisconnectRequest req(sessionId);
+  auto buf = req.toBuffer();
+  QByteArray datagram(reinterpret_cast<const char*>(buf.data()),
+                      static_cast<int>(buf.size()));
+  qDebug() << "[QtUDPClient] Sending DISCONNECT_REQUEST sessionId=" << sessionId;
+  qint64 sent = udpSocket->writeDatagram(datagram, serverAddress, serverPort);
+  if (sent < 0) {
+    emit errorOccurred(QString("[QtUDPClient] Failed to send DISCONNECT_REQUEST: %1")
+                           .arg(udpSocket->errorString()));
+  }
+}
+
 void QtUDPClient::handleReadyRead() {
   while (udpSocket->hasPendingDatagrams()) {
     QByteArray datagram;
@@ -177,11 +192,12 @@ void QtUDPClient::handleReadyRead() {
         handleAuthResponseDatagram(datagram, sender, senderPort);
       } else if (msgId == GetSensorDataResponse::MSG_ID) {
         handleGetSensorDataResponse(datagram, sender, senderPort);
-        
       } else if (msgId == 0x21) {
         handleGetSystemUsersResponse(datagram, sender, senderPort);
-      }
-      else if (size == static_cast<int>(sizeof(SensorData))) {
+      } else if (msgId == DisconnectResponse::IDENTIFIER &&
+                 size == static_cast<int>(DisconnectResponse::BUFFER_SIZE)) {
+        handleDisconnectResponse(datagram, sender, senderPort);
+      } else if (size == static_cast<int>(sizeof(SensorData))) {
         handleSensorDataDatagram(datagram, sender, senderPort);
       } else {
         handleUnknownDatagram(datagram, sender, senderPort);
@@ -321,4 +337,26 @@ void QtUDPClient::handleUnknownDatagram(
            << datagram.size() << " bytes)"
            << "from" << sender.toString() << ":" << senderPort
            << "First byte: 0x" << QString::number(static_cast<uint8_t>(datagram[0]), 16);
+}
+
+void QtUDPClient::handleDisconnectResponse(
+    const QByteArray &datagram, const QHostAddress &sender, quint16 senderPort) {
+  Q_UNUSED(sender);
+  Q_UNUSED(senderPort);
+  if (datagram.size() != static_cast<int>(DisconnectResponse::BUFFER_SIZE)) {
+    emit errorOccurred("[QtUDPClient] Invalid DisconnectResponse length");
+    return;
+  }
+
+  std::array<uint8_t, DisconnectResponse::BUFFER_SIZE> buf{};
+  std::memcpy(buf.data(), datagram.constData(), buf.size());
+
+  DisconnectResponse resp;
+  resp.setStatus(buf[1]);
+  resp.setMessage(std::string(reinterpret_cast<char*>(buf.data() + 4),
+                              DisconnectResponse::MESSAGE_SIZE));
+
+  emit disconnectResponseReceived(resp);
+  qDebug() << "[QtUDPClient] DisconnectResponse status=" << resp.getStatus()
+           << " message=" << QString::fromStdString(resp.getMessage());
 }

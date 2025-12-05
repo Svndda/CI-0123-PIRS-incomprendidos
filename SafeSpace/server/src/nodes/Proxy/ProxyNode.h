@@ -150,6 +150,12 @@ private:
                          ssize_t len, std::string &out_response);
 
   /**
+   * @brief Handles explicit logout requests; removes session/subscription.
+   */
+  void handleDisconnect(const sockaddr_in &peer, const uint8_t *data,
+                        ssize_t len, std::string &out_response);
+
+  /**
    * @brief Handles log messages received from AuthNode and forwards to master.
    * @param peer Sender address (unused).
    * @param data Raw log packet data.

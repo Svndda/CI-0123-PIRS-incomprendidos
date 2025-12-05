@@ -11,6 +11,7 @@
 #include "model/network/authenticationresponse.h"
 #include "network/GetSensorDataResponse.h"
 #include "network/GetSystemUsersResponse.h"
+#include "model/network/disconnectresponse.h"
 #include "sensordata.h"
 #include "Token.h"
 
@@ -65,6 +66,7 @@ public:
   void sendGetSystemUsersRequest(uint16_t sessionId);
   void sendGetSensorDataRequest(uint16_t sessionId, uint16_t sensorId, const Token16& token);
   void sendDeleteSensorDataRequest(uint16_t sessionId, uint16_t sensorId, const Token16& token);
+  void sendDisconnectRequest(uint16_t sessionId);
   
 signals:
   /**
@@ -86,6 +88,7 @@ signals:
   
   void systemUsersResponseReceived(const GetSystemUsersResponse& response);
   void getSensorDataResponseReceived(const GetSensorDataResponse& response);
+  void disconnectResponseReceived(const DisconnectResponse& response);
   // void deleteSensorDataResponseReceived(const DeleteSensorDataResponse& response);
   
   /**
@@ -146,6 +149,11 @@ private:
   );
   
   void handleDeleteSensorDataResponse(
+      const QByteArray &datagram,
+      const QHostAddress &sender,
+      quint16 senderPort
+  );
+  void handleDisconnectResponse(
       const QByteArray &datagram,
       const QHostAddress &sender,
       quint16 senderPort

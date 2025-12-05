@@ -86,7 +86,10 @@ void AppController::prepareSystemPages() {
   
   this->connect(
       accountPage, &AccountPage::logout_requested,
-      this, &AppController::resetApplicationState
+      this, [this]() {
+        this->model.logout();
+        this->resetApplicationState();
+      }
   );
   
   this->connect(
@@ -172,4 +175,3 @@ void AppController::resetApplicationState() {
   
   qDebug() << "System fully reset. Returned to login state.";
 }
-

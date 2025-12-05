@@ -10,7 +10,7 @@
 #include "model.h"
 
 Model::Model()
-  : client("172.17.0.70", 8083, this) {
+  : client("127.0.0.1", 9000, this) {
     
   this->connect(
       &this->client, &QtUDPClient::sensorDataReceived,
@@ -47,6 +47,16 @@ Model::Model()
         }
         emit this->authenticatheResponse(this->started);
       });
+
+  this->connect(
+      &this->client, &QtUDPClient::disconnectResponseReceived,
+      this, [this](const DisconnectResponse& resp) {
+        qInfo() << "[Model] DisconnectResponse status=" << resp.getStatus()
+                << " msg=" << QString::fromStdString(resp.getMessage());
+        if (resp.getStatus() == 1) {
+          this->reset();
+        }
+      });
   
 }
 
@@ -69,6 +79,14 @@ void Model::authenticate(
   qDebug() << "Autenticando usuario";
   this->user = User(username, User::hashSHA256(password), "guest", 4, 0, false);
   this->client.sendAuthRequest(1001, username, User::hashSHA256(password));
+}
+
+void Model::logout() {
+  if (this->sessionId == 0) {
+    qWarning() << "[Model] No active session to logout";
+    return;
+  }
+  this->client.sendDisconnectRequest(this->sessionId);
 }
 
 bool Model::deleteUser(
@@ -138,4 +156,3 @@ void Model::reset() {
   
   qDebug() << "[Model] Full system reset completed.";
 }
-

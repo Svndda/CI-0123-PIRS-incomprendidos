@@ -1,5 +1,5 @@
-#ifndef DISCONNECTRESPONSE_H
-#define DISCONNECTRESPONSE_H
+#ifndef DISCONNECTREQUEST_H
+#define DISCONNECTREQUEST_H
 
 #include <array>
 #include <cstdint>
@@ -7,73 +7,45 @@
 #include <ostream>
 
 /**
- * @class DisconnectResponse
- * @brief Server response to a DISCONNECT request.
+ * @class DisconnectRequest
+ * @brief Client request to log out / end the session.
  *
  * Layout:
- *  - MSG_ID (1 byte)       : 0x54 ('T')
- *  - STATUS (1 byte)       : 0=FAIL, 1=SUCCESS
- *  - RESERVED (2 bytes)
- *  - MESSAGE (64 bytes)    : Null-padded string
+ *  - MSG_ID (1 byte)     : 0x44 ('D')
+ *  - SESSION_ID (2 bytes): big-endian
  */
-class DisconnectResponse {
+class DisconnectRequest {
 public:
-  static constexpr std::uint8_t IDENTIFIER = 0x54;
-  static constexpr std::size_t MESSAGE_SIZE = 64;
-  static constexpr std::size_t BUFFER_SIZE = 1 + 1 + 2 + MESSAGE_SIZE;
-  
-  DisconnectResponse() noexcept {
-    std::memset(message_.data(), 0, MESSAGE_SIZE);
-  }
-  
-  DisconnectResponse(std::uint8_t status,
-                     const std::string &msg) noexcept
-      : status_(status) {
-    std::memset(message_.data(), 0, MESSAGE_SIZE);
-    std::memcpy(message_.data(), msg.data(),
-                std::min(msg.size(), MESSAGE_SIZE));
-  }
-  
-  std::uint8_t getStatus() const noexcept { return status_; }
-  
-  std::string getMessage() const noexcept {
-    return std::string(reinterpret_cast<const char*>(message_.data()));
-  }
-  
-  void setStatus(std::uint8_t st) noexcept { status_ = st; }
-  
-  void setMessage(const std::string &msg) noexcept {
-    std::memset(message_.data(), 0, MESSAGE_SIZE);
-    std::memcpy(message_.data(), msg.data(),
-                std::min(msg.size(), MESSAGE_SIZE));
-  }
-  
+  static constexpr std::uint8_t IDENTIFIER = 0x44;
+  static constexpr std::size_t BUFFER_SIZE = 3;
+
+  DisconnectRequest() = default;
+  explicit DisconnectRequest(std::uint16_t sessionId) noexcept
+    : sessionId_(sessionId) {}
+
+  std::uint16_t getSessionId() const noexcept { return sessionId_; }
+  void setSessionId(std::uint16_t sid) noexcept { sessionId_ = sid; }
+
   std::array<std::uint8_t, BUFFER_SIZE> toBuffer() const noexcept {
     std::array<std::uint8_t, BUFFER_SIZE> buf{};
     buf[0] = IDENTIFIER;
-    buf[1] = status_;
-    buf[2] = 0;
-    buf[3] = 0;
-    std::memcpy(&buf[4], message_.data(), MESSAGE_SIZE);
+    buf[1] = static_cast<std::uint8_t>(sessionId_ >> 8);
+    buf[2] = static_cast<std::uint8_t>(sessionId_ & 0xFF);
     return buf;
   }
-  
-  bool operator==(const DisconnectResponse &other) const noexcept {
-    return status_ == other.status_
-           && message_ == other.message_;
+
+  bool operator==(const DisconnectRequest& other) const noexcept {
+    return sessionId_ == other.sessionId_;
   }
-  
+
 private:
-  std::uint8_t status_ = 0;
-  std::array<std::uint8_t, MESSAGE_SIZE> message_{};
+  std::uint16_t sessionId_ = 0;
 };
 
 inline std::ostream& operator<<(std::ostream& os,
-                                const DisconnectResponse& resp) {
-  os << "[DISCONNECT_RESPONSE status="
-     << unsigned(resp.getStatus())
-     << " message=\"" << resp.getMessage() << "\"]";
+                                const DisconnectRequest& req) {
+  os << "[DISCONNECT_REQUEST sessionId=" << req.getSessionId() << "]";
   return os;
 }
 
-#endif // DISCONNECTRESPONSE_H
+#endif // DISCONNECTREQUEST_H

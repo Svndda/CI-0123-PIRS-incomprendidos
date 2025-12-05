@@ -11,6 +11,7 @@
 // #include "model/filesystem/FileSystem.h"
 #include "model/structures/user.h"
 #include "model/network/qtudpclient.h"
+#include "model/network/disconnectresponse.h"
 #include "model/structures/sensordata.h"
 
 /**
@@ -112,6 +113,11 @@ public:  ///< Functions.
    * Saves the current product and supply data to backup files and clears internal data.
    */
   void shutdown();
+
+  /**
+   * @brief Sends a logout/disconnect request to the proxy using the current session.
+   */
+  void logout();
   
   void authenticate(
     const std::string& username, const std::string& password);

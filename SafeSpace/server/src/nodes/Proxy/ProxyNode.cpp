@@ -17,6 +17,8 @@
 #include "GetSensorDataResponse.h"
 #include "GetSystemUsersRequest.h"
 #include "GetSystemUsersResponse.h"
+#include "disconnectrequest.h"
+#include "disconnectresponse.h"
 #include "sensordata.h"
 #include "RegisterSystemUserRequest.h"
 #include "RegisterSystemUserResponse.h"
@@ -99,6 +101,10 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
     uint8_t msgId = data[0];
     if (len == sizeof(ConnectRequest))
       return this->handleConnectRequest(peer, data, len, out_response);
+
+    if (len == DisconnectRequest::BUFFER_SIZE &&
+        data[0] == DisconnectRequest::IDENTIFIER)
+      return this->handleDisconnect(peer, data, len, out_response);
 
     if (len == 50)
       return this->handleAuthRequest(peer, data, len, out_response);
@@ -692,6 +698,47 @@ void ProxyNode::handleGetSystemUsersResponse(const uint8_t *buffer, size_t lengt
     this->logger.warning("No hay cliente pendiente para sessionId="
                         + std::to_string(sessionId));
   }
+}
+
+void ProxyNode::handleDisconnect(const sockaddr_in &peer, const uint8_t *data,
+                                 ssize_t len, std::string &out_response) {
+  (void)peer;
+  if (len != DisconnectRequest::BUFFER_SIZE) {
+    out_response = "INVALID_DISCONNECT";
+    return;
+  }
+
+  DisconnectRequest req;
+  req.setSessionId(static_cast<uint16_t>(data[1] << 8 | data[2]));
+  uint16_t sessionId = req.getSessionId();
+
+  DisconnectResponse resp;
+
+  {
+    std::lock_guard<std::mutex> lock(authenticatedMutex);
+    if (authenticatedClients.erase(sessionId) == 0) {
+      resp.setStatus(0);
+      resp.setMessage("Session not found");
+      out_response.assign(reinterpret_cast<const char*>(resp.toBuffer().data()),
+                          DisconnectResponse::BUFFER_SIZE);
+      return;
+    }
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(subscribersMutex);
+    subscribers.erase(sessionId);
+  }
+  {
+    std::lock_guard<std::mutex> lock(clientsMutex);
+    pendingClients.erase(sessionId);
+  }
+
+  resp.setStatus(1);
+  resp.setMessage("Session closed");
+  out_response.assign(reinterpret_cast<const char*>(resp.toBuffer().data()),
+                      DisconnectResponse::BUFFER_SIZE);
+  LogManager::instance().info("Session " + std::to_string(sessionId) + " logged out");
 }
 
 void ProxyNode::registerAuthenticatedClient(const sockaddr_in &addr, uint16_t sessionId) {
