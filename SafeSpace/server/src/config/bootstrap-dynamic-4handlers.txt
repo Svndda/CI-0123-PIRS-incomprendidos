@@ -1,0 +1,4 @@
+# Configuración dinámica para 4 handlers
+Bootstrap-id=4
+Ip=0.0.0.0
+port=8080
