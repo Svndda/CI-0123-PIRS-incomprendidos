@@ -2,11 +2,11 @@
 #include <vector>
 #include <limits>
 
-#include "FileSystem.h"
+#include "Raid1FileSystem.h"
 #include "model.h"
 
 Model::Model()
-  : filesystem(UNITY_PATH), usersManager(UsersManager(filesystem)) {
+  : raidFS(UNITY_PATH + ".bin", UNITY_PATH + "_mirror.bin"), usersManager(UsersManager(raidFS)) {
   // USUARIOS HARDCODEADOS
   User u1("realAdmin", "Administrador del sistema");
   u1.setPassword("M2sv8KxpLq");
