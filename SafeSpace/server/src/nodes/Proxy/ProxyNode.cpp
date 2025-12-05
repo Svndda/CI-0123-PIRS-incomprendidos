@@ -5,7 +5,6 @@
 #include <iostream>
 #include <cstring>
 #include <unistd.h>
-#include <sys/time.h>
 #include <errno.h>
 #include <vector>
 
@@ -20,10 +19,7 @@
 #include "GetSystemUsersResponse.h"
 #include "sensordata.h"
 
-const size_t BUFFER_SIZE = 2048;
-constexpr uint8_t QUERY_BY_DATE = 0x01;
-constexpr uint8_t QUERY_BY_SENSOR = 0x02;
-constexpr uint8_t RESPONSE_SENSOR_HISTORY = 0x21;
+const size_t BUFFER_SIZE = 65535;
 
 ProxyNode::ProxyNode(
   const std::string &ip, uint16_t proxyPort,
@@ -36,7 +32,7 @@ ProxyNode::ProxyNode(
   try {
     LogManager::instance().enableFileLogging("./build/proxy_node_logs.log");
     LogManager::instance().configureRemote(masterNode.ip, masterNode.port, "ProxyNode");
-    
+
     LogManager::instance().info("ProxyNode configured to forward logs to SafeSpaceServer at " +
                       masterNode.ip + ":" + std::to_string(masterNode.port));
     LogManager::instance().ipAddress("PROXY:" + ip + ":" + std::to_string(proxyPort));
@@ -100,11 +96,6 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
     if (len == sizeof(ConnectRequest))
       return this->handleConnectRequest(peer, data, len, out_response);
 
-    if ((len == 19 || len == 20) &&
-        (data[2] == QUERY_BY_DATE || data[2] == QUERY_BY_SENSOR)) {
-      return this->handleSensorQuery(peer, data, len, out_response);
-    }
-
     if (len == 50)
       return this->handleAuthRequest(peer, data, len, out_response);
 
@@ -117,6 +108,13 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
       std::cout << "[SafeSpaceServer] GetSensorDataRequest recibido desde "
                 << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
 
+
+      uint16_t sessionId = pkt->sessionId;
+
+      {
+        std::lock_guard<std::mutex> lk(clientsMutex);
+        pendingClients[sessionId] = ClientInfo{peer, pkt->MSG_ID};
+      }
       try {
         masterNode.client->sendRaw(pkt, sizeof(GetSensorDataRequest));
       } catch (const std::exception& ex) {
@@ -159,17 +157,15 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
       return;
     }
 
-    if (len == sizeof(GetSensorDataResponse)) {
-      const auto* pkt = reinterpret_cast<const GetSensorDataResponse*>(data);
-
-      const uint16_t sessionId = pkt->sessionId;
+    if (msgId == GetSensorDataResponse::MSG_ID) {
+      auto resp = GetSensorDataResponse::fromBytes(data, len);
 
       // Retrieve client pending info
       ClientInfo clientInfo;
       bool found = false;
       {
         std::lock_guard<std::mutex> lock(clientsMutex);
-        auto it = pendingClients.find(sessionId);
+        auto it = pendingClients.find(resp.sessionId);
 
         if (it != pendingClients.end()) {
           clientInfo = it->second;
@@ -179,14 +175,14 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
 
       if (!found) {
         this->logger.warning(
-          "GetSensorDataResponse received for unknown sessionId=" + std::to_string(sessionId)
+          "GetSensorDataResponse received for unknown sessionId=" + std::to_string(resp.sessionId)
         );
         return;
       }
 
       try {
         this->logger.info(
-          "Forwarding GetSensorDataResponse to client sessionId=" + std::to_string(sessionId)
+          "Forwarding GetSensorDataResponse to client sessionId=" + std::to_string(resp.sessionId)
         );
 
         this->sendTo(clientInfo.addr, data, len);
@@ -198,7 +194,7 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
       }
     }
 
-    if (len == sizeof(DeleteSensorDataResponse)) {
+    if (len == sizeof(DeleteSensorDataResponse) && msgId == DeleteSensorDataResponse::MSG_ID) {
       const auto* pkt = reinterpret_cast<const DeleteSensorDataResponse*>(data);
 
       const uint16_t sessionId = pkt->sessionId;
@@ -240,7 +236,7 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
     if (len == sizeof(SensorData))
       return this->handleSensorData(peer, data, len, out_response);
 
-    if (len == sizeof(GetSystemUsersRequest)) {
+    if (len == sizeof(GetSystemUsersRequest) && msgId == 0x20) {
       GetSystemUsersRequest req;
       std::memcpy(&req, data, sizeof(req));
 
@@ -350,71 +346,6 @@ void ProxyNode::handleSensorData(const sockaddr_in &peer, const uint8_t *data,
     );
   this->broadcastToSubscribers(data, len);
   out_response = "ACK_SENSOR";
-}
-
-void ProxyNode::handleSensorQuery(const sockaddr_in &peer, const uint8_t *data,
-                                  ssize_t len, std::string &out_response) {
-  if (len < 3) {
-    LogManager::instance().warning("SENSOR_QUERY too short");
-    out_response = "INVALID_QUERY";
-    return;
-  }
-
-  uint16_t sessionId = (static_cast<uint16_t>(data[0]) << 8) | data[1];
-  uint8_t msgType = data[2];
-
-  if (!this->isClientAuthenticated(sessionId)) {
-    LogManager::instance().warning("Unauthorized SENSOR_QUERY (sessionId=" + std::to_string(sessionId) + ")");
-    out_response = "UNAUTHORIZED";
-    return;
-  }
-
-  LogManager::instance().info("Forwarding SENSOR_QUERY type=" + std::to_string(msgType) +
-                    " from sessionId=" + std::to_string(sessionId) + " to master");
-
-  // Strip the sessionId before forwarding to the master.
-  std::vector<uint8_t> payload(data + 2, data + len);
-
-  try {
-    this->forwardToMasterServer(payload.data(), payload.size());
-  } catch (const std::exception &e) {
-    LogManager::instance().error(std::string("Failed to forward query to master: ") + e.what());
-    out_response = "FORWARD_ERROR";
-    return;
-  }
-
-  // Wait for master's response (which should be the StorageNode response).
-  std::vector<uint8_t> buffer(65535);
-  sockaddr_in src{};
-  socklen_t srcLen = sizeof(src);
-  struct timeval tv {2, 0};
-  setsockopt(this->masterNode.client->getSocketFd(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-
-  // Descartar datagramas antiguos y quedarse con la respuesta de historial
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
-  while (std::chrono::steady_clock::now() < deadline) {
-    ssize_t received = ::recvfrom(
-      this->masterNode.client->getSocketFd(),
-      buffer.data(),
-      buffer.size(),
-      0,
-      reinterpret_cast<sockaddr*>(&src),
-      &srcLen
-    );
-
-    if (received <= 0) {
-      continue;
-    }
-
-    if (buffer[0] == RESPONSE_SENSOR_HISTORY) {
-      out_response.assign(reinterpret_cast<const char*>(buffer.data()), received);
-      return;
-    }
-    // Ignorar ACKs u otras respuestas rezagadas.
-  }
-
-  LogManager::instance().warning("Timeout waiting Storage response for SENSOR_QUERY");
-  out_response = "TIMEOUT";
 }
 
 void ProxyNode::handleLogMessage(const sockaddr_in &peer, const uint8_t *data, ssize_t len) {
@@ -538,7 +469,7 @@ void ProxyNode::processAuthServerResponse(const std::vector<uint8_t>& buffer, si
                                           const sockaddr_in&) {
   if (length == AuthResponse::MESSAGE_SIZE + 3 + AuthResponse::TOKEN_SIZE) {
     this->handleAuthResponse(buffer.data(), length);
-  } else if (length == sizeof(GetSystemUsersResponse)) {
+  } else if (length == sizeof(GetSystemUsersResponse) && buffer[0] == 0x21) {
     this->handleGetSystemUsersResponse(buffer.data(), length);
   } else {
     LogManager::instance().warning("Received non-standard response (" + std::to_string(length) + " bytes).");

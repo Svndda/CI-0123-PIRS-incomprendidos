@@ -183,5 +183,5 @@ void UDPServer::onReceive(const sockaddr_in& peer, const uint8_t* data, ssize_t 
   }
 
   // Default echo behavior
-  out_response.assign(reinterpret_cast<const char*>(data), static_cast<size_t>(len));
+  // out_response.assign(reinterpret_cast<const char*>(data), static_cast<size_t>(len));
 }
