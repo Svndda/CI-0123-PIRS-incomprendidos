@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-UsersManager::UsersManager(FileSystem& fs) : fileSystem(fs) {
+UsersManager::UsersManager(Raid1FileSystem& fs) : fileSystem(fs) {
   // Leer contenido actual del archivo
   this->fileSystem.openFile(this->userFile);
   
@@ -27,7 +27,10 @@ bool UsersManager::saveUser(const User& user) {
   // Append new serialized user to file
   std::string current = this->fileSystem.read(this->userFile);
   current += user.serialize();
-  this->fileSystem.write(this->userFile, current);
+  if (!this->fileSystem.write(this->userFile, current)) {
+    std::cout << "Failed to persist user.";
+    return false;
+  }
   
   users.push_back(user);
   std::cout << "User saved successfully:" << user.getUsername();
