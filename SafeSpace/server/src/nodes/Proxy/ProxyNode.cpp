@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cstring>
 #include <unistd.h>
+#include <sys/time.h>
 #include <errno.h>
 #include <vector>
 
@@ -20,6 +21,8 @@
 #include "sensordata.h"
 
 const size_t BUFFER_SIZE = 2048;
+constexpr uint8_t QUERY_BY_DATE = 0x01;
+constexpr uint8_t QUERY_BY_SENSOR = 0x02;
 
 ProxyNode::ProxyNode(
   const std::string &ip, uint16_t proxyPort,
@@ -95,6 +98,11 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
     uint8_t msgId = data[0];
     if (len == sizeof(ConnectRequest))
       return this->handleConnectRequest(peer, data, len, out_response);
+
+    if ((len == 19 || len == 20) &&
+        (data[2] == QUERY_BY_DATE || data[2] == QUERY_BY_SENSOR)) {
+      return this->handleSensorQuery(peer, data, len, out_response);
+    }
 
     if (len == 50)
       return this->handleAuthRequest(peer, data, len, out_response);
@@ -341,6 +349,62 @@ void ProxyNode::handleSensorData(const sockaddr_in &peer, const uint8_t *data,
     );
   this->broadcastToSubscribers(data, len);
   out_response = "ACK_SENSOR";
+}
+
+void ProxyNode::handleSensorQuery(const sockaddr_in &peer, const uint8_t *data,
+                                  ssize_t len, std::string &out_response) {
+  if (len < 3) {
+    LogManager::instance().warning("SENSOR_QUERY too short");
+    out_response = "INVALID_QUERY";
+    return;
+  }
+
+  uint16_t sessionId = (static_cast<uint16_t>(data[0]) << 8) | data[1];
+  uint8_t msgType = data[2];
+
+  if (!this->isClientAuthenticated(sessionId)) {
+    LogManager::instance().warning("Unauthorized SENSOR_QUERY (sessionId=" + std::to_string(sessionId) + ")");
+    out_response = "UNAUTHORIZED";
+    return;
+  }
+
+  LogManager::instance().info("Forwarding SENSOR_QUERY type=" + std::to_string(msgType) +
+                    " from sessionId=" + std::to_string(sessionId) + " to master");
+
+  // Strip the sessionId before forwarding to the master.
+  std::vector<uint8_t> payload(data + 2, data + len);
+
+  try {
+    this->forwardToMasterServer(payload.data(), payload.size());
+  } catch (const std::exception &e) {
+    LogManager::instance().error(std::string("Failed to forward query to master: ") + e.what());
+    out_response = "FORWARD_ERROR";
+    return;
+  }
+
+  // Wait for master's response (which should be the StorageNode response).
+  std::vector<uint8_t> buffer(65535);
+  sockaddr_in src{};
+  socklen_t srcLen = sizeof(src);
+  struct timeval tv {2, 0};
+  setsockopt(this->masterNode.client->getSocketFd(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+  ssize_t received = ::recvfrom(
+    this->masterNode.client->getSocketFd(),
+    buffer.data(),
+    buffer.size(),
+    0,
+    reinterpret_cast<sockaddr*>(&src),
+    &srcLen
+  );
+
+  if (received <= 0) {
+    LogManager::instance().warning("Timeout waiting Storage response for SENSOR_QUERY");
+    out_response = "TIMEOUT";
+    return;
+  }
+
+  out_response.assign(reinterpret_cast<const char*>(buffer.data()), received);
 }
 
 void ProxyNode::handleLogMessage(const sockaddr_in &peer, const uint8_t *data, ssize_t len) {

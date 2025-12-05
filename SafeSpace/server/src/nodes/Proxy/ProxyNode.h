@@ -144,6 +144,12 @@ private:
                         ssize_t len, std::string &out_response);
 
   /**
+   * @brief Handles sensor history queries; validates session and forwards to master.
+   */
+  void handleSensorQuery(const sockaddr_in &peer, const uint8_t *data,
+                         ssize_t len, std::string &out_response);
+
+  /**
    * @brief Handles log messages received from AuthNode and forwards to master.
    * @param peer Sender address (unused).
    * @param data Raw log packet data.
