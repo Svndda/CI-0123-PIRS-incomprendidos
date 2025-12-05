@@ -12,7 +12,7 @@ SensorsPage::SensorsPage(QWidget *parent, Model& model) :
   table->setRowCount(0);
   
   
-  auto sensorsData = this->model.getSensorsData();
+  // auto sensorsData = this->model.getSensorsData();
   
   // QTableWidget* table = this->ui->arduinos_table;
   // table->setRowCount(0);

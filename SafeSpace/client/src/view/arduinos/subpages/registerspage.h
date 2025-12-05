@@ -21,9 +21,9 @@ public:
 private:
   Ui::RegistersPage *ui;
 
-    void drawSensorsRow(const SensorData& sensor);
-
-    QVector<QTableWidgetItem*> sensorDeserialization(const SensorData& sensor);
+  void drawSensorsRow(const SensorData& sensor);
+  QVector<QTableWidgetItem*> sensorDeserialization(const SensorData& sensor);
+  void showEvent(QShowEvent* event);
 };
 
 #endif // REGISTERSPAGE_H

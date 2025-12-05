@@ -138,11 +138,14 @@ public:  ///< Functions.
   
 private slots:
   void onSystemUsersResponseReceived(const GetSystemUsersResponse& response);
+  void onGetSensorDataResponseReceived(const GetSensorDataResponse &response);
+  
   
 signals:
   bool authenticatheResponse(bool state);
   SensorData sensorDataReceived(const SensorData);
-  void systemUsersReceived(const std::vector<User>& users);  
+  void systemUsersReceived(const std::vector<User>& users);
+  
 };
 
 #endif // MODEL_H

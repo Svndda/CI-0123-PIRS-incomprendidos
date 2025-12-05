@@ -166,12 +166,15 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
                 << ipbuf << ":" << ntohs(peer.sin_port) << std::endl;
 
 
-      uint16_t sessionId = pkt->sessionId;
-
+      // Extract sessionId (big-endian) - bytes 1-2
+      uint16_t sessionId = (data[1] << 8) | data[2];
+      std::cout << "[SafeSpaceServer] GetSensorDataRequest solicitud para "
+          << "sesión: " << sessionId << " - " << pkt->sessionId << std::endl;
       {
-        std::lock_guard<std::mutex> lk(clientsMutex);
-        pendingClients[sessionId] = ClientInfo{peer, pkt->MSG_ID};
+        std::lock_guard<std::mutex> lk(sensorDataPendingMutex);
+        pendingSensorDataClients[sessionId] = ClientInfo{peer, pkt->MSG_ID};
       }
+
       try {
         masterNode.client->sendRaw(pkt, sizeof(GetSensorDataRequest));
       } catch (const std::exception& ex) {
@@ -221,12 +224,13 @@ void ProxyNode::onReceive(const sockaddr_in &peer, const uint8_t *data,
       ClientInfo clientInfo;
       bool found = false;
       {
-        std::lock_guard<std::mutex> lock(clientsMutex);
-        auto it = pendingClients.find(resp.sessionId);
+        std::lock_guard<std::mutex> lock(sensorDataPendingMutex);
+        auto it = pendingSensorDataClients.find(resp.sessionId);
 
-        if (it != pendingClients.end()) {
+        if (it != pendingSensorDataClients.end()) {
           clientInfo = it->second;
           found = true;
+          pendingSensorDataClients.erase(it);
         }
       }
 

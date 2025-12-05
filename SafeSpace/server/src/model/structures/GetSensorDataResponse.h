@@ -15,6 +15,14 @@ public:
   uint8_t status{};
   std::vector<uint8_t> payload;
 
+  void toNetworkOrder() {
+    sessionId = htons(sessionId);
+  }
+
+  void toHostOrder() {
+    sessionId = ntohs(sessionId);
+  }
+
   /**
    * @brief Parses a GET_SENSOR_DATA_RESPONSE from raw bytes.
    */

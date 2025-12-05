@@ -48,6 +48,11 @@ Model::Model()
         emit this->authenticatheResponse(this->started);
       });
   
+  this->connect(
+      &this->client, &QtUDPClient::getSensorDataResponseReceived,
+      this, &Model::onGetSensorDataResponseReceived
+      );
+  
 }
 
 Model& Model::getInstance() {
@@ -60,6 +65,67 @@ bool Model::start(/*const User& user*/) {
   
   // Returns the model state flag.
   return this->started;  
+}
+
+void Model::onGetSensorDataResponseReceived(const GetSensorDataResponse &response) {
+  // --- Logging initial information ---
+  qInfo() << "[Model] Processing GetSensorDataResponse:"
+          << "sessionId=" << response.sessionId
+          << "status=" << static_cast<int>(response.status)
+          << "payload size=" << response.payload.size();
+  
+  if (response.status != 0) {
+    qWarning() << "[Model] GetSensorDataResponse returned error status:" << response.status;
+    return;
+  }
+  
+  // Clear previous data before processing new batch
+  this->sensorsData.clear();
+  
+  size_t offset = 0;
+  const size_t payloadSize = response.payload.size();
+  const size_t sensorDataSize = sizeof(float) * 6; // distance, temp, pres, seaPres, alt, realAlt
+  
+  // --- Process each SensorData chunk ---
+  while (offset + sensorDataSize <= payloadSize) {
+    SensorData sensor;
+    
+    // Pointer to current position in payload
+    const uint8_t* ptr = response.payload.data() + offset;
+    
+    // Safe conversion: memcpy ensures proper alignment
+    std::memcpy(&sensor.distance, ptr, sizeof(float)); ptr += sizeof(float);
+    std::memcpy(&sensor.temperature, ptr, sizeof(float)); ptr += sizeof(float);
+    std::memcpy(&sensor.pressure, ptr, sizeof(float)); ptr += sizeof(float);
+    std::memcpy(&sensor.sealevelPressure, ptr, sizeof(float)); ptr += sizeof(float);
+    std::memcpy(&sensor.altitude, ptr, sizeof(float)); ptr += sizeof(float);
+    std::memcpy(&sensor.realAltitude, ptr, sizeof(float)); ptr += sizeof(float);
+    
+    // Add sensor to local storage vector
+    this->sensorsData.push_back(sensor);
+    
+    // // Emit signal for UI or other subscribers
+    // emit this->sensorDataReceived(sensor);
+    
+    // Debug logging for each sensor
+    qDebug() << "[Model] SensorData added:"
+             << "distance=" << sensor.distance
+             << "temperature=" << sensor.temperature
+             << "pressure=" << sensor.pressure
+             << "sealevelPressure=" << sensor.sealevelPressure
+             << "altitude=" << sensor.altitude
+             << "realAltitude=" << sensor.realAltitude;
+    
+    // Move offset to next SensorData block
+    offset += sensorDataSize;
+  }
+  
+  // --- Check if payload had leftover bytes ---
+  if (offset != payloadSize) {
+    qWarning() << "[Model] Payload size mismatch: leftover bytes detected."
+               << "Processed=" << offset
+               << "Total=" << payloadSize;
+  }
 }
 
 void Model::authenticate(

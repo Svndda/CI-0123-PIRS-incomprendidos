@@ -66,6 +66,12 @@ private:
   std::mutex clientsMutex;                   ///< Synchronization for pending clients map.
   std::unordered_map<uint16_t, ClientInfo> pendingClients; ///< Map of sessionId to client info.
 
+  std::mutex systemUsersPendingMutex;
+  std::unordered_map<uint16_t, ClientInfo> pendingSystemUsersClients;
+
+  std::mutex sensorDataPendingMutex;
+  std::unordered_map<uint16_t, ClientInfo> pendingSensorDataClients;
+
   std::mutex authenticatedMutex;                   ///< Synchronization for authenticated clients map.
   std::unordered_map<uint16_t, ClientInfo> authenticatedClients; ///< Map of sessionId to client info.
 
