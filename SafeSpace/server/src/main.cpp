@@ -8,6 +8,8 @@
 #include <map>
 #include <filesystem>
 #include <thread>
+#include <vector>
+#include <memory>
 
 #include "Arduino/Arduino_Node.h"
 #include "Auth/auth_udp_server.h"
@@ -24,7 +26,6 @@ extern "C" void sigHandler(int) { stopFlag = 1; }
  * @brief Gets the default config directory path
  */
 std::string getConfigDir() {
-    // Try multiple possible locations
     std::vector<std::string> possiblePaths = {
         "config/",
         "../config/",
@@ -40,7 +41,6 @@ std::string getConfigDir() {
         }
     }
 
-    // Fallback to current directory
     return "./";
 }
 
@@ -48,12 +48,10 @@ std::string getConfigDir() {
  * @brief Resolves config file path - tries multiple locations
  */
 std::string resolveConfigPath(const std::string& configFile) {
-    // If it's already an absolute path or exists in current directory, use it
     if (std::filesystem::exists(configFile)) {
         return configFile;
     }
 
-    // Try in config directory
     std::string configDir = getConfigDir();
     std::string fullPath = configDir + configFile;
 
@@ -61,7 +59,6 @@ std::string resolveConfigPath(const std::string& configFile) {
         return fullPath;
     }
 
-    // Try with .txt extension if not present
     if (configFile.size() < 4 || configFile.substr(configFile.size() - 4) != ".txt") {
         fullPath = configDir + configFile + ".txt";
         if (std::filesystem::exists(fullPath)) {
@@ -90,7 +87,6 @@ std::map<std::string, std::string> parseConfigFile(const std::string& configPath
     int lineNum = 0;
     while (std::getline(file, line)) {
         lineNum++;
-        // Skip empty lines and comments
         if (line.empty() || line[0] == '#' || line[0] == ';') continue;
 
         size_t delimiterPos = line.find('=');
@@ -98,7 +94,6 @@ std::map<std::string, std::string> parseConfigFile(const std::string& configPath
             std::string key = line.substr(0, delimiterPos);
             std::string value = line.substr(delimiterPos + 1);
 
-            // Trim whitespace
             key.erase(0, key.find_first_not_of(" \t"));
             key.erase(key.find_last_not_of(" \t") + 1);
             value.erase(0, value.find_first_not_of(" \t"));
@@ -119,7 +114,7 @@ std::map<std::string, std::string> parseConfigFile(const std::string& configPath
 }
 
 /**
- * @brief Gets configuration value from either command line or config file
+ * @brief Gets configuration value from config map
  */
 std::string getConfigValue(const std::map<std::string, std::string>& config,
                           const std::string& key,
@@ -141,18 +136,16 @@ void validateArgs(int argc, char* argv[]) {
                   << "  With config file (recommended):\n"
                   << "    " << argv[0] << " <component> <config_file>\n"
                   << "    " << argv[0] << " server server.txt\n"
-                  << "    " << argv[0] << " proxy proxy.txt\n\n"
+                  << "    " << argv[0] << " proxy proxy.txt\n"
+                  << "    " << argv[0] << " bootstrap bootstrap.txt\n"
+                  << "    " << argv[0] << " bootstrap-dynamic bootstrap-dynamic.txt\n\n"
+                  << "  Dynamic Bootstrap Mode (NEW):\n"
+                  << "    " << argv[0] << " bootstrap-dynamic <config_file>\n\n"
                   << "  With individual parameters:\n"
                   << "    " << argv[0] << " server <local_ip> <local_port> <storage_ip> <storage_port> <events_ip> <events_port> <proxy_ip> <proxy_port>\n"
-                  << "    " << argv[0] << " proxy <local_ip> <local_port> <auth_ip> <auth_port> <master_ip> <master_port>\n"
-                  << "    " << argv[0] << " storage <local_ip> <local_port> <master_ip> <master_port> <diskPath>\n"
-                  << "    " << argv[0] << " auth <local_ip> <local_port>\n"
-                  << "    " << argv[0] << " events <local_ip> <local_port> <out_file>\n"
-                  << "    " << argv[0] << " inter <master_ip> <master_port> <local_port>\n"
-                  << "    " << argv[0] << " arduino <master_ip> <master_port> [serial_path] [mode]\n"
-                  << "    " << argv[0] << " bootstrap [ip] [port]  (NO usa archivo config!)\n\n"
-                  << "Available components: server, proxy, storage, auth, events, inter, arduino, bootstrap\n"
-                  << "Config files are automatically searched in: ./config/, ../config/, src/config/\n"
+                  << "    " << argv[0] << " bootstrap [ip] [port]  (sin archivo config)\n\n"
+                  << "Available components: server, proxy, storage, auth, events, inter, arduino, bootstrap, bootstrap-dynamic\n"
+                  << "Para activar firewall en modo server: configurar 'firewall=true' en archivo .txt\n"
                   << std::endl;
         std::exit(EXIT_FAILURE);
     }
@@ -171,6 +164,809 @@ uint16_t parsePort(const std::string& str) {
     } catch (const std::exception&) {
         throw std::invalid_argument("Invalid port number: " + str);
     }
+}
+
+/**
+ * @brief Structure to hold bootstrap node configuration
+ */
+struct BootstrapNodeConfig {
+    std::string id;
+    std::string type;
+    std::map<std::string, std::string> params;
+};
+
+/**
+ * @brief Parses dynamic bootstrap configuration file
+ */
+std::vector<BootstrapNodeConfig> parseBootstrapDynamicConfig(const std::string& configFile) {
+    auto config = parseConfigFile(configFile);
+    std::vector<BootstrapNodeConfig> nodes;
+    
+    std::cout << "[Bootstrap] Parsing dynamic configuration..." << std::endl;
+    
+    // Find all node definitions
+    int nodeIndex = 0;
+    while (true) {
+        std::string prefix = "node" + std::to_string(nodeIndex) + "_";
+        std::string typeKey = prefix + "type";
+        
+        if (config.find(typeKey) == config.end()) {
+            // Check if we have nodes in old format
+            if (nodeIndex == 0 && config.find("node0_type") == config.end()) {
+                // Try to find any node definition
+                bool found = false;
+                for (const auto& [key, value] : config) {
+                    if (key.find("_type") != std::string::npos) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) break;
+            } else if (nodeIndex > 0) {
+                break;
+            }
+        }
+        
+        BootstrapNodeConfig node;
+        node.id = std::to_string(nodeIndex);
+        node.type = getConfigValue(config, typeKey, "");
+        
+        if (node.type.empty()) {
+            nodeIndex++;
+            continue;
+        }
+        
+        // Extract all parameters for this node
+        for (const auto& [key, value] : config) {
+            if (key.find(prefix) == 0) {
+                std::string paramName = key.substr(prefix.length());
+                node.params[paramName] = value;
+            }
+        }
+        
+        nodes.push_back(node);
+        std::cout << "  ▸ Node " << nodeIndex << ": " << node.type << std::endl;
+        nodeIndex++;
+    }
+    
+    // If no nodes found in new format, check for bootstrap-id format
+    if (nodes.empty()) {
+        std::string bootstrapId = getConfigValue(config, "Bootstrap-id", "");
+        if (!bootstrapId.empty()) {
+            std::cout << "[Bootstrap] Found legacy format with Bootstrap-id: " << bootstrapId << std::endl;
+            
+            // Create nodes based on bootstrap-id
+            int numNodes = 0;
+            try {
+                numNodes = std::stoi(bootstrapId);
+            } catch (...) {
+                numNodes = 4; // Default to 4 handlers
+            }
+            
+            std::string bootstrapIp = getConfigValue(config, "Ip", "0.0.0.0");
+            uint16_t bootstrapPort = parsePort(getConfigValue(config, "port", "8080"));
+            
+            // Create predefined handlers based on the number
+            for (int i = 0; i < numNodes; i++) {
+                BootstrapNodeConfig node;
+                node.id = std::to_string(i);
+                
+                // Assign types based on position (as requested: 4 handlers)
+                if (i == 0) {
+                    node.type = "master";
+                    node.params["local_ip"] = bootstrapIp;
+                    node.params["local_port"] = std::to_string(bootstrapPort + 100); // 8180
+                    node.params["storage_ip"] = "127.0.0.1";
+                    node.params["storage_port"] = std::to_string(bootstrapPort + 101); // 8181
+                    node.params["events_ip"] = "127.0.0.1";
+                    node.params["events_port"] = std::to_string(bootstrapPort + 102); // 8182
+                    node.params["proxy_ip"] = "127.0.0.1";
+                    node.params["proxy_port"] = std::to_string(bootstrapPort + 103); // 8183
+                } else if (i == 1) {
+                    node.type = "arduino_intermediary";
+                    node.params["master_ip"] = bootstrapIp;
+                    node.params["master_port"] = std::to_string(bootstrapPort + 100); // 8180
+                    node.params["arduino_serial"] = "simulate";
+                    node.params["arduino_mode"] = "binary";
+                    node.params["inter_port"] = std::to_string(bootstrapPort + 104); // 8184
+                } else if (i == 2) {
+                    node.type = "proxy_auth";
+                    node.params["local_ip"] = bootstrapIp;
+                    node.params["local_port"] = std::to_string(bootstrapPort + 105); // 8185
+                    node.params["auth_ip"] = "127.0.0.1";
+                    node.params["auth_port"] = std::to_string(bootstrapPort + 106); // 8186
+                    node.params["master_ip"] = bootstrapIp;
+                    node.params["master_port"] = std::to_string(bootstrapPort + 100); // 8180
+                } else if (i == 3) {
+                    node.type = "storage_events";
+                    node.params["storage_local_ip"] = bootstrapIp;
+                    node.params["storage_port"] = std::to_string(bootstrapPort + 107); // 8187
+                    node.params["master_ip"] = bootstrapIp;
+                    node.params["master_port"] = std::to_string(bootstrapPort + 100); // 8180
+                    node.params["node_id"] = "storage1";
+                    node.params["disk_path"] = "./storage_data";
+                    node.params["events_ip"] = bootstrapIp;
+                    node.params["events_port"] = std::to_string(bootstrapPort + 108); // 8188
+                    node.params["events_output"] = "events.log";
+                } else {
+                    // Additional nodes if more than 4
+                    node.type = "generic";
+                    node.params["base_port"] = std::to_string(bootstrapPort + 100 + i);
+                }
+                
+                nodes.push_back(node);
+                std::cout << "  ▸ Auto-generated Node " << i << ": " << node.type << std::endl;
+            }
+        }
+    }
+    
+    std::cout << "[Bootstrap] Total nodes to create: " << nodes.size() << std::endl;
+    return nodes;
+}
+
+/**
+ * @brief Creates node adapter based on configuration
+ */
+std::pair<std::function<bool()>, std::function<bool()>> createNodeAdapter(const BootstrapNodeConfig& config,
+                                                                         const std::string& bootstrapIp,
+                                                                         uint16_t bootstrapPort) {
+    
+    if (config.type == "master") {
+        std::string localIp = getConfigValue(config.params, "local_ip", bootstrapIp);
+        uint16_t localPort = parsePort(getConfigValue(config.params, "local_port", std::to_string(bootstrapPort + 100)));
+        std::string storageIp = getConfigValue(config.params, "storage_ip", "127.0.0.1");
+        uint16_t storagePort = parsePort(getConfigValue(config.params, "storage_port", std::to_string(bootstrapPort + 101)));
+        std::string eventsIp = getConfigValue(config.params, "events_ip", "127.0.0.1");
+        uint16_t eventsPort = parsePort(getConfigValue(config.params, "events_port", std::to_string(bootstrapPort + 102)));
+        std::string proxyIp = getConfigValue(config.params, "proxy_ip", "127.0.0.1");
+        uint16_t proxyPort = parsePort(getConfigValue(config.params, "proxy_port", std::to_string(bootstrapPort + 103)));
+        
+        return makeMasterAdapter(localIp, localPort, storageIp, storagePort,
+                                 eventsIp, eventsPort, proxyIp, proxyPort);
+        
+    } else if (config.type == "proxy") {
+        std::string localIp = getConfigValue(config.params, "local_ip", bootstrapIp);
+        uint16_t localPort = parsePort(getConfigValue(config.params, "local_port", std::to_string(bootstrapPort + 110)));
+        std::string authIp = getConfigValue(config.params, "auth_ip", "127.0.0.1");
+        uint16_t authPort = parsePort(getConfigValue(config.params, "auth_port", std::to_string(bootstrapPort + 111)));
+        std::string masterIp = getConfigValue(config.params, "master_ip", bootstrapIp);
+        uint16_t masterPort = parsePort(getConfigValue(config.params, "master_port", std::to_string(bootstrapPort + 100)));
+        
+        return makeProxyAdapter(localIp, localPort, authIp, authPort, masterIp, masterPort);
+        
+    } else if (config.type == "storage") {
+        uint16_t localPort = parsePort(getConfigValue(config.params, "local_port", std::to_string(bootstrapPort + 112)));
+        std::string masterIp = getConfigValue(config.params, "master_ip", bootstrapIp);
+        uint16_t masterPort = parsePort(getConfigValue(config.params, "master_port", std::to_string(bootstrapPort + 100)));
+        std::string nodeId = getConfigValue(config.params, "node_id", "storage1");
+        std::string diskPath = getConfigValue(config.params, "disk_path", "./storage_data");
+        
+        return makeStorageAdapter(localPort, masterIp, masterPort, nodeId, diskPath);
+        
+    } else if (config.type == "auth") {
+        std::string localIp = getConfigValue(config.params, "local_ip", bootstrapIp);
+        uint16_t localPort = parsePort(getConfigValue(config.params, "local_port", std::to_string(bootstrapPort + 113)));
+        
+        return makeAuthAdapter(localIp, localPort);
+        
+    } else if (config.type == "arduino") {
+        std::string masterIp = getConfigValue(config.params, "master_ip", bootstrapIp);
+        uint16_t masterPort = parsePort(getConfigValue(config.params, "master_port", std::to_string(bootstrapPort + 100)));
+        std::string serialPath = getConfigValue(config.params, "serial_path", "simulate");
+        std::string mode = getConfigValue(config.params, "mode", "binary");
+        
+        return makeArduinoAdapter(masterIp, masterPort, serialPath, mode);
+        
+    } else if (config.type == "events") {
+        std::string localIp = getConfigValue(config.params, "local_ip", bootstrapIp);
+        uint16_t localPort = parsePort(getConfigValue(config.params, "local_port", std::to_string(bootstrapPort + 114)));
+        std::string outFile = getConfigValue(config.params, "output_file", "events.log");
+        std::string masterIp = getConfigValue(config.params, "master_ip", bootstrapIp);
+        uint16_t masterPort = parsePort(getConfigValue(config.params, "master_port", std::to_string(bootstrapPort + 100)));
+        
+        return makeEventsAdapter(localIp, localPort, outFile, masterIp, masterPort);
+        
+    } else if (config.type == "inter") {
+        std::string localIp = getConfigValue(config.params, "local_ip", bootstrapIp);
+        uint16_t localPort = parsePort(getConfigValue(config.params, "local_port", std::to_string(bootstrapPort + 115)));
+        uint16_t masterPort = parsePort(getConfigValue(config.params, "master_port", std::to_string(bootstrapPort + 100)));
+        
+        return makeIntermediaryAdapter(localIp, localPort, masterPort);
+        
+    } else if (config.type == "arduino_intermediary") {
+        // Combined handler for Arduino and Intermediary
+        std::string masterIp = getConfigValue(config.params, "master_ip", bootstrapIp);
+        uint16_t masterPort = parsePort(getConfigValue(config.params, "master_port", std::to_string(bootstrapPort + 100)));
+        std::string serialPath = getConfigValue(config.params, "arduino_serial", "simulate");
+        std::string mode = getConfigValue(config.params, "arduino_mode", "binary");
+        uint16_t interPort = parsePort(getConfigValue(config.params, "inter_port", std::to_string(bootstrapPort + 116)));
+        
+        return std::make_pair(
+            [masterIp, masterPort, serialPath, mode, interPort]() -> bool {
+                try {
+                    // Start Arduino node
+                    ArduinoNode arduino(masterIp, masterPort, serialPath, mode);
+                    // Start Intermediary node
+                    IntermediaryNode inter(interPort, "0.0.0.0", masterPort);
+                    
+                    std::thread arduinoThread([&arduino]() { arduino.run(); });
+                    std::thread interThread([&inter]() { inter.start(); });
+                    
+                    arduinoThread.join();
+                    interThread.join();
+                    return true;
+                } catch (const std::exception& e) {
+                    std::cerr << "[Bootstrap] Error starting arduino_intermediary: " << e.what() << std::endl;
+                    return false;
+                }
+            },
+            []() -> bool {
+                std::cout << "[Bootstrap] Stopping arduino_intermediary node" << std::endl;
+                return true;
+            }
+        );
+        
+    } else if (config.type == "proxy_auth") {
+        // Combined handler for Proxy and Auth
+        std::string localIp = getConfigValue(config.params, "local_ip", bootstrapIp);
+        uint16_t localPort = parsePort(getConfigValue(config.params, "local_port", std::to_string(bootstrapPort + 117)));
+        std::string authIp = getConfigValue(config.params, "auth_ip", "127.0.0.1");
+        uint16_t authPort = parsePort(getConfigValue(config.params, "auth_port", std::to_string(bootstrapPort + 118)));
+        std::string masterIp = getConfigValue(config.params, "master_ip", bootstrapIp);
+        uint16_t masterPort = parsePort(getConfigValue(config.params, "master_port", std::to_string(bootstrapPort + 100)));
+        
+        return std::make_pair(
+            [localIp, localPort, authIp, authPort, masterIp, masterPort]() -> bool {
+                try {
+                    // Start Auth server
+                    AuthUDPServer auth(authIp, authPort);
+                    // Start Proxy node
+                    ProxyNode proxy(localIp, localPort, authIp, authPort, masterIp, masterPort);
+                    
+                    std::thread authThread([&auth]() { auth.serveBlocking(); });
+                    std::thread proxyThread([&proxy]() { proxy.start(); });
+                    
+                    authThread.join();
+                    proxyThread.join();
+                    return true;
+                } catch (const std::exception& e) {
+                    std::cerr << "[Bootstrap] Error starting proxy_auth: " << e.what() << std::endl;
+                    return false;
+                }
+            },
+            []() -> bool {
+                std::cout << "[Bootstrap] Stopping proxy_auth node" << std::endl;
+                return true;
+            }
+        );
+        
+    } else if (config.type == "storage_events") {
+        // Combined handler for Storage and Events
+        std::string storageIp = getConfigValue(config.params, "storage_local_ip", bootstrapIp);
+        uint16_t storagePort = parsePort(getConfigValue(config.params, "storage_port", std::to_string(bootstrapPort + 119)));
+        std::string masterIp = getConfigValue(config.params, "master_ip", bootstrapIp);
+        uint16_t masterPort = parsePort(getConfigValue(config.params, "master_port", std::to_string(bootstrapPort + 100)));
+        std::string nodeId = getConfigValue(config.params, "node_id", "storage1");
+        std::string diskPath = getConfigValue(config.params, "disk_path", "./storage_data");
+        std::string eventsIp = getConfigValue(config.params, "events_ip", bootstrapIp);
+        uint16_t eventsPort = parsePort(getConfigValue(config.params, "events_port", std::to_string(bootstrapPort + 120)));
+        std::string eventsOutput = getConfigValue(config.params, "events_output", "events.log");
+        
+        return std::make_pair(
+            [storagePort, masterIp, masterPort, nodeId, diskPath, eventsIp, eventsPort, eventsOutput]() -> bool {
+                try {
+                    // Start Storage node
+                    StorageNode storage(storagePort, masterIp, masterPort, nodeId, diskPath);
+                    // Start Events node
+                    CriticalEventsNode events(eventsIp, eventsPort, eventsOutput);
+                    events.configureMasterForwarding(masterIp, masterPort);
+                    
+                    std::thread storageThread([&storage]() { storage.start(); });
+                    std::thread eventsThread([&events]() { events.serveBlocking(); });
+                    
+                    storageThread.join();
+                    eventsThread.join();
+                    return true;
+                } catch (const std::exception& e) {
+                    std::cerr << "[Bootstrap] Error starting storage_events: " << e.what() << std::endl;
+                    return false;
+                }
+            },
+            []() -> bool {
+                std::cout << "[Bootstrap] Stopping storage_events node" << std::endl;
+                return true;
+            }
+        );
+    }
+    
+    // Default empty adapter that returns true
+    return std::make_pair([]() -> bool { return true; }, []() -> bool { return true; });
+}
+
+/**
+ * @brief Processes dynamic bootstrap mode
+ */
+int processBootstrapDynamic(int argc, char* argv[]) {
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " bootstrap-dynamic <config_file>\n";
+        std::cerr << "Config file format:\n";
+        std::cerr << "  Bootstrap-id=<number_of_handlers>\n";
+        std::cerr << "  Ip=<bootstrap_ip>\n";
+        std::cerr << "  port=<bootstrap_port>\n";
+        std::cerr << "  node0_type=<type>\n";
+        std::cerr << "  node0_param1=value1\n";
+        std::cerr << "  ...\n";
+        return EXIT_FAILURE;
+    }
+    
+    std::string configFile = argv[2];
+    auto config = parseConfigFile(configFile);
+    
+    // Get bootstrap settings
+    std::string bootstrapIp = getConfigValue(config, "Ip", "0.0.0.0");
+    uint16_t bootstrapPort = parsePort(getConfigValue(config, "port", "8080"));
+    
+    std::cout << "[Bootstrap] Starting dynamic bootstrap on " 
+              << bootstrapIp << ":" << bootstrapPort << std::endl;
+    
+    // Parse node configurations
+    auto nodeConfigs = parseBootstrapDynamicConfig(configFile);
+    
+    if (nodeConfigs.empty()) {
+        std::cerr << "[Bootstrap] No nodes configured. Creating default 4 handlers..." << std::endl;
+        
+        // Create default 4 handlers as requested
+        nodeConfigs.resize(4);
+        
+        // Handler 1: Master server
+        nodeConfigs[0].id = "0";
+        nodeConfigs[0].type = "master";
+        nodeConfigs[0].params["local_ip"] = bootstrapIp;
+        nodeConfigs[0].params["local_port"] = std::to_string(bootstrapPort + 100);
+        nodeConfigs[0].params["storage_ip"] = "127.0.0.1";
+        nodeConfigs[0].params["storage_port"] = std::to_string(bootstrapPort + 101);
+        nodeConfigs[0].params["events_ip"] = "127.0.0.1";
+        nodeConfigs[0].params["events_port"] = std::to_string(bootstrapPort + 102);
+        nodeConfigs[0].params["proxy_ip"] = "127.0.0.1";
+        nodeConfigs[0].params["proxy_port"] = std::to_string(bootstrapPort + 103);
+        
+        // Handler 2: Arduino + Intermediary
+        nodeConfigs[1].id = "1";
+        nodeConfigs[1].type = "arduino_intermediary";
+        nodeConfigs[1].params["master_ip"] = bootstrapIp;
+        nodeConfigs[1].params["master_port"] = std::to_string(bootstrapPort + 100);
+        nodeConfigs[1].params["arduino_serial"] = "simulate";
+        nodeConfigs[1].params["arduino_mode"] = "binary";
+        nodeConfigs[1].params["inter_port"] = std::to_string(bootstrapPort + 104);
+        
+        // Handler 3: Proxy + Auth
+        nodeConfigs[2].id = "2";
+        nodeConfigs[2].type = "proxy_auth";
+        nodeConfigs[2].params["local_ip"] = bootstrapIp;
+        nodeConfigs[2].params["local_port"] = std::to_string(bootstrapPort + 105);
+        nodeConfigs[2].params["auth_ip"] = "127.0.0.1";
+        nodeConfigs[2].params["auth_port"] = std::to_string(bootstrapPort + 106);
+        nodeConfigs[2].params["master_ip"] = bootstrapIp;
+        nodeConfigs[2].params["master_port"] = std::to_string(bootstrapPort + 100);
+        
+        // Handler 4: Storage + Events
+        nodeConfigs[3].id = "3";
+        nodeConfigs[3].type = "storage_events";
+        nodeConfigs[3].params["storage_local_ip"] = bootstrapIp;
+        nodeConfigs[3].params["storage_port"] = std::to_string(bootstrapPort + 107);
+        nodeConfigs[3].params["master_ip"] = bootstrapIp;
+        nodeConfigs[3].params["master_port"] = std::to_string(bootstrapPort + 100);
+        nodeConfigs[3].params["node_id"] = "storage1";
+        nodeConfigs[3].params["disk_path"] = "./storage_data";
+        nodeConfigs[3].params["events_ip"] = bootstrapIp;
+        nodeConfigs[3].params["events_port"] = std::to_string(bootstrapPort + 108);
+        nodeConfigs[3].params["events_output"] = "events.log";
+    }
+    
+    // Create bootstrap server
+    Bootstrap server(bootstrapIp, bootstrapPort);
+    
+    // Register all nodes
+    for (size_t i = 0; i < nodeConfigs.size(); i++) {
+        const auto& nodeConfig = nodeConfigs[i];
+        auto adapter = createNodeAdapter(nodeConfig, bootstrapIp, bootstrapPort);
+        
+        // Convert string ID to numeric ID (0-255)
+        uint8_t nodeId;
+        try {
+            nodeId = static_cast<uint8_t>(std::stoi(nodeConfig.id));
+        } catch (...) {
+            nodeId = static_cast<uint8_t>(i);
+        }
+        
+        server.registerNode(nodeId, adapter.first, adapter.second);
+        std::cout << "[Bootstrap] Registered node ID " << (int)nodeId 
+                  << " as type: " << nodeConfig.type << std::endl;
+    }
+    
+    // Run bootstrap server
+    std::thread serverThread([&server]() {
+        server.serveBlocking();
+    });
+    
+    // Interactive menu
+    std::cout << "\n=== Dynamic Bootstrap Interactive Menu ===\n"
+              << "Commands: list | start <id> | stop <id> | startall | stopall | quit\n"
+              << "Registered " << nodeConfigs.size() << " handlers\n" << std::endl;
+    
+    std::string line;
+    while (true) {
+        std::cout << "bootstrap> ";
+        if (!std::getline(std::cin, line) || stopFlag) break;
+        if (line.empty()) continue;
+        
+        if (line == "list") {
+            auto nodes = server.listNodes();
+            std::cout << "Active handlers:\n";
+            for (const auto& [id, running] : nodes) {
+                std::cout << "  ID " << (int)id << ": " 
+                          << (running ? "RUNNING" : "STOPPED") 
+                          << " (Type: ";
+                
+                // Find the type for this ID
+                for (const auto& cfg : nodeConfigs) {
+                    try {
+                        if (static_cast<uint8_t>(std::stoi(cfg.id)) == id) {
+                            std::cout << cfg.type;
+                            break;
+                        }
+                    } catch (...) {}
+                }
+                
+                std::cout << ")\n";
+            }
+            
+        } else if (line == "quit" || line == "exit") {
+            break;
+            
+        } else if (line.rfind("start ", 0) == 0) {
+            try {
+                int id = std::stoi(line.substr(6));
+                if (server.startNode(static_cast<uint8_t>(id))) {
+                    std::cout << "Handler " << id << " started successfully." << std::endl;
+                } else {
+                    std::cout << "Failed to start handler " << id << std::endl;
+                }
+            } catch (...) {
+                std::cout << "Invalid handler ID." << std::endl;
+            }
+            
+        } else if (line.rfind("stop ", 0) == 0) {
+            try {
+                int id = std::stoi(line.substr(5));
+                if (server.stopNode(static_cast<uint8_t>(id))) {
+                    std::cout << "Handler " << id << " stopped successfully." << std::endl;
+                } else {
+                    std::cout << "Failed to stop handler " << id << std::endl;
+                }
+            } catch (...) {
+                std::cout << "Invalid handler ID." << std::endl;
+            }
+            
+        } else if (line == "startall") {
+            auto nodes = server.listNodes();
+            int started = 0;
+            for (const auto& [id, running] : nodes) {
+                if (!running) {
+                    if (server.startNode(id)) {
+                        std::cout << "Started handler " << (int)id << std::endl;
+                        started++;
+                    }
+                }
+            }
+            std::cout << "Started " << started << " handlers." << std::endl;
+            
+        } else if (line == "stopall") {
+            auto nodes = server.listNodes();
+            int stopped = 0;
+            for (const auto& [id, running] : nodes) {
+                if (running) {
+                    if (server.stopNode(id)) {
+                        std::cout << "Stopped handler " << (int)id << std::endl;
+                        stopped++;
+                    }
+                }
+            }
+            std::cout << "Stopped " << stopped << " handlers." << std::endl;
+            
+        } else {
+            std::cout << "Unknown command. Available: list, start <id>, stop <id>, startall, stopall, quit" << std::endl;
+        }
+    }
+    
+    std::cout << "[Bootstrap] Shutting down..." << std::endl;
+    server.stop();
+    serverThread.join();
+    
+    return EXIT_SUCCESS;
+}
+
+/**
+ * @brief Helper to register nodes from config file for bootstrap
+ */
+void registerNodesFromConfig(Bootstrap& server, const std::map<std::string, std::string>& config) {
+    int nodeCount = 0;
+    
+    // Count how many nodes are defined in config
+    for (const auto& entry : config) {
+        if (entry.first.find("node") == 0 && entry.first.find("_type") != std::string::npos) {
+            nodeCount++;
+        }
+    }
+    
+    std::cout << "[Bootstrap] Found " << nodeCount << " nodes in config" << std::endl;
+    
+    // Register each node
+    for (int i = 0; i < nodeCount; i++) {
+        std::string prefix = "node" + std::to_string(i) + "_";
+        std::string type = getConfigValue(config, prefix + "type", "");
+        
+        if (type.empty()) continue;
+        
+        std::cout << "[Bootstrap] Registering node " << i << " (" << type << ")" << std::endl;
+        
+        if (type == "master") {
+            std::string localIp = getConfigValue(config, prefix + "local_ip", "127.0.0.1");
+            uint16_t localPort = parsePort(getConfigValue(config, prefix + "local_port", "6000"));
+            std::string storageIp = getConfigValue(config, prefix + "storage_ip", "127.0.0.1");
+            uint16_t storagePort = parsePort(getConfigValue(config, prefix + "storage_port", "9001"));
+            std::string eventsIp = getConfigValue(config, prefix + "events_ip", "127.0.0.1");
+            uint16_t eventsPort = parsePort(getConfigValue(config, prefix + "events_port", "6001"));
+            std::string proxyIp = getConfigValue(config, prefix + "proxy_ip", "127.0.0.1");
+            uint16_t proxyPort = parsePort(getConfigValue(config, prefix + "proxy_port", "9000"));
+            
+            auto p = makeMasterAdapter(localIp, localPort, storageIp, storagePort, 
+                                       eventsIp, eventsPort, proxyIp, proxyPort);
+            server.registerNode(i, p.first, p.second);
+            
+        } else if (type == "proxy") {
+            std::string localIp = getConfigValue(config, prefix + "local_ip", "0.0.0.0");
+            uint16_t localPort = parsePort(getConfigValue(config, prefix + "local_port", "9000"));
+            std::string authIp = getConfigValue(config, prefix + "auth_ip", "127.0.0.1");
+            uint16_t authPort = parsePort(getConfigValue(config, prefix + "auth_port", "7000"));
+            std::string masterIp = getConfigValue(config, prefix + "master_ip", "127.0.0.1");
+            uint16_t masterPort = parsePort(getConfigValue(config, prefix + "master_port", "6000"));
+            
+            auto p = makeProxyAdapter(localIp, localPort, authIp, authPort, masterIp, masterPort);
+            server.registerNode(i, p.first, p.second);
+            
+        } else if (type == "storage") {
+            uint16_t localPort = parsePort(getConfigValue(config, prefix + "local_port", "9001"));
+            std::string masterIp = getConfigValue(config, prefix + "master_ip", "127.0.0.1");
+            uint16_t masterPort = parsePort(getConfigValue(config, prefix + "master_port", "6000"));
+            std::string nodeId = getConfigValue(config, prefix + "node_id", "storage1");
+            std::string diskPath = getConfigValue(config, prefix + "disk_path", "./storage_data");
+            
+            auto p = makeStorageAdapter(localPort, masterIp, masterPort, nodeId, diskPath);
+            server.registerNode(i, p.first, p.second);
+            
+        } else if (type == "auth") {
+            std::string localIp = getConfigValue(config, prefix + "local_ip", "0.0.0.0");
+            uint16_t localPort = parsePort(getConfigValue(config, prefix + "local_port", "7000"));
+            
+            auto p = makeAuthAdapter(localIp, localPort);
+            server.registerNode(i, p.first, p.second);
+            
+        } else if (type == "arduino") {
+            std::string masterIp = getConfigValue(config, prefix + "master_ip", "127.0.0.1");
+            uint16_t masterPort = parsePort(getConfigValue(config, prefix + "master_port", "6000"));
+            std::string serialPath = getConfigValue(config, prefix + "serial_path", "simulate");
+            std::string mode = getConfigValue(config, prefix + "mode", "binary");
+            
+            auto p = makeArduinoAdapter(masterIp, masterPort, serialPath, mode);
+            server.registerNode(i, p.first, p.second);
+            
+        } else if (type == "events") {
+            std::string localIp = getConfigValue(config, prefix + "local_ip", "0.0.0.0");
+            uint16_t localPort = parsePort(getConfigValue(config, prefix + "local_port", "6001"));
+            std::string outFile = getConfigValue(config, prefix + "output_file", "events.log");
+            std::string masterIp = getConfigValue(config, prefix + "master_ip", "127.0.0.1");
+            uint16_t masterPort = parsePort(getConfigValue(config, prefix + "master_port", "6000"));
+            
+            auto p = makeEventsAdapter(localIp, localPort, outFile, masterIp, masterPort);
+            server.registerNode(i, p.first, p.second);
+            
+        } else if (type == "inter") {
+            std::string localIp = getConfigValue(config, prefix + "local_ip", "0.0.0.0");
+            uint16_t localPort = parsePort(getConfigValue(config, prefix + "local_port", "9002"));
+            uint16_t masterPort = parsePort(getConfigValue(config, prefix + "master_port", "6000"));
+            
+            auto p = makeIntermediaryAdapter(localIp, localPort, masterPort);
+            server.registerNode(i, p.first, p.second);
+        }
+    }
+}
+
+/**
+ * @brief Processes bootstrap with config file or command line
+ */
+int processBootstrap(int argc, char* argv[]) {
+    std::map<std::string, std::string> config;
+    std::string bindIp = "0.0.0.0";
+    uint16_t bindPort = 8080;
+    bool usingConfigFile = false;
+    std::string configFile;
+
+    if (argc >= 3) {
+        std::string secondArg = argv[2];
+        if (secondArg.size() > 4 && secondArg.substr(secondArg.size() - 4) == ".txt") {
+            configFile = secondArg;
+            usingConfigFile = true;
+        } else {
+            try {
+                std::string resolved = resolveConfigPath(secondArg);
+                configFile = secondArg;
+                usingConfigFile = true;
+            } catch (...) {
+                bindIp = secondArg;
+                if (argc >= 4) {
+                    bindPort = parsePort(argv[3]);
+                }
+            }
+        }
+    }
+
+    if (usingConfigFile) {
+        // Check if it's a dynamic config
+        auto testConfig = parseConfigFile(configFile);
+        if (testConfig.find("Bootstrap-id") != testConfig.end() || 
+            testConfig.find("Ip") != testConfig.end()) {
+            std::cout << "[Bootstrap] Detected dynamic configuration format - redirecting to bootstrap-dynamic" << std::endl;
+            return processBootstrapDynamic(argc, argv);
+        }
+        
+        config = testConfig;
+        std::cout << "[Main] Running bootstrap with config file: " << configFile << std::endl;
+        
+        bindIp = getConfigValue(config, "bootstrap_ip", "0.0.0.0");
+        bindPort = parsePort(getConfigValue(config, "bootstrap_port", "8080"));
+    }
+
+    Bootstrap server(bindIp, bindPort);
+    std::cout << "[Bootstrap] Server started on " << bindIp << ":" << bindPort << std::endl;
+
+    if (usingConfigFile) {
+        // Use the existing registration logic for old format
+        registerNodesFromConfig(server, config);
+    } else {
+        // Default hardcoded nodes (backward compatibility)
+        std::cout << "[Bootstrap] Using default hardcoded nodes" << std::endl;
+        
+        // ID 0: SafeSpaceServer (master)
+        {
+            auto p = makeMasterAdapter("127.0.0.1", 6000,
+                                      "0.0.0.0", 9001,
+                                      "0.0.0.0", 6001,
+                                      "0.0.0.0", 9000);
+            server.registerNode(0, p.first, p.second);
+        }
+        
+        // ID 1: ProxyNode
+        {
+            auto p = makeProxyAdapter("0.0.0.0", 9000, "0.0.0.0", 7000, "127.0.0.1", 6000);
+            server.registerNode(1, p.first, p.second);
+        }
+
+        // ID 2: StorageNode
+        {
+            auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "../src/model/data/registers.bin");
+            server.registerNode(2, p.first, p.second);
+        }
+
+        // ID 3: IntermediaryNode
+        {
+            auto p = makeIntermediaryAdapter("0.0.0.0", 9002, 6000);
+            server.registerNode(3, p.first, p.second);
+        }
+
+        // ID 4: AuthUDPServer
+        {
+            auto p = makeAuthAdapter("0.0.0.0", 7000);
+            server.registerNode(4, p.first, p.second);
+        }
+
+        // ID 5: ArduinoNode
+        {
+            auto p = makeArduinoAdapter("127.0.0.1", 6000, "/dev/ttyACM0", "binary");
+            server.registerNode(5, p.first, p.second);
+        }
+
+        // ID 6: CriticalEventsNode
+        {
+            auto p = makeEventsAdapter("0.0.0.0", 6001, "logs.txt", "127.0.0.1", 6000);
+            server.registerNode(6, p.first, p.second);
+        }
+    }
+
+    // Run bootstrap in background
+    std::thread serverThread([&server]() {
+        server.serveBlocking();
+    });
+
+    // Interactive menu
+    std::cout << "\nBootstrap interactive menu started. Commands:\n"
+              << "  list           - List all registered nodes\n"
+              << "  start <id>     - Start a specific node\n"
+              << "  stop <id>      - Stop a specific node\n"
+              << "  startall       - Start all nodes\n"
+              << "  stopall        - Stop all nodes\n"
+              << "  quit / exit    - Exit bootstrap\n" << std::endl;
+
+    std::string line;
+    while (true) {
+        std::cout << "bootstrap> ";
+        if (!std::getline(std::cin, line) || stopFlag) break;
+        if (line.empty()) continue;
+        
+        if (line == "list") {
+            auto nodes = server.listNodes();
+            std::cout << "Registered nodes (" << nodes.size() << "):\n";
+            for (const auto& [id, running] : nodes) {
+                std::cout << "  ID " << (int)id << ": " 
+                          << (running ? "RUNNING" : "STOPPED") << std::endl;
+            }
+            
+        } else if (line == "quit" || line == "exit") {
+            break;
+            
+        } else if (line.rfind("start ", 0) == 0) {
+            try {
+                int id = std::stoi(line.substr(6));
+                if (server.startNode(id)) {
+                    std::cout << "Node " << id << " started successfully." << std::endl;
+                } else {
+                    std::cout << "Failed to start node " << id << std::endl;
+                }
+            } catch (...) {
+                std::cout << "Invalid node ID." << std::endl;
+            }
+            
+        } else if (line.rfind("stop ", 0) == 0) {
+            try {
+                int id = std::stoi(line.substr(5));
+                if (server.stopNode(id)) {
+                    std::cout << "Node " << id << " stopped successfully." << std::endl;
+                } else {
+                    std::cout << "Failed to stop node " << id << std::endl;
+                }
+            } catch (...) {
+                std::cout << "Invalid node ID." << std::endl;
+            }
+            
+        } else if (line == "startall") {
+            auto nodes = server.listNodes();
+            for (const auto& [id, running] : nodes) {
+                if (!running) {
+                    server.startNode(id);
+                    std::cout << "Started node " << (int)id << std::endl;
+                }
+            }
+            
+        } else if (line == "stopall") {
+            auto nodes = server.listNodes();
+            for (const auto& [id, running] : nodes) {
+                if (running) {
+                    server.stopNode(id);
+                    std::cout << "Stopped node " << (int)id << std::endl;
+                }
+            }
+            
+        } else {
+            std::cout << "Unknown command. Available: list, start <id>, stop <id>, startall, stopall, quit" << std::endl;
+        }
+    }
+
+    std::cout << "[Bootstrap] Shutting down..." << std::endl;
+    server.stop();
+    serverThread.join();
+    std::cout << "[Bootstrap] Stopped cleanly." << std::endl;
+
+    return EXIT_SUCCESS;
 }
 
 /**
@@ -222,7 +1018,11 @@ int processServer(const std::string& type, int argc, char* argv[]) {
             proxyPort = parsePort(getConfigValue(config, "proxy_port", "8083"));
 
             std::string firewallOpt = getConfigValue(config, "firewall", "false");
-            manageFirewall = (firewallOpt == "true" || firewallOpt == "enable");
+            manageFirewall = (firewallOpt == "true" || firewallOpt == "enable" || firewallOpt == "1");
+            
+            std::cout << "[Main] Firewall setting: " << firewallOpt 
+                      << " -> " << (manageFirewall ? "ENABLED" : "DISABLED") << std::endl;
+            
         } else if (argc == 10 || argc == 11) {
             // Original parameter-based approach
             localIp = argv[2];
@@ -250,12 +1050,16 @@ int processServer(const std::string& type, int argc, char* argv[]) {
         if (manageFirewall) {
             // Prepare port lists: enable the ports provided to this server instance
             std::vector<uint16_t> udp_ports = { localPort, storagePort, eventsPort, proxyPort };
-            std::vector<uint16_t> tcp_ports = { 22 };
+            std::vector<uint16_t> tcp_ports = { 22 }; // Keep SSH open
             if (!fw.enable(udp_ports, tcp_ports, true)) {
                 std::cerr << "[Main] Warning: failed to enable firewall (are you root?). Continuing without firewall." << std::endl;
             } else {
                 fw_enabled = true;
-                std::cout << "[Main] Firewall enabled for server ports." << std::endl;
+                std::cout << "[Main] Firewall enabled for ports: UDP ";
+                for (auto port : udp_ports) std::cout << port << " ";
+                std::cout << "/ TCP ";
+                for (auto port : tcp_ports) std::cout << port << " ";
+                std::cout << std::endl;
             }
         }
 
@@ -419,6 +1223,9 @@ int processServer(const std::string& type, int argc, char* argv[]) {
         ArduinoNode node(masterIP, masterPort, serialPath, mode);
         node.run();
 
+    } else if (type == "bootstrap-dynamic") {
+        return processBootstrapDynamic(argc, argv);
+        
     } else {
         throw std::runtime_error("Invalid component type: " + type);
     }
@@ -439,96 +1246,13 @@ int main(const int argc, char* argv[]) {
     try {
         std::string type = argv[1];
 
-        if (type == "bootstrap") {
-            // Bootstrap puede iniciarse con IP/PORT opcionales: `bootstrap <ip> <port>`
-            std::string bindIp = "0.0.0.0";
-            uint16_t bindPort = 8080;
-            if (argc >= 4) {
-                bindIp = argv[2];
-                bindPort = parsePort(argv[3]);
+        if (type == "bootstrap" || type == "bootstrap-dynamic") {
+            if (type == "bootstrap-dynamic") {
+                return processBootstrapDynamic(argc, argv);
+            } else {
+                return processBootstrap(argc, argv);
             }
-
-            Bootstrap server(bindIp, bindPort);
-
-            // Registrar adaptadores para nodos comunes (IDs por convención)
-            // ID 1: ProxyNode (escucha 9000), reenvía a Auth=7000 y Master=6000
-            {
-                auto p = makeProxyAdapter("0.0.0.0", 9000, "0.0.0.0", 7000, "127.0.0.1", 6000);
-                server.registerNode(1, p.first, p.second);
-            }
-
-            // ID 2: StorageNode (puerto 9001), master en 127.0.0.1:6000
-            {
-                auto p = makeStorageAdapter(9001, "127.0.0.1", 6000, "storage1", "../src/model/data/registers.bin");
-                server.registerNode(2, p.first, p.second);
-            }
-
-            // ID 3: IntermediaryNode (escucha 9002), master 127.0.0.1:6000
-            {
-                auto p = makeIntermediaryAdapter("0.0.0.0", 9002, 6000);
-                server.registerNode(3, p.first, p.second);
-            }
-
-            // ID 4: AuthUDPServer (escucha 7000)
-            {
-                auto p = makeAuthAdapter("0.0.0.0", 7000);
-                server.registerNode(4, p.first, p.second);
-            }
-
-            // ID 5: ArduinoNode (simulado) enviando a master 127.0.0.1:6000
-            {
-                auto p = makeArduinoAdapter("0.0.0.0", 9002, "/dev/ttyACM0", "binary");
-                server.registerNode(5, p.first, p.second);
-            }
-
-            // ID 6: CriticalEventsNode (escucha 7001) -> guarda en data/events.log
-            {
-                auto p = makeEventsAdapter("0.0.0.0", 6001, "logs.txt", "127.0.0.1", 6000);
-                server.registerNode(6, p.first, p.second);
-            }
-
-            // ID 0: SafeSpaceServer (master) — permite levantar el servidor maestro
-            // por defecto enlazará en 127.0.0.1:6000 y asumirá que Storage, Events
-            // y Proxy usan los puertos por convención usados arriba.
-            {
-                auto p = makeMasterAdapter("127.0.0.1", 6000,
-                                        "0.0.0.0", 9001,
-                                        "0.0.0.0", 6001,
-                                        "0.0.0.0", 9000);
-                server.registerNode(0, p.first, p.second);
-            }
-
-            // Run bootstrap in background so we can control nodes interactively
-            std::thread serverThread([&server]() {
-                server.serveBlocking();
-            });
-
-            std::cout << "Bootstrap interactive menu started. Commands: list | start <id> | stop <id> | quit" << std::endl;
-            std::string line;
-            while (true) {
-                std::cout << "> ";
-                if (!std::getline(std::cin, line)) break;
-                if (line.empty()) continue;
-                if (line == "list") {
-                    auto nodes = server.listNodes();
-                    std::cout << "Registered nodes:\n";
-                    for (auto &p : nodes) {
-                        std::cout << "  id=" << int(p.first) << " running=" << (p.second ? "yes" : "no") << std::endl;
-                    }
-                } else if (line == "quit" || line == "exit") {
-                    break;
-                } else if (line.rfind("start ", 0) == 0) {
-                    // start command
-                } else if (line.rfind("stop ", 0) == 0) {
-                    // stop command
-                }
-            }
-
-            server.stop();
-            serverThread.join();
-            std::cout << "[Main] Bootstrap stopped cleanly." << std::endl;
         } else {
-            // Process all other component types using the unified function
             return processServer(type, argc, argv);
         }
     } catch (const std::exception& ex) {

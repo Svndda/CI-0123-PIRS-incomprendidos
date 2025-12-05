@@ -1,14 +1,36 @@
-# Bootstrap Server Configuration
-# Initial service discovery and coordination
+# Configuración del servidor bootstrap
+bootstrap_ip=0.0.0.0
+bootstrap_port=8080
 
-local_ip=172.16.123.100
-local_port=8080
+# Nodo 0 - Master Server
+node0_type=master
+node0_local_ip=127.0.0.1
+node0_local_port=6000
+node0_storage_ip=127.0.0.1
+node0_storage_port=9001
+node0_events_ip=127.0.0.1
+node0_events_port=6001
+node0_proxy_ip=127.0.0.1
+node0_proxy_port=9000
 
-# Service registry
-service_timeout=30
-max_services=100
+# Nodo 1 - Proxy
+node1_type=proxy
+node1_local_ip=0.0.0.0
+node1_local_port=9000
+node1_auth_ip=127.0.0.1
+node1_auth_port=7000
+node1_master_ip=127.0.0.1
+node1_master_port=6000
 
-# Discovery settings
-broadcast_enabled=true
-multicast_group=239.255.255.250
-multicast_port=1900
+# Nodo 2 - Storage
+node2_type=storage
+node2_local_port=9001
+node2_master_ip=127.0.0.1
+node2_master_port=6000
+node2_node_id=storage1
+node2_disk_path=./storage_data
+
+# Nodo 3 - Auth
+node3_type=auth
+node3_local_ip=0.0.0.0
+node3_local_port=7000
